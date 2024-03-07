@@ -282,7 +282,17 @@ def create_daily_file_report():
             filetype,
             SUM(lines) as lines,
             COUNT(*) as count_files
-        FROM {TRACKING_TABLES["file"].table_name}
+        FROM {TRACKING_TABLES["file"].table_name} as t1
+        JOIN (                                              -- use this join to get only the latest record for
+                                                            -- each file to avoid counting duplicates
+            SELECT 
+                inode,
+                MAX(date_scanned) as max_date_scanned
+            FROM {TRACKING_TABLES["file"].table_name}
+            GROUP BY
+                inode
+        ) as t2
+        ON t1.inode = t2.inode AND t1.date_scanned = t2.max_date_scanned
         GROUP BY 
             DATE(date_modified),
             filetype
@@ -298,7 +308,17 @@ def create_daily_file_report():
             DATE(date_modified) as date,
             SUM(lines) as lines,
             COUNT(*) as count_files
-        FROM {TRACKING_TABLES["file"].table_name}
+        FROM {TRACKING_TABLES["file"].table_name} as t1
+        JOIN (                                              -- use this join to get only the latest record for
+                                                            -- each file to avoid counting duplicates
+            SELECT 
+                inode,
+                MAX(date_scanned) as max_date_scanned 
+            FROM {TRACKING_TABLES["file"].table_name}
+            GROUP BY 
+                inode
+        ) as t2 
+        ON t1.inode = t2.inode AND t1.date_scanned = t2.max_date_scanned
         GROUP BY
             DATE(date_modified)
     """
