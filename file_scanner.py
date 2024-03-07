@@ -279,7 +279,8 @@ def create_daily_file_report():
         SELECT
             DATE(date_modified) as date,
             filetype,
-            SUM(lines) as lines
+            SUM(lines) as lines,
+            COUNT(*) as count_files
         FROM {TRACKING_TABLES["file"].table_name}
         GROUP BY 
             DATE(date_modified),
@@ -294,7 +295,8 @@ def create_daily_file_report():
     sql = f"""
         SELECT
             DATE(date_modified) as date,
-            SUM(lines) as lines
+            SUM(lines) as lines,
+            COUNT(*) as count_files
         FROM {TRACKING_TABLES["file"].table_name}
         GROUP BY
             DATE(date_modified)
