@@ -14,9 +14,8 @@ import apsw
 import pandas as pd
 from pydantic import BaseModel, Field
 
-print(os.path.abspath(__file__))
-CONFIG_PATH = "/home/matus/apps/file_scanner/config.json"
-LOG_TO_CONSOLE = True  # Enable for easier debugging
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+LOG_TO_CONSOLE = False  # Enable for easier debugging
 
 
 class ScanConfig(BaseModel):
