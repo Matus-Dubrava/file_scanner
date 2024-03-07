@@ -10,8 +10,10 @@ import subprocess
 import time
 import logging
 from logging.handlers import RotatingFileHandler
+import shutil
 
 CONFIG_PATH = "/home/matus/blob/config.json"
+REPORTS_DIR = "/home/matus/blob/reports"
 LOG_PATH = "/home/matus/blob/scan.log"
 
 # ====================================== LOGGING ====================================================
@@ -129,11 +131,11 @@ class SqliteCursorWithLock:
 
 
 def get_sqlite_datetime(datetime: datetime) -> str:
-    return datetime.strftime("%Y-%m-%d %H:%M:%S'")
+    return datetime.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def datetime_from_sqlite_datetime(sqlite_datetime: str) -> datetime:
-    return datetime.strptime(sqlite_datetime, "%Y-%m-%d %H:%M:%S'")
+    return datetime.strptime(sqlite_datetime, "%Y-%m-%d %H:%M:%S")
 
 
 def dump_db_to_csv(scan_config: ScanConfig):
@@ -262,6 +264,49 @@ def insert_data(table: TableDescription, records: List[Any]) -> None:
         curs.execute("commit")
 
 
+def create_daily_file_report():
+    daily_report_total = os.path.join(REPORTS_DIR, "daily_total.csv")
+    daily_report_by_type = os.path.join(REPORTS_DIR, "daily_by_type.csv")
+
+    if os.path.exists(REPORTS_DIR):
+        shutil.rmtree(REPORTS_DIR)
+
+    os.makedirs(REPORTS_DIR)
+
+    conn, curs = get_sqlite_conn(TRACKING_TABLES["file"].file_path)
+
+    sql = f"""
+        SELECT
+            DATE(date_modified) as date,
+            filetype,
+            SUM(lines) as lines
+        FROM {TRACKING_TABLES["file"].table_name}
+        GROUP BY 
+            DATE(date_modified),
+            filetype
+        ORDER BY 
+            DATE(date_modified)
+    """
+
+    df = pd.read_sql(sql, conn)
+    df.to_csv(daily_report_by_type, index=False, header=True)
+
+    sql = f"""
+        SELECT
+            DATE(date_modified) as date,
+            SUM(lines) as lines
+        FROM {TRACKING_TABLES["file"].table_name}
+        GROUP BY
+            DATE(date_modified)
+    """
+
+    df = pd.read_sql(sql, conn)
+    df.to_csv(daily_report_total, index=False, header=True)
+
+    curs.close()
+    conn.close()
+
+
 def collect_file_stats(filepath: str, scan_start_time: datetime) -> FileStat:
     error_occured = False
     error_tracebacks = []
@@ -375,8 +420,10 @@ if __name__ == "__main__":
                 ],
             )
 
-            dump_db_to_csv(scan_config)
         else:
             logger.debug("skipping scan")
+
+        dump_db_to_csv(scan_config)
+        create_daily_file_report()
     except Exception:
         logger.error(str(traceback.format_exc()).replace("\n", ","))
