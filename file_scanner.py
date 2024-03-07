@@ -144,8 +144,8 @@ def datetime_from_sqlite_datetime(sqlite_datetime: str) -> datetime:
 
 
 def pandas_read_sql_without_warnings(sql: str, conn: apsw.Connection) -> pd.DataFrame:
-    # Pandas doesn't directly support apsw.Connection object but works fine fine
-    # with it for our purposes. Therefore we are silencig the warning here.
+    # Pandas doesn't directly support apsw.Connection object but works fine
+    # with it for our purposes. Therefore we are silencing the warning here.
     # silenced warning:
     #   UserWarning: pandas only supports SQLAlchemy connectable (engine/connection)
     #   or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested.
