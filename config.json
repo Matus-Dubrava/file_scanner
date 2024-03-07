@@ -1,0 +1,8 @@
+{
+    "scan_paths": [
+        "/home/matus/programming/",
+        "/home/matus/blob"
+    ],
+    "database_filepath": "/home/matus/blob/file_records.dat",
+    "scan_period_wait_time_hours": 24
+}
