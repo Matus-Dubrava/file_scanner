@@ -8,6 +8,7 @@ import traceback
 from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from typing import Any, List, Optional, Tuple
+import warnings
 
 import apsw
 import pandas as pd
@@ -16,6 +17,7 @@ from pydantic import BaseModel, Field
 CONFIG_PATH = "/home/matus/blob/config.json"
 REPORTS_DIR = "/home/matus/blob/reports"
 LOG_PATH = "/home/matus/blob/scan.log"
+LOG_TO_CONSOLE = False  # Enable for easier debugging
 
 # ====================================== LOGGING ====================================================
 logger = logging.getLogger("scan_logger")
@@ -31,8 +33,10 @@ file_handler = RotatingFileHandler(LOG_PATH, maxBytes=5 * 1024 * 1024, backupCou
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 
-logger.addHandler(console_handler)
 logger.addHandler(file_handler)
+
+if LOG_TO_CONSOLE:
+    logger.addHandler(console_handler)
 # ===================================================================================================
 
 
@@ -139,6 +143,19 @@ def datetime_from_sqlite_datetime(sqlite_datetime: str) -> datetime:
     return datetime.strptime(sqlite_datetime, "%Y-%m-%d %H:%M:%S")
 
 
+def pandas_read_sql_without_warnings(sql: str, conn: apsw.Connection) -> pd.DataFrame:
+    # Pandas doesn't directly support apsw.Connection object but works fine fine
+    # with it for our purposes. Therefore we are silencig the warning here.
+    # silenced warning:
+    #   UserWarning: pandas only supports SQLAlchemy connectable (engine/connection)
+    #   or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested.
+    #   Please consider using SQLAlchemy.
+    #       df = pd.read_sql(sql, conn)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        return pd.read_sql(sql, conn)
+
+
 def dump_db_to_csv(scan_config: ScanConfig):
     for table in TRACKING_TABLES.values():
         conn, curs = get_sqlite_conn(filepath=scan_config.database_filepath)
@@ -147,7 +164,7 @@ def dump_db_to_csv(scan_config: ScanConfig):
         """
         curs.execute(sql)
         try:
-            df = pd.read_sql(sql, conn)
+            df = pandas_read_sql_without_warnings(sql, conn)
             df.to_csv(table.csv_dump_file, index=False, header=True)
         except apsw.ExecutionCompleteError:
             # Apparently, this exception will be thrown when pandas
@@ -300,7 +317,7 @@ def create_daily_file_report():
             DATE(date_modified)
     """
 
-    df = pd.read_sql(sql, conn)
+    df = pandas_read_sql_without_warnings(sql, conn)
     df.to_csv(daily_report_by_type, index=False, header=True)
 
     sql = f"""
@@ -323,7 +340,7 @@ def create_daily_file_report():
             DATE(date_modified)
     """
 
-    df = pd.read_sql(sql, conn)
+    df = pandas_read_sql_without_warnings(sql, conn)
     df.to_csv(daily_report_total, index=False, header=True)
 
     curs.close()
