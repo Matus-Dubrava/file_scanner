@@ -133,6 +133,6 @@ def collect_file_stats(filepath: str, scan_start_time: datetime) -> models.FileS
         filepath=filepath,
         error_occured=error_occured,
         error_traceback=" | ".join(error_tracebacks),
-        filetype=filename.rsplit(".", 1)[1],
+        filetype=os.path.splitext(filename)[1][1:],
         inode=inode,
     )
