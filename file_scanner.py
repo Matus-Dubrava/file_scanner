@@ -193,7 +193,15 @@ class Scan:
         sql = f"""
             SELECT
                 DATE(date_modified) as date,
-                SUM(lines) as lines,
+                SUM(CASE 
+                    WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) <= 1 THEN lines 
+                    ELSE 0 END
+                ) as new_lines,
+                SUM(CASE 
+                    WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) > 1 THEN lines 
+                    ELSE 0 END
+                ) as lines_modified,
+                SUM(lines) as total_lines,
                 SUM(CASE 
                     WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) > 1 THEN 1 
                     ELSE 0 END
