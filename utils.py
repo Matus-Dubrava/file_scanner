@@ -41,6 +41,20 @@ class SqliteCursorWithLock:
             self.conn = None
 
 
+def get_file_created_timestamp(filepath: str) -> int:
+    # Running "os.stat(filepath).st_ctime" doesn't return date of file creation,
+    # instead it returns last date of file's metadata modification. There
+    # doesn't seem to be more straightforward way to pull the file's creation
+    # date on linux then this.
+
+    proc = subprocess.run(["stat", "-c", "%W", filepath], capture_output=True)
+
+    if proc.stderr:
+        raise Exception(f"failed to get 'date_created' for file: {filepath}")
+
+    return int(proc.stdout.strip())
+
+
 def get_sqlite_datetime(datetime: datetime) -> str:
     return datetime.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -106,14 +120,14 @@ def collect_file_stats(filepath: str, scan_start_time: datetime) -> models.FileS
     error_tracebacks = []
     filename = os.path.basename(filepath)
     inode = 0
-    date_created = 0.0
+    date_created = 0
     date_modified = 0.0
     line_count_stat = models.LineCountStat()
 
     try:
         file_stat = os.stat(filepath)
         inode = file_stat.st_ino
-        date_created = file_stat.st_ctime
+        date_created = get_file_created_timestamp(filepath)
         date_modified = file_stat.st_mtime
         line_count_stat = get_line_count(filepath)
     except Exception:

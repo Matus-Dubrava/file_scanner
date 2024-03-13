@@ -151,7 +151,23 @@ class Scan:
             SELECT
                 DATE(date_modified) as date,
                 filetype,
-                SUM(lines) as lines,
+                SUM(CASE 
+                    WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) <= 1 THEN lines 
+                    ELSE 0 END
+                ) as new_lines,
+                SUM(CASE 
+                    WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) > 1 THEN lines 
+                    ELSE 0 END
+                ) as lines_modified,
+                SUM(lines) as total_lines,
+                SUM(CASE 
+                    WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) <= 1 THEN 1 
+                    ELSE 0 END
+                ) as count_new_files,
+                SUM(CASE 
+                    WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) > 1 THEN 1 
+                    ELSE 0 END
+                ) as count_files_modified,
                 COUNT(*) as count_files
             FROM {self.tracking_tables["file"].table_name} as t1
             JOIN (                                              -- use this join to get only the latest record for
@@ -178,6 +194,14 @@ class Scan:
             SELECT
                 DATE(date_modified) as date,
                 SUM(lines) as lines,
+                SUM(CASE 
+                    WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) > 1 THEN 1 
+                    ELSE 0 END
+                ) as count_files_modified,
+                SUM(CASE 
+                    WHEN JULIANDAY(date_modified) - JULIANDAY(date_created) <= 1 THEN 1 
+                    ELSE 0 END
+                ) as count_new_files,
                 COUNT(*) as count_files
             FROM {self.tracking_tables["file"].table_name} as t1
             JOIN (                                              -- use this join to get only the latest record for
