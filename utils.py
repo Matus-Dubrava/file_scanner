@@ -47,6 +47,12 @@ def get_file_created_timestamp(filepath: str) -> int:
     # doesn't seem to be more straightforward way to pull the file's creation
     # date on linux then this.
 
+    # from docs:
+    # stat.ST_CTIME
+    #     The “ctime” as reported by the operating system. On some systems (like Unix)
+    #     is the time of the last metadata change, and, on others (like Windows),
+    #     is the creation time (see platform documentation for details).
+
     proc = subprocess.run(["stat", "-c", "%W", filepath], capture_output=True)
 
     if proc.stderr:
