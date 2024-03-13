@@ -47,7 +47,7 @@ def get_file_created_timestamp(filepath: str) -> int:
     # doesn't seem to be more straightforward way to pull the file's creation
     # date on linux then this.
 
-    # from docs:
+    # from docs (https://docs.python.org/3/library/stat.html):
     # stat.ST_CTIME
     #     The “ctime” as reported by the operating system. On some systems (like Unix)
     #     is the time of the last metadata change, and, on others (like Windows),
@@ -72,11 +72,13 @@ def datetime_from_sqlite_datetime(sqlite_datetime: str) -> datetime:
 def pandas_read_sql_without_warnings(sql: str, conn: apsw.Connection) -> pd.DataFrame:
     # Pandas doesn't directly support apsw.Connection object but works fine
     # with it for our purposes. Therefore we are silencing the warning here.
+
     # silenced warning:
     #   UserWarning: pandas only supports SQLAlchemy connectable (engine/connection)
     #   or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested.
     #   Please consider using SQLAlchemy.
     #       df = pd.read_sql(sql, conn)
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=UserWarning)
         return pd.read_sql(sql, conn)
@@ -108,6 +110,17 @@ def is_tracked(filepath: str) -> bool:
         text=True,
     )
     return result.stdout.strip() == "true"
+
+
+def get_file_type(filename: str) -> str:
+    # returns extension if there is one, otherwise return the name of the file,
+    # this is useful in case of Makefile or Dockerfile etc.
+    parts = os.path.splitext(filename)
+
+    if parts[1]:
+        return parts[1][1:].lower()  # remove the leading dot (.) from the extension
+    else:
+        return parts[0].lower()
 
 
 def insert_data(table: models.TableDescription, records: List[Any]) -> None:
@@ -153,6 +166,6 @@ def collect_file_stats(filepath: str, scan_start_time: datetime) -> models.FileS
         filepath=filepath,
         error_occured=error_occured,
         error_traceback=" | ".join(error_tracebacks),
-        filetype=os.path.splitext(filename)[1][1:],
+        filetype=get_file_type(filename),
         inode=inode,
     )
