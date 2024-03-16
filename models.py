@@ -1,6 +1,24 @@
 from typing import Any, List, Tuple
 
 from pydantic import BaseModel, Field
+from enum import Enum, unique
+
+
+@unique
+class Environment(Enum):
+    PROD = "PROD"
+    DEV = "DEV"
+
+    @staticmethod
+    def from_str(value: str) -> "Environment":
+        if value.lower() == "prod":
+            return Environment.PROD
+        elif value.lower() == "dev":
+            return Environment.DEV
+        else:
+            raise Exception(
+                f"Invalid environment value, expected one of [PROD, DEV], received: {value}."
+            )
 
 
 class ScanConfig(BaseModel):
@@ -10,6 +28,7 @@ class ScanConfig(BaseModel):
     csv_dump_path: str
     log_file: str
     reports_path: str
+    environment: Environment
 
 
 class TableDescription(BaseModel):

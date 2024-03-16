@@ -7,22 +7,30 @@ import traceback
 from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from typing import List
+import argparse
 
 import apsw
 
-import models
+from models import (
+    FileStat,
+    Environment,
+    ScanConfig,
+    ScanStat,
+    TableDescription,
+)
 import utils
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
-LOG_TO_CONSOLE = False  # Enable for easier debugging
+# Enable for easier debugging if for some reason we need to troubleshoot prod version.
+# Loggin to console in dev version is enabled by default.
+LOG_TO_CONSOLE = False
 
 
 class Scan:
-    def __init__(self, scan_config: models.ScanConfig) -> None:
+    def __init__(self, scan_config: ScanConfig) -> None:
         self.scan_config = scan_config
 
         self.tracking_tables = {
-            "file": models.TableDescription(
+            "file": TableDescription(
                 table_name="file",
                 file_path=self.scan_config.database_filepath,
                 lock=threading.Lock(),
@@ -42,7 +50,7 @@ class Scan:
                 primary_key=["date__inode"],
                 csv_dump_file=os.path.join(self.scan_config.csv_dump_path, "files.csv"),
             ),
-            "scan": models.TableDescription(
+            "scan": TableDescription(
                 table_name="scan",
                 file_path=self.scan_config.database_filepath,
                 lock=threading.Lock(),
@@ -92,7 +100,7 @@ class Scan:
 
         self.logger.addHandler(file_handler)
 
-        if LOG_TO_CONSOLE:
+        if LOG_TO_CONSOLE or self.scan_config.environment == Environment.DEV:
             self.logger.addHandler(console_handler)
 
     def intialize_tracking_tables(self) -> None:
@@ -245,18 +253,18 @@ class Scan:
         # no row in the table, running "MAX(date_scanned)" will return one row
         # where the value is set to None
         if not len(data) or data[0][0] is None:
-            self.logger.debug("no previous scan detected")
+            self.logger.debug("No previous scan detected.")
             perform_scan = True
         elif datetime.now() - utils.datetime_from_sqlite_datetime(
             data[0][0]
         ) >= timedelta(hours=scan_config.scan_period_wait_time_hours):
             self.logger.debug(
-                f"time since last scan: {datetime.now() - utils.datetime_from_sqlite_datetime(data[0][0])}"
+                f"Time since last scan: {datetime.now() - utils.datetime_from_sqlite_datetime(data[0][0])}."
             )
             perform_scan = True
         else:
             self.logger.debug(
-                f"time since last scan: {datetime.now() - utils.datetime_from_sqlite_datetime(data[0][0])}"
+                f"Time since last scan: {datetime.now() - utils.datetime_from_sqlite_datetime(data[0][0])}."
             )
 
         curs.close()
@@ -265,25 +273,66 @@ class Scan:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(prog="file scanner")
+    parser.add_argument(
+        "--env",
+        dest="environment",
+        choices=["dev", "prod"],
+        required=False,
+        help="environment [dev, prod]",
+        default="prod",
+    )
+    parser.add_argument(
+        "--clear",
+        dest="clear",
+        action="store_true",
+        default=False,
+        help="Clear option for development environment",
+    )
+
+    # Don't call "parser.parse_args()" directly. There is additional validation
+    # logic that needs to be run when arguments are being parsed. Skipping this
+    # validation can lead to data loss/corruption.
+    args = utils.validate_args(parser)
+
+    if args.environment == Environment.PROD:
+        config_path = os.path.join(os.path.dirname(__file__), "configs", "config.json")
+    elif args.environment == Environment.DEV:
+        config_path = os.path.join(
+            os.path.dirname(__file__), "configs", "config_dev.json"
+        )
+
     # TODO: If something fails during Scan initialization, no logs are produced
     # since logger is part of the Scan class
-    with open(CONFIG_PATH) as f:
-        scan_config = models.ScanConfig.model_validate_json(f.read())
+    with open(config_path) as f:
+        scan_config = ScanConfig.model_validate_json(f.read())
+
+    # If --clear flag is set, clear the dev environment files. This is useful
+    # to avoid UNIQUE costraint failuers when inserting same data into dev database.
+    if args.clear:
+        utils.clear_dev_environment(scan_config, delete_logs=False)
 
     scan = Scan(scan_config)
+    scan.logger.debug("=================== Starting Scan ===================")
+    scan.logger.debug(f"Environment: {scan_config.environment}")
 
+    start_time = time.time()
     try:
         if scan.should_perform_scan():
-            start_time = time.time()
             files_scanned = 0
             files_skipped = 0
             current_datetime = datetime.now()
 
-            for filepath in scan_config.scan_paths:
-                scan.logger.debug(f"scanning, root dir: {filepath}")
-                file_stats: List[models.FileStat] = []
+            # TODO: can this be reasonably parallelized?
+            for root_path in scan_config.scan_paths:
+                scan.logger.debug(f"Scanning root dir: {root_path}")
 
-                for foldername, subfolders, filenames in os.walk(filepath):
+                current_dir_files_scanned = 0
+                current_dir_files_skipped = 0
+                current_dir_scan_start_time = time.time()
+                file_stats: List[FileStat] = []
+
+                for foldername, subfolders, filenames in os.walk(root_path):
                     for filename in filenames:
                         filepath = os.path.join(foldername, filename)
                         if utils.is_tracked(filepath):
@@ -291,19 +340,27 @@ if __name__ == "__main__":
                                 filepath=filepath, scan_start_time=current_datetime
                             )
                             file_stats.append(file_stat)
+                            current_dir_files_scanned += 1
                             files_scanned += 1
                         else:
+                            current_dir_files_skipped += 1
                             files_skipped += 1
 
                 utils.insert_data(scan.tracking_tables["file"], file_stats)
+                current_dir_elapsed_time = round(
+                    time.time() - current_dir_scan_start_time, 2
+                )
+                scan.logger.debug(
+                    f"Scanned {root_path} in {current_dir_elapsed_time}s. Files scanned: {current_dir_files_scanned}. Files skipped: {current_dir_files_skipped}."
+                )
 
-            scan_time = round(time.time() - start_time, 2)
+            total_scan_time = round(time.time() - start_time, 2)
             utils.insert_data(
                 scan.tracking_tables["scan"],
                 [
-                    models.ScanStat(
+                    ScanStat(
                         date_scanned=utils.get_sqlite_datetime(current_datetime),
-                        scan_time=scan_time,
+                        scan_time=total_scan_time,
                         files_scanned=files_scanned,
                         files_skipped=files_skipped,
                     )
@@ -311,9 +368,15 @@ if __name__ == "__main__":
             )
 
         else:
-            scan.logger.debug("skipping scan")
+            scan.logger.debug(
+                f"Skipping scan. The cooldown period ({scan_config.scan_period_wait_time_hours} hours) has not elapsed yet."
+            )
 
         scan.dump_db_to_csv()
         scan.create_daily_file_report()
     except Exception:
         scan.logger.error(str(traceback.format_exc()).replace("\n", ","))
+    finally:
+        scan.logger.debug(
+            f"Scan finished in {round(time.time() - start_time, 2)} seconds."
+        )
