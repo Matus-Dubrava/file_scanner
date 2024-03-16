@@ -6,3 +6,6 @@ reports
 logs
 data
 __pycache__
+.tracked_metadata.json
+
+metadata_manager/tests/working_directory
