@@ -1,4 +1,6 @@
 import os
+import shutil
+import argparse
 import subprocess
 import threading
 import traceback
@@ -7,9 +9,9 @@ from datetime import datetime
 from typing import Any, List, Optional, Tuple
 
 import apsw
-import pandas as pd
+import pandas as pd  # type: ignore
 
-import models
+from models import LineCountStat, TableDescription, FileStat, ScanConfig, Environment
 
 
 def get_sqlite_conn(filepath: str) -> Tuple[apsw.Connection, Any]:
@@ -84,7 +86,7 @@ def pandas_read_sql_without_warnings(sql: str, conn: apsw.Connection) -> pd.Data
         return pd.read_sql(sql, conn)
 
 
-def get_line_count(filename: str) -> models.LineCountStat:
+def get_line_count(filename: str) -> LineCountStat:
     error_occured = False
     error_traceback = ""
     line_count = 0
@@ -97,7 +99,7 @@ def get_line_count(filename: str) -> models.LineCountStat:
         error_occured = True
         error_traceback = str(traceback.format_exc()).replace("\n", ",")
 
-    return models.LineCountStat(
+    return LineCountStat(
         count=line_count, error_occured=error_occured, error_traceback=error_traceback
     )
 
@@ -123,7 +125,7 @@ def get_file_type(filename: str) -> str:
         return parts[0].lower()
 
 
-def insert_data(table: models.TableDescription, records: List[Any]) -> None:
+def insert_data(table: TableDescription, records: List[Any]) -> None:
     sql = f"""
         INSERT INTO {table.table_name} VALUES ({table.columns_placeholder_string})
     """
@@ -134,14 +136,14 @@ def insert_data(table: models.TableDescription, records: List[Any]) -> None:
         curs.execute("commit")
 
 
-def collect_file_stats(filepath: str, scan_start_time: datetime) -> models.FileStat:
+def collect_file_stats(filepath: str, scan_start_time: datetime) -> FileStat:
     error_occured = False
     error_tracebacks = []
     filename = os.path.basename(filepath)
     inode = 0
     date_created = 0
     date_modified = 0.0
-    line_count_stat = models.LineCountStat()
+    line_count_stat = LineCountStat()
 
     try:
         file_stat = os.stat(filepath)
@@ -156,7 +158,7 @@ def collect_file_stats(filepath: str, scan_start_time: datetime) -> models.FileS
     error_occured = error_occured or line_count_stat.error_occured
     error_tracebacks.append(line_count_stat.error_traceback)
 
-    return models.FileStat(
+    return FileStat(
         date__inode=f"{get_sqlite_datetime(scan_start_time)[:10]}__{inode}",
         date_scanned=get_sqlite_datetime(scan_start_time),
         date_modified=get_sqlite_datetime(datetime.fromtimestamp(date_modified)),
@@ -169,3 +171,29 @@ def collect_file_stats(filepath: str, scan_start_time: datetime) -> models.FileS
         filetype=get_file_type(filename),
         inode=inode,
     )
+
+
+def validate_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
+    args = parser.parse_args()
+
+    if args.environment == "prod" and args.clear:
+        parser.error(f"--clear is not allowed when --env {args.environment}")
+
+    # Convert string value to python enum.
+    args.environment = Environment.from_str(args.environment)
+
+    return args
+
+
+def clear_dev_environment(config: ScanConfig, delete_logs: bool = False):
+    if os.path.exists(config.database_filepath):
+        os.remove(config.database_filepath)
+
+    if os.path.exists(config.csv_dump_path):
+        shutil.rmtree(config.csv_dump_path)
+
+    if os.path.exists(config.reports_path):
+        shutil.rmtree(config.reports_path)
+
+    if delete_logs and os.path.exists(config.log_file):
+        os.remove(config.log_file)

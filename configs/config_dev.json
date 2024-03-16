@@ -1,0 +1,9 @@
+{
+    "environment": "DEV",
+    "scan_paths": ["/home/matus/programming/", "/home/matus/apps/"],
+    "database_filepath": "/home/matus/apps/file_scanner/data/test__file_records.dat",
+    "scan_period_wait_time_hours": 0,
+    "csv_dump_path": "/home/matus/apps/file_scanner/csv_dumps/__test_dumps/",
+    "reports_path": "/home/matus/apps/file_scanner/reports/__test_reports/",
+    "log_file": "/home/matus/apps/file_scanner/logs/test__debug.log"
+}

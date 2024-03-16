@@ -1,8 +1,6 @@
 {
-    "scan_paths": [
-        "/home/matus/programming/",
-        "/home/matus/apps/"
-    ],
+    "environment": "PROD",
+    "scan_paths": ["/home/matus/programming/", "/home/matus/apps/"],
     "database_filepath": "/home/matus/apps/file_scanner/data/file_records.dat",
     "scan_period_wait_time_hours": 24,
     "csv_dump_path": "/home/matus/apps/file_scanner/csv_dumps",
