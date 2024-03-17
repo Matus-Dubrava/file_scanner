@@ -34,13 +34,15 @@
         -   used to compute differences between refreshes
     -   when initializing metadata, check whether any parent down to fs root is initialized as MD controlled
         folder, if yes, stop the process, we don't want to have multiple MD controlled folders at the same path
+    -   check if this folder is controlled by git, if so, inform user about this fact as this can lead to
+        inconistencies if metadata is initialized outside of the 'main' branch
 
 -   always execute these commands as if they were run from the MD `root` folder
 
 -   md touch:
     -   creates new file and adds the initial record to history
     -   creates a copy of that file in the refresh folder
-    -   does nothing if the file already exists
+    -   does nothing if the file already exists in MD
 -   md add:
     -   adds file to metadata if it is not already there
     -   use os info to populate date_modified, and date_created
@@ -71,4 +73,5 @@
 
 -   md list: list tracked files
 
--   Synchronization - not resolved yet
+-   Synchronization - TBD
+-   github integration - TBD
