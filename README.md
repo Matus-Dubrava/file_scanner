@@ -2,14 +2,17 @@
 
 ```
 {
-    filepath: {
-        id
+    file: {
+        id                          # PK
+        filepath                    # UNIQUE(filepath + branch)
+        branch                      # ^
         timestamp_added,
         fs_timestamp_created        # as reported by os at that time
         filename,
         status: enum[active, untracked, removed, moved]
         history: {
-            id
+            file_filepath           # FK(filepath + branch)
+            file_branch             # ^
             entry_timestamp,        # when this entry was added
             fs_size                 # size as reported by os
             fs_date_modified,       # date modified as reported by os
