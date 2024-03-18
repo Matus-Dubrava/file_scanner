@@ -13,7 +13,7 @@
         history: {
             file_filepath           # FK(filepath + branch)
             file_branch             # ^
-            entry_timestamp,        # when this entry was added
+            timestamp_created,      # when this entry was added
             fs_size                 # size as reported by os
             fs_date_modified,       # date modified as reported by os
             fs_inode,               # inode as reported by os

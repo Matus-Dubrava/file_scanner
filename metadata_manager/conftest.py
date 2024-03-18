@@ -17,10 +17,20 @@ def working_dir():
 
 @pytest.fixture(scope="module")
 def md_cmd():
-    manager_path = Path(__file__).parent.parent / "cli.py"
+    manager_path = Path(__file__).parent / "cli.py"
     yield ["python3", manager_path]
 
 
 @pytest.fixture(scope="module")
 def init_cmd(md_cmd):
     yield [*md_cmd, "init"]
+
+
+@pytest.fixture(scope="module")
+def metadata_db_name():
+    yield "metadata.db"
+
+
+@pytest.fixture(scope="module")
+def metadata_dir():
+    yield ".md"
