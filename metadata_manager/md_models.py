@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql.functions import current_timestamp
+from pydantic import BaseModel
 import enum
 
 Base = declarative_base()
@@ -46,3 +47,8 @@ class History(Base):  # type: ignore
     file_hash = Column(String, nullable=False)
 
     file = relationship("File", back_populates="history")
+
+
+class Config(BaseModel):
+    md_dir_name: str
+    md_db_name: str

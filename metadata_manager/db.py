@@ -3,7 +3,7 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from models import Base  # type: ignore
+from md_models import Base
 
 
 def create_db(dir: Path, db_name: str = "metadata.db") -> Session:

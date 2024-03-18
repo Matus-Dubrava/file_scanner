@@ -9,30 +9,33 @@ import metadata_manager.tests.utils as utils
 @pytest.mark.init_subcommand
 @pytest.mark.sanity
 def test_init_creates_md_repository_in_cwd(
-    working_dir, init_cmd, monkeypatch, metadata_db_name, metadata_dir
+    working_dir, init_cmd, monkeypatch, md_manager
 ):
     monkeypatch.chdir(working_dir)
     proc = subprocess.run([*init_cmd], capture_output=True)
     assert not proc.stderr
     assert proc.returncode == 0
-    utils.assert_md_structure_exists(working_dir)
-    utils.assert_database_structure(working_dir / metadata_dir / metadata_db_name)
+    utils.assert_md_structure_exists(md_manager.md_config, working_dir)
+    utils.assert_database_structure(
+        working_dir / md_manager.md_config.md_dir_name / md_manager.md_config.md_db_name
+    )
 
 
 @pytest.mark.ed68aa1433
 @pytest.mark.cli
 @pytest.mark.init_subcommand
 @pytest.mark.sanity
-def test_init_creates_md_repository_in_target_dir(
-    working_dir, init_cmd, metadata_dir, metadata_db_name
-):
+def test_init_creates_md_repository_in_target_dir(working_dir, init_cmd, md_manager):
     subdir = working_dir / "dir1"
     subdir.mkdir()
     proc = subprocess.run([*init_cmd, subdir], capture_output=True)
     assert proc.returncode == 0
-    utils.assert_md_structure_exists(working_dir / "dir1")
+    utils.assert_md_structure_exists(md_manager.md_config, working_dir / "dir1")
     utils.assert_database_structure(
-        working_dir / "dir1" / metadata_dir / metadata_db_name
+        working_dir
+        / "dir1"
+        / md_manager.md_config.md_dir_name
+        / md_manager.md_config.md_db_name
     )
 
 
@@ -41,13 +44,13 @@ def test_init_creates_md_repository_in_target_dir(
 @pytest.mark.init_subcommand
 @pytest.mark.sanity
 def test_init_aborts_when_another_md_is_detected_in_the_same_dir(
-    working_dir, init_cmd, metadata_dir, metadata_db_name
+    working_dir, init_cmd, md_manager
 ):
     subdir = working_dir / "dir1"
     subdir.mkdir()
     proc = subprocess.run([*init_cmd, subdir], capture_output=True)
     assert proc.returncode == 0
-    utils.assert_md_structure_exists(subdir)
+    utils.assert_md_structure_exists(md_manager.md_config, subdir)
 
     proc = subprocess.run([*init_cmd, subdir], capture_output=True)
     assert proc.returncode == 1
@@ -55,8 +58,10 @@ def test_init_aborts_when_another_md_is_detected_in_the_same_dir(
 
     # These should still exist from the previous run.
     # Make sure they are not cleaned up.
-    utils.assert_md_structure_exists(subdir)
-    utils.assert_database_structure(subdir / metadata_dir / metadata_db_name)
+    utils.assert_md_structure_exists(md_manager.md_config, subdir)
+    utils.assert_database_structure(
+        subdir / md_manager.md_config.md_dir_name / md_manager.md_config.md_db_name
+    )
 
 
 @pytest.mark.ad4d569613
@@ -64,13 +69,13 @@ def test_init_aborts_when_another_md_is_detected_in_the_same_dir(
 @pytest.mark.init_subcommand
 @pytest.mark.sanity
 def test_init_aborts_when_another_md_is_detected_on_the_path_to_root(
-    working_dir, init_cmd, metadata_dir, metadata_db_name
+    working_dir, init_cmd, md_manager
 ):
     subdir = working_dir / "dir1" / "dir2"
     subdir.mkdir(parents=True)
     proc = subprocess.run([*init_cmd, working_dir], capture_output=True)
     assert proc.returncode == 0
-    utils.assert_md_structure_exists(working_dir)
+    utils.assert_md_structure_exists(md_manager.md_config, working_dir)
 
     proc = subprocess.run([*init_cmd, subdir], capture_output=True)
     assert proc.returncode == 1
@@ -78,8 +83,10 @@ def test_init_aborts_when_another_md_is_detected_on_the_path_to_root(
 
     # These should still exist from the previous run.
     # Make sure they are not cleaned up.
-    utils.assert_md_structure_exists(working_dir)
-    utils.assert_database_structure(working_dir / metadata_dir / metadata_db_name)
+    utils.assert_md_structure_exists(md_manager.md_config, working_dir)
+    utils.assert_database_structure(
+        working_dir / md_manager.md_config.md_dir_name / md_manager.md_config.md_db_name
+    )
 
 
 @pytest.mark.c68c2b29d1

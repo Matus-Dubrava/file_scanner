@@ -2,6 +2,8 @@ import subprocess
 from pathlib import Path
 import sqlite3
 
+from metadata_manager.md_models import Config
+
 
 def initalize_git_repository(where: Path) -> bool:
     """
@@ -13,11 +15,11 @@ def initalize_git_repository(where: Path) -> bool:
     return proc.returncode == 0
 
 
-def assert_md_structure_exists(where: Path):
-    assert (where / ".md").exists()
-    assert (where / ".md" / "hashes").exists()
-    assert (where / ".md" / "deleted").exists()
-    assert (where / ".md" / "metadata.db").exists()
+def assert_md_structure_exists(md_config: Config, where: Path):
+    assert (where / md_config.md_dir_name).exists()
+    assert (where / md_config.md_dir_name / "hashes").exists()
+    assert (where / md_config.md_dir_name / "deleted").exists()
+    assert (where / md_config.md_dir_name / md_config.md_db_name).exists()
 
 
 def assert_database_structure(db_path: Path):

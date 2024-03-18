@@ -3,24 +3,25 @@
 ```
 {
     file: {
-        id                          # PK
-        filepath                    # UNIQUE(filepath + branch)
-        branch                      # ^
+        filepath__branch            # PK
+        filepath
+        branch
         timestamp_added,
         fs_timestamp_created        # as reported by os at that time
         filename,
-        status: enum[active, untracked, removed, moved]
+        status: enum[active, untracked, removed]
         history: {
-            file_filepath           # FK(filepath + branch)
-            file_branch             # ^
+            filepath_branch         # FK
+            file_filepath           #
+            file_branch             #
             timestamp_created,      # when this entry was added
-            fs_size                 # size as reported by os
+            fs_size,                # size as reported by os
             fs_date_modified,       # date modified as reported by os
             fs_inode,               # inode as reported by os
             n_total_lines,          # number of lines
             n_changed_lines,        # number of changed lines since the last refresh
             running_changed_lines,  # sum of all previous changed lines - offloads analytics
-            hash,                   # SHA256
+            file_hash,              # SHA256
         },
     }
 }

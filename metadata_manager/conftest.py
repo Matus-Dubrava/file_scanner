@@ -3,6 +3,9 @@ from pathlib import Path
 import shutil
 import os
 
+from manager import MetadataManager
+from md_models import Config
+
 
 @pytest.fixture(scope="function")
 def working_dir():
@@ -26,11 +29,9 @@ def init_cmd(md_cmd):
     yield [*md_cmd, "init"]
 
 
-@pytest.fixture(scope="module")
-def metadata_db_name():
-    yield "metadata.db"
+@pytest.fixture(scope="function")
+def md_manager():
+    with open(Path(__file__).parent / "config" / ".mdconfig_dev", "r") as f:
+        md_config = Config.model_validate_json(f.read())
 
-
-@pytest.fixture(scope="module")
-def metadata_dir():
-    yield ".md"
+    return MetadataManager(md_config)
