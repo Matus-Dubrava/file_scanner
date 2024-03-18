@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from md_models import Base
 
 
-def create_db(dir: Path, db_name: str = "metadata.db") -> Session:
+def create_db(dir: Path, db_name: str) -> Session:
     db_url = f"sqlite:///{dir / db_name}"
     engine = create_engine(str(db_url))
     Session = sessionmaker(bind=engine)

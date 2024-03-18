@@ -25,7 +25,7 @@ def assert_md_structure_exists(md_config: Config, where: Path):
 def assert_database_structure(db_path: Path):
     conn = sqlite3.connect(db_path)
     curs = conn.cursor()
-    sql = "SELECT name FROM sqlite_master where type = 'table'"
+    sql = "SELECT name FROM sqlite_master WHERE type = 'table'"
     curs.execute(sql)
     data = curs.fetchall()
 

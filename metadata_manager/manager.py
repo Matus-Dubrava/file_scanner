@@ -15,12 +15,12 @@ class MetadataManager:
         return str(dir) == str(root_dir)
 
     def create_md_dirs(self, where: Path):
-        (where / ".md").mkdir()
-        (where / ".md" / "deleted").mkdir()
-        (where / ".md" / "hashes").mkdir()
+        (where / self.md_config.md_dir_name).mkdir()
+        (where / self.md_config.md_dir_name / "deleted").mkdir()
+        (where / self.md_config.md_dir_name / "hashes").mkdir()
 
     def cleanup(self, dir: Path):
-        md_dir = dir / ".md"
+        md_dir = dir / self.md_config.md_dir_name
         if md_dir.exists():
             shutil.rmtree(md_dir)
 
@@ -30,7 +30,7 @@ class MetadataManager:
         current_dir = dir
 
         while not self.is_fs_root_dir(current_dir):
-            if (current_dir / ".md").exists():
+            if (current_dir / self.md_config.md_dir_name).exists():
                 return True
 
             if current_dir == stop_at:
@@ -97,7 +97,7 @@ class MetadataManager:
             self.create_md_dirs(dir)
 
             # create sqlite metadata.db and initialize tracking table
-            create_db(dir / ".md")
+            create_db(dir / self.md_config.md_dir_name, self.md_config.md_db_name)
         except Exception as err:
             self.cleanup(dir)
             print(err)

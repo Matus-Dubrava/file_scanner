@@ -120,7 +120,9 @@ def test_dir_is_managed_by_git_stop_at(working_dir, md_manager):
 @pytest.mark.cleanup
 def test_cleanup(working_dir, md_manager):
     md_manager.create_md_dirs(working_dir)
-    create_db(working_dir / md_manager.md_config.md_dir_name)
+    create_db(
+        working_dir / md_manager.md_config.md_dir_name, md_manager.md_config.md_db_name
+    )
     utils.assert_md_structure_exists(md_manager.md_config, working_dir)
     md_manager.cleanup(working_dir)
     assert not (working_dir / md_manager.md_config.md_dir_name).exists()
