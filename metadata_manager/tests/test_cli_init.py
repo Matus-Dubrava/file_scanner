@@ -1,9 +1,12 @@
 import subprocess
 import pytest
 
+import metadata_manager.tests.test_utils as test_utils
+
 
 @pytest.mark.ebff0e4472
 @pytest.mark.cli
+@pytest.mark.init_subcommand
 @pytest.mark.sanity
 def test_init_creates_md_repository_in_cwd(working_dir, init_cmd, monkeypatch):
     monkeypatch.chdir(working_dir)
@@ -11,3 +14,112 @@ def test_init_creates_md_repository_in_cwd(working_dir, init_cmd, monkeypatch):
     assert not proc.stderr
     assert proc.returncode == 0
     assert (working_dir / ".md").exists()
+    assert (working_dir / ".md" / "deleted").exists()
+    assert (working_dir / ".md" / "hashes").exists()
+
+
+@pytest.mark.ed68aa1433
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+def test_init_creates_md_repository_in_target_dir(working_dir, init_cmd):
+    subdir = working_dir / "dir1"
+    subdir.mkdir()
+    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
+    assert proc.returncode == 0
+    assert (subdir / ".md").exists()
+    assert (subdir / ".md" / "hashes").exists()
+    assert (subdir / ".md" / "deleted").exists()
+
+
+# test init create sqlite file with correct structure
+
+
+@pytest.mark.b767b0b432
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+def test_init_aborts_when_another_md_is_detected_in_the_same_dir(working_dir, init_cmd):
+    subdir = working_dir / "dir1"
+    subdir.mkdir()
+    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
+    assert proc.returncode == 0
+    assert (subdir / ".md").exists()
+    assert (subdir / ".md" / "hashes").exists()
+    assert (subdir / ".md" / "deleted").exists()
+
+    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
+    assert proc.returncode == 1
+    assert "Abort" in str(proc.stderr)
+
+    # These should still exist from the previous run
+    assert (subdir / ".md").exists()
+    assert (subdir / ".md" / "hashes").exists()
+    assert (subdir / ".md" / "deleted").exists()
+
+
+@pytest.mark.ad4d569613
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+def test_init_aborts_when_another_md_is_detected_on_the_path_to_root(
+    working_dir, init_cmd
+):
+    subdir = working_dir / "dir1" / "dir2"
+    subdir.mkdir(parents=True)
+    proc = subprocess.run([*init_cmd, working_dir], capture_output=True)
+    assert proc.returncode == 0
+    assert (working_dir / ".md").exists()
+    assert (working_dir / ".md" / "hashes").exists()
+    assert (working_dir / ".md" / "deleted").exists()
+
+    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
+    assert proc.returncode == 1
+    assert "abort" in str(proc.stderr).lower()
+
+    # These should still exist from the previous run
+    assert (working_dir / ".md").exists()
+    assert (working_dir / ".md" / "hashes").exists()
+    assert (working_dir / ".md" / "deleted").exists()
+
+
+@pytest.mark.c68c2b29d1
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+def test_init_aborts_when_git_is_detected_in_the_same_dir(working_dir, init_cmd):
+    assert test_utils.initalize_git_repository(working_dir)
+
+    proc = subprocess.run([*init_cmd, working_dir], capture_output=True)
+    assert proc.returncode == 1
+    assert "abort" in str(proc.stderr).lower()
+
+
+@pytest.mark.be560f3207
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+def test_init_aborts_when_git_is_detected_on_the_path_to_root(working_dir, init_cmd):
+    subdir = working_dir / "dir1" / "dir2"
+    subdir.mkdir(parents=True)
+
+    assert test_utils.initalize_git_repository(working_dir)
+
+    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
+    assert proc.returncode == 1
+    assert "abort" in str(proc.stderr).lower()
+
+
+@pytest.mark.be560f3207
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+@pytest.mark.parametrize("yes_flag", ["-y", "--yes"])
+def test_init_bypases_git_check_if_yes_flag_is_provided(
+    working_dir, init_cmd, yes_flag
+):
+    assert test_utils.initalize_git_repository(working_dir)
+
+    proc = subprocess.run([*init_cmd, working_dir, yes_flag], capture_output=True)
+    assert proc.returncode == 0
+    assert not proc.stderr
