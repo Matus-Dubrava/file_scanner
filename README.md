@@ -86,4 +86,3 @@
     -   add docker build for MD
     -   crete build scripts
     -   add logging to MD
-    -   add config files to MD
