@@ -6,7 +6,7 @@ import os
 
 @pytest.fixture(scope="function")
 def working_dir():
-    working_dir_path = Path(__file__).absolute().parent / "working_dir"
+    working_dir_path = Path("/tmp/working_dir/")
     if working_dir_path.exists():
         shutil.rmtree(working_dir_path)
 
