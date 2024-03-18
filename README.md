@@ -84,3 +84,5 @@
     -   parallelize the execution of file scanner, multiple source dirs can be scanned at the same time
     -   add docker build for MD
     -   crete build scripts
+    -   add logging to MD
+    -   add config files to MD

@@ -5,4 +5,9 @@ scan.log
 reports
 logs
 data
+
+.mypy_cache
+.pytest_cache
+
 __pycache__
+metadata_manager/tests/__pycache__
