@@ -1,6 +1,5 @@
 import subprocess
 import pytest
-from pathlib import Path
 
 
 @pytest.mark.ebff0e4472
