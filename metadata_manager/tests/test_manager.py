@@ -101,8 +101,6 @@ def test_dir_is_managed_by_git_stop_at(working_dir, md_manager):
 
     assert utils.initalize_git_repository(working_dir)
 
-    print(os.listdir(working_dir))
-
     assert not md_manager.check_dir_is_git_managed(
         working_dir / subdir1 / subdir2, stop_at=working_dir / subdir1 / subdir2
     )

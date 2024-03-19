@@ -5,6 +5,7 @@ import shutil
 
 from db import create_db
 from md_models import Config
+from messages import Messages
 
 
 class MetadataManager:
@@ -56,7 +57,7 @@ class MetadataManager:
 
         return False
 
-    def initalize_md_repository(self, dir: Path, force: bool = False):
+    def initalize_md_repository(self, dir: Path, force: bool = False) -> None:
         """
         Initliaze MD repository and sqlite database.
         Performs all neccessary check - checking for existence of Git and MD repositories
@@ -69,14 +70,16 @@ class MetadataManager:
                 to trigger cleanup process
         """
 
-        assert dir.exists()
+        # If specified dir doesn't exist. Create one.
+        if not dir.exists():
+            dir.mkdir(parents=True)
 
         try:
             # Check if .md folder exists somewhere along the path to the root of the fs
             # Don't initialize nested .md.
             if self.check_dir_is_md_managed(dir):
                 print(
-                    "Detected MD repository at the path to root. Abort.",
+                    "Detected .md repository at the path to root. Abort.",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -88,7 +91,7 @@ class MetadataManager:
                 print(
                     (
                         "Detected Git repository at the path to root. Abort.\n"
-                        "Use md init -y to initialize MD repository."
+                        "Use md init -y to initialize .md repository."
                     ),
                     file=sys.stderr,
                 )
@@ -98,9 +101,32 @@ class MetadataManager:
 
             # create sqlite metadata.db and initialize tracking table
             create_db(dir / self.md_config.md_dir_name, self.md_config.md_db_name)
+
+            print(f"Intialized empty .md repository in {dir}")
         except Exception as err:
             self.cleanup(dir)
             print(err)
-            print("Failed to initialize MD repository.")
+            print("Failed to initialize .md repository.")
             print("Abort.")
             sys.exit(1)
+
+    def touch(self, dir: Path, filename: str) -> None:
+        """
+        ...
+        """
+
+        # TODO: fail if specified dir or any of the parent dirs is not an md dir
+        if not self.check_dir_is_md_managed(dir=dir):
+            print("Not an .md repository (or any of the parent directories). Abort.")
+            sys.exit(1)
+
+        # TODO: if the file already exists in the specified dir, refresh the md
+        if (dir / filename).exists():
+            pass
+        # TODO: create empty file in the specified dir
+        else:
+            (dir / filename).touch()
+
+        # TODO: create md record for the file
+
+        # TODO: create empty hash file for the file

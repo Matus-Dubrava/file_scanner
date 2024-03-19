@@ -2,6 +2,7 @@ import subprocess
 import pytest
 
 import metadata_manager.tests.utils as utils
+from metadata_manager.messages import Messages
 
 
 @pytest.mark.ebff0e4472
@@ -19,6 +20,7 @@ def test_init_creates_md_repository_in_cwd(
     utils.assert_database_structure(
         working_dir / md_manager.md_config.md_dir_name / md_manager.md_config.md_db_name
     )
+    assert Messages.init_success_messages.text in str(proc.stdout)
 
 
 @pytest.mark.ed68aa1433
@@ -37,6 +39,7 @@ def test_init_creates_md_repository_in_target_dir(working_dir, init_cmd, md_mana
         / md_manager.md_config.md_dir_name
         / md_manager.md_config.md_db_name
     )
+    assert Messages.init_success_messages.text in str(proc.stdout)
 
 
 @pytest.mark.b767b0b432
@@ -129,3 +132,4 @@ def test_init_bypases_git_check_if_yes_flag_is_provided(
     proc = subprocess.run([*init_cmd, working_dir, yes_flag], capture_output=True)
     assert proc.returncode == 0
     assert not proc.stderr
+    assert Messages.init_success_messages.text in str(proc.stdout)
