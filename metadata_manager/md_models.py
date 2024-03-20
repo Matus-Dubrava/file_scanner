@@ -17,11 +17,11 @@ class FileStatus(enum.Enum):
 class File(Base):  # type: ignore
     __tablename__ = "file"
 
-    filepath__branch = Column(String, unique=True, nullable=False, primary_key=True)
+    filepath__git_branch = Column(String, unique=True, nullable=False, primary_key=True)
     filepath = Column(String, nullable=False)
-    branch = Column(String, nullable=False, default="")
+    git_branch = Column(String, nullable=False, default="")
     timestamp_added = Column(DateTime, nullable=False, default=current_timestamp())
-    fs_timestamp_created = Column(DateTime, nullable=False)
+    fs_timestamp_created = Column(DateTime, nullable=False, default=current_timestamp())
     filename = Column(String, nullable=False)
     status = Column(Enum(FileStatus), name="status_enum")  # type: ignore
 
@@ -32,14 +32,18 @@ class History(Base):  # type: ignore
     __tablename__ = "history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    filepath__branch = Column(
-        String, ForeignKey("file.filepath__branch", ondelete="CASCADE"), nullable=False
+    filepath__git_branch = Column(
+        String,
+        ForeignKey("file.filepath__git_branch", ondelete="CASCADE"),
+        nullable=False,
     )
     filepath = Column(String, nullable=False)
-    branch = Column(String, nullable=False, default="")
-    timestamp_created = Column(DateTime, nullable=False, default=current_timestamp())
+    git_branch = Column(String, nullable=False, default="")
+    timestamp_record_added = Column(
+        DateTime, nullable=False, default=current_timestamp()
+    )
     fs_size = Column(Integer, nullable=False)
-    fs_date_modified = Column(DateTime, nullable=False)
+    fs_date_modified = Column(DateTime, nullable=False, default=current_timestamp())
     fs_inode = Column(Integer, nullable=False)
     n_total_lines = Column(Integer, nullable=False)
     n_changed_lines = Column(Integer, nullable=False)

@@ -81,9 +81,12 @@
 -   github integration - TBD
 
 -   TODO:
+
     -   block multiple executions of file scanner at the same time
     -   parallelize the execution of file scanner, multiple source dirs can be scanned at the same time
     -   add docker build for MD
     -   crete build scripts
     -   add logging to MD
+
+-   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist

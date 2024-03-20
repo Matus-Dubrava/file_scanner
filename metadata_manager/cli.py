@@ -22,7 +22,15 @@ def cli(ctx):
 @click.pass_context
 def init(ctx, target, yes):
     md_manager: MetadataManager = ctx.obj
-    md_manager.initalize_md_repository(Path(target), force=yes)
+    md_manager.initalize_md_repository(Path(target).absolute(), force=yes)
+
+
+@cli.command()
+@click.argument("target")
+@click.pass_context
+def touch(ctx, target):
+    md_manager: MetadataManager = ctx.obj
+    md_manager.touch(Path(target).absolute())
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import subprocess
 import pytest
+from pathlib import Path
 
 import metadata_manager.tests.utils as utils
 from metadata_manager.messages import Messages
@@ -36,6 +37,28 @@ def test_init_creates_md_repository_in_target_dir(working_dir, init_cmd, md_mana
     utils.assert_database_structure(
         working_dir
         / "dir1"
+        / md_manager.md_config.md_dir_name
+        / md_manager.md_config.md_db_name
+    )
+    assert Messages.init_success_messages.text in str(proc.stdout)
+
+
+@pytest.mark.cae7feba85
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+@pytest.mark.parametrize("target_path", [".", "dir1", "./dir1", "dir1/dir2"])
+def test_init_creates_md_repository_in_target_dir_with_relative_path(
+    working_dir, init_cmd, md_manager, monkeypatch, target_path
+):
+    monkeypatch.chdir(working_dir)
+
+    proc = subprocess.run([*init_cmd, target_path], capture_output=True)
+    print(proc)
+    assert proc.returncode == 0
+    utils.assert_md_structure_exists(md_manager.md_config, Path(target_path))
+    utils.assert_database_structure(
+        Path(target_path)
         / md_manager.md_config.md_dir_name
         / md_manager.md_config.md_db_name
     )
