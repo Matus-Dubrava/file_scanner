@@ -87,6 +87,9 @@
     -   add docker build for MD
     -   crete build scripts
     -   add logging to MD
+    -   add support for custom metadata associated with the file in form of json document
+        stored in the metadata database
+        -   add option to list the metadata as well as fetch specific one
     -   test file stats are computed correctly
     -   test adding records to md database
 
