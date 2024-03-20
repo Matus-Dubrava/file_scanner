@@ -87,6 +87,8 @@
     -   add docker build for MD
     -   crete build scripts
     -   add logging to MD
+    -   test file stats are computed correctly
+    -   test adding records to md database
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist
