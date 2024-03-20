@@ -42,6 +42,26 @@ def test_init_creates_md_repository_in_target_dir(working_dir, init_cmd, md_mana
     assert Messages.init_success_messages.text in str(proc.stdout)
 
 
+@pytest.mark.d4b42a1511
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+def test_init_creates_both_md_respository_and_target_dir_if_it_doesnt_exist(
+    working_dir, init_cmd, md_manager
+):
+    subdir = working_dir / "dir1" / "dir2"
+
+    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
+    assert proc.returncode == 0
+    assert not proc.stderr
+
+    assert subdir.exists()
+    utils.assert_md_structure_exists(md_manager.md_config, subdir)
+    utils.assert_database_structure(
+        subdir / md_manager.md_config.md_dir_name / md_manager.md_config.md_db_name
+    )
+
+
 @pytest.mark.b767b0b432
 @pytest.mark.cli
 @pytest.mark.init_subcommand

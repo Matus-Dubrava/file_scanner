@@ -86,3 +86,4 @@
     -   add docker build for MD
     -   crete build scripts
     -   add logging to MD
+    -   test case which covers that `md init` creates target dir if it doesn't exist

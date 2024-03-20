@@ -5,7 +5,6 @@ import shutil
 
 from db import create_db
 from md_models import Config
-from messages import Messages
 
 
 class MetadataManager:
@@ -79,7 +78,7 @@ class MetadataManager:
             # Don't initialize nested .md.
             if self.check_dir_is_md_managed(dir):
                 print(
-                    "Detected .md repository at the path to root. Abort.",
+                    ".md repository exists in this or one of the parent directories. Abort.",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -90,7 +89,7 @@ class MetadataManager:
             if self.check_dir_is_git_managed(dir) and not force:
                 print(
                     (
-                        "Detected Git repository at the path to root. Abort.\n"
+                        "Git repository exists in this or one of the parent directories. Abort.\n"
                         "Use md init -y to initialize .md repository."
                     ),
                     file=sys.stderr,
