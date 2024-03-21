@@ -90,6 +90,9 @@
     -   add support for custom metadata associated with the file in form of json document
         stored in the metadata database
         -   add option to list the metadata as well as fetch specific one
+    -   add version tracking into app & into store it in db, create new table during,
+        initliazation with app-specific data
+        -   add version file, tracking version, commit_id & build_type
     -   test file stats are computed correctly
     -   test adding records to md database
 

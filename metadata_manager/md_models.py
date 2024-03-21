@@ -1,19 +1,15 @@
 from pydantic import BaseModel
-import enum
+from pathlib import Path
 from datetime import datetime
+from typing import Union
 
 from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql.functions import current_timestamp
 
+from md_enums import FileStatus, BuildType
+
 Base = declarative_base()
-
-
-@enum.unique
-class FileStatus(enum.Enum):
-    ACTIVE = "ACTIVE"
-    REMOVED = "REMOVED"
-    UNTRACKED = "UNTRACKED"
 
 
 class FileORM(Base):  # type: ignore
@@ -27,7 +23,7 @@ class FileORM(Base):  # type: ignore
     filename = Column(String, nullable=False)
     status = Column(Enum(FileStatus), name="status_enum")  # type: ignore
 
-    history = relationship("History", back_populates="file")
+    history = relationship("HistoryORM", back_populates="file")
 
 
 class HistoryORM(Base):  # type: ignore
@@ -52,7 +48,7 @@ class HistoryORM(Base):  # type: ignore
     running_changed_lines = Column(Integer, nullable=False)
     file_hash = Column(String, nullable=False)
 
-    file = relationship("File", back_populates="history")
+    file = relationship("FileORM", back_populates="history")
 
 
 class Config(BaseModel):
@@ -60,8 +56,27 @@ class Config(BaseModel):
     md_db_name: str
 
 
-class AppInfo(BaseModel):
+class VersionInfoORM(Base):  # type: ignore
+    __tablename__ = "version_info"
+
+    commit_id = Column(String, nullable=False, primary_key=True)
+    version = Column(String, nullable=False)
+    build_type = Column(Enum(BuildType), nullable=False, name="build_type_enum")  # type: ignore
+    build_date = Column(DateTime, nullable=False)
+
+
+class VersionInfo(BaseModel):
     version: str
-    commit: str
-    build_type: str
+    commit_id: str
+    build_type: BuildType
     build_date: datetime
+
+    @staticmethod
+    def get_info() -> Union["VersionInfo", Exception]:
+        version_info_path = Path(__file__).parent / "version.json"
+        try:
+            with open(version_info_path, "r") as f:
+                version_info = VersionInfo.model_validate_json(f.read())
+                return version_info
+        except Exception as err:
+            return err

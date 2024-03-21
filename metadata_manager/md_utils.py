@@ -1,11 +1,11 @@
 from typing import List, Union
 from pydantic import BaseModel
+from typing import Optional
 import hashlib
 import subprocess
 from datetime import datetime
 
 from pathlib import Path
-import version
 
 
 def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
@@ -60,5 +60,14 @@ def compute_file_stats(filepath: Path) -> Union[FileStat, Exception]:
     )
 
 
-def get_app_info():
-    return
+def get_current_git_branch() -> Optional[str]:
+    """
+    Get currently checked out git branch.
+    Returns None if git repository is not found.
+    """
+    cmd = ["git", "branch", "--show-current"]
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode == 0:
+        return None
+    else:
+        return proc.stdout.decode("utf-8").strip()

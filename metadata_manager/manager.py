@@ -9,7 +9,14 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from db import create_db, get_session
-from md_models import Config, FileORM, FileStatus, HistoryORM
+from md_models import (
+    Config,
+    FileORM,
+    FileStatus,
+    HistoryORM,
+    VersionInfo,
+    VersionInfoORM,
+)
 import md_utils
 
 
@@ -253,6 +260,26 @@ class MetadataManager:
 
         return None
 
+    def write_version_info_to_db(self, session: Session) -> Optional[Exception]:
+        version_info_or_err = VersionInfo.get_info()
+        if isinstance(version_info_or_err, Exception):
+            return version_info_or_err
+
+        try:
+            version_info_record = VersionInfoORM(
+                commit_id=version_info_or_err.commit_id,
+                version=version_info_or_err.version,
+                build_type=version_info_or_err.build_type,
+                build_date=version_info_or_err.build_date,
+            )
+
+            session.add(version_info_record)
+            session.commit()
+        except Exception as err:
+            return err
+
+        return None
+
     def initalize_md_repository(self, dir: Path, force: bool = False) -> None:
         """
         Initliaze MD repository and sqlite database.
@@ -306,7 +333,16 @@ class MetadataManager:
             self.create_md_dirs(dir)
 
             # create sqlite metadata.db and initialize tracking table
-            create_db(dir / self.md_config.md_dir_name, self.md_config.md_db_name)
+            db_path = dir / self.md_config.md_dir_name
+            create_db(db_path, self.md_config.md_db_name)
+
+            # write version info to db
+            session = get_session(db_path, self.md_config.md_db_name)
+            maybe_err = self.write_version_info_to_db(session=session)
+            if maybe_err:
+                raise maybe_err
+
+            session.close()
 
             print(f"Intialized empty .md repository in {dir}")
         except Exception as err:
