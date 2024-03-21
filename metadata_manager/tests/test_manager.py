@@ -4,7 +4,6 @@ import os
 
 from metadata_manager.db import create_db
 import metadata_manager.tests.utils as utils
-import metadata_manager.md_utils as md_utils
 
 
 @pytest.mark.c0c0658d55

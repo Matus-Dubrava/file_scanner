@@ -1,0 +1,4 @@
+VERSION = ""
+COMMIT = ""
+BUILD_TYPE = ""
+BUILD_DATA = ""

@@ -1,8 +1,10 @@
+from pydantic import BaseModel
+import enum
+from datetime import datetime
+
 from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql.functions import current_timestamp
-from pydantic import BaseModel
-import enum
 
 Base = declarative_base()
 
@@ -14,7 +16,7 @@ class FileStatus(enum.Enum):
     UNTRACKED = "UNTRACKED"
 
 
-class File(Base):  # type: ignore
+class FileORM(Base):  # type: ignore
     __tablename__ = "file"
 
     filepath__git_branch = Column(String, unique=True, nullable=False, primary_key=True)
@@ -28,7 +30,7 @@ class File(Base):  # type: ignore
     history = relationship("History", back_populates="file")
 
 
-class History(Base):  # type: ignore
+class HistoryORM(Base):  # type: ignore
     __tablename__ = "history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -56,3 +58,10 @@ class History(Base):  # type: ignore
 class Config(BaseModel):
     md_dir_name: str
     md_db_name: str
+
+
+class AppInfo(BaseModel):
+    version: str
+    commit: str
+    build_type: str
+    build_date: datetime

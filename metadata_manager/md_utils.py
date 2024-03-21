@@ -5,6 +5,7 @@ import subprocess
 from datetime import datetime
 
 from pathlib import Path
+import version
 
 
 def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
@@ -57,3 +58,7 @@ def compute_file_stats(filepath: Path) -> Union[FileStat, Exception]:
     return FileStat(
         n_lines=n_lines, hashes=line_hashes, file_hash=file_hash.hexdigest()
     )
+
+
+def get_app_info():
+    return

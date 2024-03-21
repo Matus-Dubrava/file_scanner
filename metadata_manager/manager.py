@@ -9,7 +9,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from db import create_db, get_session
-from md_models import Config, File, FileStatus, History
+from md_models import Config, FileORM, FileStatus, HistoryORM
 import md_utils
 
 
@@ -162,7 +162,7 @@ class MetadataManager:
         try:
             filepath.touch()
 
-            file_record = File(
+            file_record = FileORM(
                 filepath__git_branch=f"{filepath}__{branch_name}",
                 filepath=str(filepath),
                 git_branch=branch_name,
@@ -170,7 +170,7 @@ class MetadataManager:
                 status=FileStatus.ACTIVE,
             )
 
-            history_record = History(
+            history_record = HistoryORM(
                 filepath__git_branch=f"{filepath}__{branch_name}",
                 filepath=str(filepath),
                 git_branch=branch_name,
@@ -213,7 +213,7 @@ class MetadataManager:
             if maybe_err:
                 return [maybe_err]
 
-            file_record = File(
+            file_record = FileORM(
                 filepath__git_branch=f"{filepath}__{branch_name}",
                 filepath=str(filepath),
                 fs_timestamp_created=timestamp_created_or_err,
@@ -222,7 +222,7 @@ class MetadataManager:
                 status=FileStatus.ACTIVE,
             )
 
-            history_record = History(
+            history_record = HistoryORM(
                 filepath__git_branch=f"{filepath}__{branch_name}",
                 filepath=str(filepath),
                 git_branch=branch_name,
@@ -337,7 +337,7 @@ class MetadataManager:
         branch_name = self.get_current_git_branch(filepath.parent)
 
         old_file_record = (
-            session.query(File)
+            session.query(FileORM)
             .filter_by(filepath__git_branch=f"{filepath}__{branch_name}")
             .first()
         )
