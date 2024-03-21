@@ -2,8 +2,12 @@ import subprocess
 import pytest
 from pathlib import Path
 
-import metadata_manager.tests.utils as utils
-from metadata_manager.messages import Messages
+import tests.utils as utils
+from messages import Messages
+from build import write_build_info
+from md_enums import BuildType
+from md_models import VersionInfoORM
+from db import get_session
 
 
 @pytest.mark.ebff0e4472
@@ -176,3 +180,34 @@ def test_init_bypases_git_check_if_yes_flag_is_provided(
     assert proc.returncode == 0
     assert not proc.stderr
     assert Messages.init_success_messages.text in str(proc.stdout)
+
+
+@pytest.mark.be334fb0aa
+@pytest.mark.cli
+@pytest.mark.init_subcommand
+@pytest.mark.sanity
+def test_init_creates_version_info_record(
+    working_dir, init_cmd, md_manager, monkeypatch, version_data
+):
+    monkeypatch.chdir(Path(__file__).parent)
+    expected_commit_id = (
+        subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+    )
+    expected_version = "1.0.0"
+    expected_build_type = BuildType.DEV
+
+    maybe_err = write_build_info(version=expected_version, build_type="DEV")
+    if maybe_err:
+        raise maybe_err
+
+    proc = subprocess.run([*init_cmd, working_dir])
+    assert proc.returncode == 0
+
+    db_path = working_dir / md_manager.md_config.md_dir_name
+    session = get_session(dir=db_path, db_name=md_manager.md_config.md_db_name)
+
+    version_info = session.query(VersionInfoORM).first()
+
+    assert version_info.commit_id == expected_commit_id
+    assert version_info.build_type.value == expected_build_type.value
+    assert version_info.version == expected_version

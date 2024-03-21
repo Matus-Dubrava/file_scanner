@@ -10,5 +10,7 @@ data
 .pytest_cache
 
 __pycache__
+metadata_manager/.md
 metadata_manager/tests/__pycache__
-medatada_manager/.md
+metadata_manager/tests/.md
+

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pathlib import Path
 from datetime import datetime
 from typing import Union
@@ -66,6 +66,8 @@ class VersionInfoORM(Base):  # type: ignore
 
 
 class VersionInfo(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     version: str
     commit_id: str
     build_type: BuildType
