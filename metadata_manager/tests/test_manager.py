@@ -2,8 +2,8 @@ import pytest
 from pathlib import Path
 import os
 
-from metadata_manager.db import create_db
-import metadata_manager.tests.utils as utils
+from db import create_db
+import tests.utils as utils
 
 
 @pytest.mark.c0c0658d55
