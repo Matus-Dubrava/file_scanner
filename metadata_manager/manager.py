@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Optional, List, Union
 import subprocess
 import shutil
-import os
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -37,19 +36,14 @@ class MetadataManager:
         if md_dir.exists():
             shutil.rmtree(md_dir)
 
-    def get_current_git_branch(self, dir: Path) -> str:
-        branch_name = ""
+    def get_current_git_branch(self, dir: Path) -> Optional[str]:
+        proc = subprocess.run(
+            ["git", "branch", "--show-current"], capture_output=True, cwd=dir
+        )
+        if proc.returncode == 0:
+            return proc.stdout.decode().strip()
 
-        if self.check_dir_is_git_managed(dir):
-            cwd = Path.cwd()
-            os.chdir(dir)
-            proc = subprocess.run(
-                ["git", "branch", "--show-current"], capture_output=True
-            )
-            branch_name = proc.stdout.decode("utf-8").strip()
-            os.chdir(cwd)
-
-        return branch_name
+        return None
 
     def get_md_root(self, dir: Path) -> Optional[Path]:
         """
@@ -164,7 +158,7 @@ class MetadataManager:
         return False
 
     def create_new_file(
-        self, session: Session, filepath: Path, branch_name: str
+        self, session: Session, filepath: Path, branch_name: Optional[str] = None
     ) -> Optional[Exception]:
         try:
             filepath.touch()
@@ -179,17 +173,15 @@ class MetadataManager:
                 raise maybe_err
 
             file_record = FileORM(
-                filepath__git_branch=f"{filepath}__{branch_name}",
                 filepath=str(filepath),
-                git_branch=branch_name,
+                version_control_branch=branch_name,
                 filename=filepath.name,
                 status=FileStatus.ACTIVE,
             )
 
             history_record = HistoryORM(
-                filepath__git_branch=f"{filepath}__{branch_name}",
                 filepath=str(filepath),
-                git_branch=branch_name,
+                version_control_branch=branch_name,
                 fs_size=0,
                 fs_inode=filepath.lstat().st_ino,
                 n_total_lines=0,
@@ -212,7 +204,11 @@ class MetadataManager:
         return None
 
     def add_file_to_md(
-        self, session: Session, filepath: Path, branch_name: str, file_exists: bool
+        self,
+        session: Session,
+        filepath: Path,
+        file_exists: bool,
+        branch_name: Optional[str] = None,
     ) -> List[Optional[Exception]]:
         try:
             file_stat_or_err = md_utils.compute_file_stats(filepath=filepath)
@@ -239,18 +235,16 @@ class MetadataManager:
             # If file was just created, create file record as well.
             if not file_exists:
                 file_record = FileORM(
-                    filepath__git_branch=f"{filepath}__{branch_name}",
                     filepath=str(filepath),
                     fs_timestamp_created=timestamp_created_or_err,
-                    git_branch=branch_name,
+                    version_control_branch=branch_name,
                     filename=filepath.name,
                     status=FileStatus.ACTIVE,
                 )
 
             history_record = HistoryORM(
-                filepath__git_branch=f"{filepath}__{branch_name}",
                 filepath=str(filepath),
-                git_branch=branch_name,
+                version_control_branch=branch_name,
                 fs_size=filepath.lstat().st_size,
                 fs_inode=filepath.lstat().st_ino,
                 n_total_lines=file_stat_or_err.n_lines,
@@ -292,7 +286,7 @@ class MetadataManager:
 
         return None
 
-    def initalize_md_repository(self, dir: Path, force: bool = False) -> None:
+    def initalize_md_repository(self, dir: Path) -> None:
         """
         Initliaze MD repository and sqlite database.
         Performs all neccessary check - checking for existence of Git and MD repositories
@@ -318,26 +312,6 @@ class MetadataManager:
             if self.check_dir_is_md_managed(dir):
                 print(
                     ".md repository exists in this or one of the parent directories. Abort.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # TODO: is this really necessary? We should be able to handle this without
-            # bothering user. The only thing that can be potentially problematic here
-            # is analytics built on top of md but that should probably be handled there.
-            # Also we are creating artificial connection between MD and Git. Ideally
-            # we could support multiple version control systems in future and then
-            # this will make even less sense.
-            #
-            # Check if .git folder exists somewhere along the path to the root of the fs
-            # Print warning if .git is detected. Abort the execution and ask user to
-            # provide -y flag to make sure that user is informed about this fact.
-            if self.check_dir_is_git_managed(dir) and not force:
-                print(
-                    (
-                        "Git repository exists in this or one of the parent directories. Abort.\n"
-                        "Use md init -y to initialize .md repository."
-                    ),
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -385,9 +359,7 @@ class MetadataManager:
         branch_name = self.get_current_git_branch(filepath.parent)
 
         old_file_record = (
-            session.query(FileORM)
-            .filter_by(filepath__git_branch=f"{filepath}__{branch_name}")
-            .first()
+            session.query(FileORM).filter_by(filepath=str(filepath)).first()
         )
 
         maybe_errors: List[Optional[Exception]] = []
@@ -413,24 +385,21 @@ class MetadataManager:
         elif not filepath.exists() and old_file_record:
             history_records = (
                 session.query(HistoryORM)
-                .filter_by(filepath__git_branch=old_file_record.filepath__git_branch)
+                .filter_by(filepath=old_file_record.filepath)
                 .all()
             )
 
             timestamp = int(datetime.now().timestamp())
             new_filename = f"deleted__{timestamp}__{old_file_record.filename}"
             new_filepath = f"{Path(filepath).parent.joinpath(new_filename)}"
-            new_filename__git_branch = f"{new_filename}__{old_file_record.git_branch}"
 
             # Update the File record.
             old_file_record.filename = new_filename
             old_file_record.filepath = new_filepath
-            old_file_record.filepath__git_branch = new_filename__git_branch
             old_file_record.status = FileStatus.REMOVED
 
             # Update assocaited history records.
             for history_record in history_records:
-                history_record.filepath__git_branch = new_filename__git_branch
                 history_record.filepath = new_filepath
 
             # Remove hash file if it exists.
