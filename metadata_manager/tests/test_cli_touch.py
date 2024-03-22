@@ -1,10 +1,22 @@
 import pytest
-from pathlib import Path
 import subprocess
 
 from md_models import FileORM, HistoryORM
+from md_utils import get_line_hash
+
 
 # Calling touch if .md repository wasn't initialized fails
+@pytest.mark.e63032638e
+@pytest.mark.cli
+@pytest.mark.touch_subcommand
+@pytest.mark.sanity
+def test_touch_fails_if_provided_path_doesnt_exist(
+    working_dir, touch_cmd, md_manager, initialize_working_dir, session
+):
+    filepath = working_dir.joinpath("dir1", "testfile")
+    proc = subprocess.run([*touch_cmd, filepath], capture_output=True)
+    assert proc.returncode != 0
+
 
 # Calling touch directly within .md directory fails
 
@@ -30,13 +42,13 @@ def test_touch_creates_new_file_in_cwd(
     assert file_record
 
     history_record = (
-        session.query(HistoryORM)
-        .filter_by(filepath__git_branch=file_record.filepath__git_branch)
-        .first()
+        session.query(HistoryORM).filter_by(filepath=file_record.filepath).first()
     )
     assert history_record
 
-    assert md_manager.get_path_to_hash_file(working_dir.joinpath(filename)).exists()
+    hash_filepath = md_manager.get_path_to_hash_file(working_dir.joinpath(filename))
+    assert hash_filepath.exists()
+    assert not len(hash_filepath.read_text())
 
 
 @pytest.mark.a64ec6e711
@@ -58,13 +70,13 @@ def test_touch_creates_new_file_in_target_location_using_absolute_path(
     assert file_record
 
     history_record = (
-        session.query(HistoryORM)
-        .filter_by(filepath__git_branch=file_record.filepath__git_branch)
-        .first()
+        session.query(HistoryORM).filter_by(filepath=file_record.filepath).first()
     )
     assert history_record
 
-    assert md_manager.get_path_to_hash_file(filepath).exists()
+    hash_filepath = md_manager.get_path_to_hash_file(filepath)
+    assert hash_filepath.exists()
+    assert not len(hash_filepath.read_text())
 
 
 @pytest.mark.fad5734b38
@@ -93,19 +105,44 @@ def test_touch_creates_new_file_in_target_location_using_relative_path(
     assert file_record
 
     history_record = (
-        session.query(HistoryORM)
-        .filter_by(filepath__git_branch=file_record.filepath__git_branch)
-        .first()
+        session.query(HistoryORM).filter_by(filepath=file_record.filepath).first()
     )
     assert history_record
 
-    assert md_manager.get_path_to_hash_file(filepath).exists()
+    hash_filepath = md_manager.get_path_to_hash_file(filepath)
+    assert hash_filepath.exists()
+    assert not len(hash_filepath.read_text())
 
 
 # File exists in fs but not .md
 # - new file record will be created
 # - new history record will be created
 # - hash file will be created and populated with correct hashes
+@pytest.mark.fad5734b38
+@pytest.mark.cli
+@pytest.mark.touch_subcommand
+@pytest.mark.sanity
+def test_touch_creates_new_md_record_for_existing_file(
+    working_dir, initialize_working_dir, touch_cmd, session, md_manager
+):
+    filepath = working_dir.joinpath("testfile")
+
+    proc = subprocess.run([*touch_cmd, filepath], capture_output=True)
+    assert proc.returncode == 0
+
+    file_record = session.query(FileORM).first()
+    assert file_record
+
+    history_record = (
+        session.query(HistoryORM).filter_by(filepath=file_record.filepath).first()
+    )
+    assert history_record
+
+    hash_filepath = md_manager.get_path_to_hash_file(filepath)
+    assert hash_filepath.exists()
+
+    # TODO: check line hashes here
+
 
 # File exits in .md but not fs
 # - old .md file record and history records will be correctly updated

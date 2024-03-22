@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 import sqlite3
 
-from metadata_manager.md_models import Config
+from md_models import Config
 
 
 def initalize_git_repository(where: Path) -> bool:

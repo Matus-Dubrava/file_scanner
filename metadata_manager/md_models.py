@@ -15,11 +15,10 @@ Base = declarative_base()
 class FileORM(Base):
     __tablename__ = "file"
 
-    filepath__git_branch: Mapped[str] = Column(
+    filepath: Mapped[str] = Column(
         String, unique=True, nullable=False, primary_key=True
     )
-    filepath = Column(String, nullable=False)
-    git_branch = Column(String, nullable=False, default="")
+    version_control_branch = Column(String, nullable=True)
     timestamp_added = Column(DateTime, nullable=False, default=current_timestamp())
     fs_timestamp_created = Column(DateTime, nullable=False, default=current_timestamp())
     filename = Column(String, nullable=False)
@@ -32,13 +31,12 @@ class HistoryORM(Base):
     __tablename__ = "history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    filepath__git_branch = Column(
+    filepath = Column(
         String,
-        ForeignKey("file.filepath__git_branch", ondelete="CASCADE"),
+        ForeignKey("file.filepath", ondelete="CASCADE"),
         nullable=False,
     )
-    filepath = Column(String, nullable=False)
-    git_branch = Column(String, nullable=False, default="")
+    version_control_branch = Column(String, nullable=False, default="")
     timestamp_record_added = Column(
         DateTime, nullable=False, default=current_timestamp()
     )

@@ -16,13 +16,10 @@ def cli(ctx):
 
 @cli.command()
 @click.argument("target", default=Path.cwd())
-@click.option(
-    "--yes", "-y", is_flag=True, default=False, help="Initialize without confirmation"
-)
 @click.pass_context
-def init(ctx, target, yes):
+def init(ctx, target):
     md_manager: MetadataManager = ctx.obj
-    md_manager.initalize_md_repository(Path(target).absolute(), force=yes)
+    md_manager.initalize_md_repository(Path(target).absolute())
 
 
 @cli.command()
