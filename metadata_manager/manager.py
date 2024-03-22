@@ -168,6 +168,15 @@ class MetadataManager:
     ) -> Optional[Exception]:
         try:
             filepath.touch()
+            hash_filepath_or_err = self.get_path_to_hash_file(filepath=filepath)
+            if isinstance(hash_filepath_or_err, Exception):
+                raise hash_filepath_or_err
+
+            maybe_err = self.write_line_hashes_to_hash_file(
+                filepath=filepath, line_hashes=[]
+            )
+            if maybe_err:
+                raise maybe_err
 
             file_record = FileORM(
                 filepath__git_branch=f"{filepath}__{branch_name}",
@@ -192,16 +201,19 @@ class MetadataManager:
             session.add(file_record)
             session.add(history_record)
             session.commit()
-            session.close()
         except Exception as err:
             filepath.unlink()
+
+            if isinstance(hash_filepath_or_err, Path):
+                hash_filepath_or_err.unlink()
+
             return err
 
         return None
 
     def add_file_to_md(
-        self, session: Session, filepath: Path, branch_name: str
-    ) -> Optional[List[Exception]]:
+        self, session: Session, filepath: Path, branch_name: str, file_exists: bool
+    ) -> List[Optional[Exception]]:
         try:
             file_stat_or_err = md_utils.compute_file_stats(filepath=filepath)
             if isinstance(file_stat_or_err, Exception):
@@ -213,6 +225,10 @@ class MetadataManager:
             if isinstance(timestamp_created_or_err, Exception):
                 return [timestamp_created_or_err]
 
+            # Create file if it doesn't exist.
+            if not file_exists:
+                filepath.touch()
+
             # Create the file containing line hashes.
             maybe_err = self.write_line_hashes_to_hash_file(
                 filepath=filepath, line_hashes=file_stat_or_err.hashes
@@ -220,14 +236,16 @@ class MetadataManager:
             if maybe_err:
                 return [maybe_err]
 
-            file_record = FileORM(
-                filepath__git_branch=f"{filepath}__{branch_name}",
-                filepath=str(filepath),
-                fs_timestamp_created=timestamp_created_or_err,
-                git_branch=branch_name,
-                filename=filepath.name,
-                status=FileStatus.ACTIVE,
-            )
+            # If file was just created, create file record as well.
+            if not file_exists:
+                file_record = FileORM(
+                    filepath__git_branch=f"{filepath}__{branch_name}",
+                    filepath=str(filepath),
+                    fs_timestamp_created=timestamp_created_or_err,
+                    git_branch=branch_name,
+                    filename=filepath.name,
+                    status=FileStatus.ACTIVE,
+                )
 
             history_record = HistoryORM(
                 filepath__git_branch=f"{filepath}__{branch_name}",
@@ -245,20 +263,14 @@ class MetadataManager:
             session.add(file_record)
             session.add(history_record)
             session.commit()
-            session.close()
-
         except Exception as err:
-            errors: List[Exception] = [err]
-
-            # If we are here, there was a problem with database operation.
-            # Need to remove the hashes file if the record was not stored in the
-            # .md database.
+            errors: List[Optional[Exception]] = [err]
             maybe_err = self.remove_hash_file(filepath=filepath)
             if maybe_err:
                 errors.append(err)
             return errors
 
-        return None
+        return []
 
     def write_version_info_to_db(self, session: Session) -> Optional[Exception]:
         version_info_or_err = VersionInfo.get_info()
@@ -378,29 +390,95 @@ class MetadataManager:
             .first()
         )
 
+        maybe_errors: List[Optional[Exception]] = []
+
         # File doesn't exist it fs nor in the .md database.
         if not filepath.exists() and not old_file_record:
             maybe_err = self.create_new_file(
                 session=session, filepath=filepath, branch_name=branch_name
             )
+            maybe_errors.append(maybe_err)
+
         # file doesn't exist in md but exits in fs (i.e file wasnt created using md touch or due to branch switch)
-        #   - create new md record, create populated hashes file
         elif filepath.exists() and not old_file_record:
-            maybe_errors = self.add_file_to_md(
+            maybe_errs = self.add_file_to_md(
+                session=session,
+                filepath=filepath,
+                branch_name=branch_name,
+                file_exists=False,
+            )
+            maybe_errors.extend(maybe_errs)
+
+        # file exists in md but not in fs (file was removed)
+        elif not filepath.exists() and old_file_record:
+            history_records = (
+                session.query(HistoryORM)
+                .filter_by(filepath__git_branch=old_file_record.filepath__git_branch)
+                .all()
+            )
+
+            timestamp = int(datetime.now().timestamp())
+            new_filename = f"deleted__{timestamp}__{old_file_record.filename}"
+            new_filepath = f"{Path(filepath).parent.joinpath(new_filename)}"
+            new_filename__git_branch = f"{new_filename}__{old_file_record.git_branch}"
+
+            # Update the File record.
+            old_file_record.filename = new_filename
+            old_file_record.filepath = new_filepath
+            old_file_record.filepath__git_branch = new_filename__git_branch
+            old_file_record.status = FileStatus.REMOVED
+
+            # Update assocaited history records.
+            for history_record in history_records:
+                history_record.filepath__git_branch = new_filename__git_branch
+                history_record.filepath = new_filepath
+
+            # Remove hash file if it exists.
+            maybe_err = self.remove_hash_file(filepath=filepath)
+            maybe_errors.append(maybe_err)
+
+            # Create new file and new .md record.
+            # Note that "create_new_file" intentionally commits the staged changes
+            # so that it can perform cleanup if necessary. This also commits
+            # the above staged changes.
+            maybe_err = self.create_new_file(
                 session=session, filepath=filepath, branch_name=branch_name
             )
-        # file exists in md but not in fs (file was removed)
-        #   - add new record to `file` table, prefix it with .delteted__
-        #       - update both filepath, filename, ...
-        #   - update the records in `history` to match the primary_key
-        #   - create new file and new md record, create empty hashes file
-        # file exists in both md and fs
-        #   - add new entry to history
+            maybe_errors.append(maybe_err)
 
-        # TODO: clean this up
-        if maybe_err:
-            raise maybe_err
-        if maybe_errors:
-            for err in maybe_errors:
+        # file exists in both md and fs.
+        elif filepath.exists() and old_file_record:
+            maybe_errors = self.add_file_to_md(
+                session=session,
+                filepath=filepath,
+                branch_name=branch_name,
+                file_exists=True,
+            )
+
+        session.close()
+
+        errors = [err for err in maybe_errors if err is not None]
+        if len(errors):
+            for err in errors:
                 print(err, file=sys.stderr)
                 sys.exit(3)
+
+    def list_files(self, dir: Path, status_filter: Optional[FileStatus] = None) -> None:
+        assert dir.is_absolute()
+
+        maybe_md_root = self.get_md_root(dir=dir)
+        if not maybe_md_root:
+            print("Not an .md repository (or any of the parent directories). Abort.")
+            sys.exit(1)
+
+        db_path = maybe_md_root.joinpath(self.md_config.md_dir_name)
+        session = get_session(db_dir=db_path, db_name=self.md_config.md_db_name)
+
+        if status_filter:
+            files = session.query(FileORM).filter_by(status=status_filter).all()
+            for file in files:
+                print(file.filepath)
+        else:
+            files = session.query(FileORM).all()
+            for file in files:
+                print(file.filepath)

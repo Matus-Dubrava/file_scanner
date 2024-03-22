@@ -6,11 +6,14 @@ reports
 logs
 data
 
+.vscode
 .mypy_cache
 .pytest_cache
 
 __pycache__
 metadata_manager/.md
+metadata_manager/.vscode
 metadata_manager/tests/__pycache__
 metadata_manager/tests/.md
+metadata_manager/tests/working_dir
 

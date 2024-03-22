@@ -76,6 +76,11 @@
     -   add new history entry for each active file, comuting all required values
 
 -   md list: list tracked files
+    -   --active same as `md list`
+    -   --all/-a same as md list
+    -   --removed list only removed files
+    -   --untracked list only untracked files
+-   md show <filename> show file history
 
 -   Synchronization - TBD
 -   github integration - TBD
@@ -95,6 +100,12 @@
         -   add version file, tracking version, commit_id & build_type
     -   test file stats are computed correctly
     -   test adding records to md database
+    -   ensure that md init/add/mv cannot be applied on files under .md directory itself
+    -   add support for .md sub-repositories
+        -   files will be tracked in the closest .md repository on the path to the root
+    -   add `commit` argument to functions that perform database operations so that they can optionally
+        changes
+    -   refactor paths to use .joinpath instead of "/"
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist

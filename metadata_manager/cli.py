@@ -33,6 +33,13 @@ def touch(ctx, target):
     md_manager.touch(Path(target).absolute())
 
 
+@cli.command()
+@click.pass_context
+def list(ctx):
+    md_manager: MetadataManager = ctx.obj
+    md_manager.list_files(Path.cwd())
+
+
 if __name__ == "__main__":
     with open(CONFIG_PATH, "r") as f:
         md_config = Config.model_validate_json(f.read())

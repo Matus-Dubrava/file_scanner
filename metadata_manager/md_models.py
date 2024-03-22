@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Union
 
 from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship, declarative_base, Mapped
 from sqlalchemy.sql.functions import current_timestamp
 
 from md_enums import FileStatus, BuildType
@@ -12,21 +12,23 @@ from md_enums import FileStatus, BuildType
 Base = declarative_base()
 
 
-class FileORM(Base):  # type: ignore
+class FileORM(Base):
     __tablename__ = "file"
 
-    filepath__git_branch = Column(String, unique=True, nullable=False, primary_key=True)
+    filepath__git_branch: Mapped[str] = Column(
+        String, unique=True, nullable=False, primary_key=True
+    )
     filepath = Column(String, nullable=False)
     git_branch = Column(String, nullable=False, default="")
     timestamp_added = Column(DateTime, nullable=False, default=current_timestamp())
     fs_timestamp_created = Column(DateTime, nullable=False, default=current_timestamp())
     filename = Column(String, nullable=False)
-    status = Column(Enum(FileStatus), name="status_enum")  # type: ignore
+    status = Column(Enum(FileStatus), name="status_enum")
 
-    history = relationship("HistoryORM", back_populates="file")
+    history: Mapped["HistoryORM"] = relationship("HistoryORM", back_populates="file")
 
 
-class HistoryORM(Base):  # type: ignore
+class HistoryORM(Base):
     __tablename__ = "history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -48,7 +50,7 @@ class HistoryORM(Base):  # type: ignore
     running_changed_lines = Column(Integer, nullable=False)
     file_hash = Column(String, nullable=False)
 
-    file = relationship("FileORM", back_populates="history")
+    file: Mapped[FileORM] = relationship("FileORM", back_populates="history")
 
 
 class Config(BaseModel):
@@ -56,12 +58,12 @@ class Config(BaseModel):
     md_db_name: str
 
 
-class VersionInfoORM(Base):  # type: ignore
+class VersionInfoORM(Base):
     __tablename__ = "version_info"
 
     commit_id = Column(String, nullable=False, primary_key=True)
     version = Column(String, nullable=False)
-    build_type = Column(Enum(BuildType), nullable=False, name="build_type_enum")  # type: ignore
+    build_type = Column(Enum(BuildType), nullable=False, name="build_type_enum")
     build_date = Column(DateTime, nullable=False)
 
 

@@ -5,10 +5,12 @@ import os
 
 from manager import MetadataManager
 from md_models import Config
+from db import get_session
 
 
 @pytest.fixture(scope="function")
 def working_dir():
+    print("creating working dir")
     working_dir_path = Path("/tmp/working_dir/")
     if working_dir_path.exists():
         shutil.rmtree(working_dir_path)
@@ -21,12 +23,17 @@ def working_dir():
 @pytest.fixture(scope="module")
 def md_cmd():
     manager_path = Path(__file__).parent / "cli.py"
-    yield ["python3", manager_path]
+    return ["python3", manager_path]
 
 
 @pytest.fixture(scope="module")
 def init_cmd(md_cmd):
-    yield [*md_cmd, "init"]
+    return [*md_cmd, "init"]
+
+
+@pytest.fixture(scope="module")
+def touch_cmd(md_cmd):
+    return [*md_cmd, "touch"]
 
 
 @pytest.fixture(scope="function")
@@ -35,6 +42,22 @@ def md_manager():
         md_config = Config.model_validate_json(f.read())
 
     return MetadataManager(md_config)
+
+
+@pytest.fixture(scope="function")
+def initialize_working_dir(working_dir, md_manager):
+    md_manager.initalize_md_repository(working_dir)
+    return None
+
+
+@pytest.fixture(scope="function")
+def session(working_dir, initialize_working_dir, md_manager):
+    sess = get_session(
+        working_dir.joinpath(md_manager.md_config.md_dir_name),
+        md_manager.md_config.md_db_name,
+    )
+    yield sess
+    sess.close()
 
 
 @pytest.fixture(scope="function")

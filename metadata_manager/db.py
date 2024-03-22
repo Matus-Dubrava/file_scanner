@@ -14,7 +14,13 @@ def create_db(dir: Path, db_name: str) -> Session:
     return Session()
 
 
-def get_session(dir: Path, db_name: str) -> Session:
-    db_url = f"sqlite:///{dir / db_name}"
+def get_session(db_dir: Path, db_name: str) -> Session:
+    """
+    Establishes connection to sqlite database and creates session object.
+
+    db_dir:     where sqlite database is located
+    db_name:    name of the sqlite database
+    """
+    db_url = f"sqlite:///{db_dir / db_name}"
     engine = create_engine(db_url)
     return sessionmaker(bind=engine)()

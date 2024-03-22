@@ -187,7 +187,11 @@ def test_init_bypases_git_check_if_yes_flag_is_provided(
 @pytest.mark.init_subcommand
 @pytest.mark.sanity
 def test_init_creates_version_info_record(
-    working_dir, init_cmd, md_manager, monkeypatch, version_data
+    working_dir,
+    init_cmd,
+    md_manager,
+    monkeypatch,
+    version_data,  # don't remove "version_data", it preserves the data in version file
 ):
     monkeypatch.chdir(Path(__file__).parent)
     expected_commit_id = (
@@ -196,15 +200,17 @@ def test_init_creates_version_info_record(
     expected_version = "1.0.0"
     expected_build_type = BuildType.DEV
 
-    maybe_err = write_build_info(version=expected_version, build_type="DEV")
+    maybe_err = write_build_info(
+        version=expected_version, build_type=expected_build_type
+    )
     if maybe_err:
         raise maybe_err
 
     proc = subprocess.run([*init_cmd, working_dir])
     assert proc.returncode == 0
 
-    db_path = working_dir / md_manager.md_config.md_dir_name
-    session = get_session(dir=db_path, db_name=md_manager.md_config.md_db_name)
+    db_dir = working_dir / md_manager.md_config.md_dir_name
+    session = get_session(db_dir=db_dir, db_name=md_manager.md_config.md_db_name)
 
     version_info = session.query(VersionInfoORM).first()
 
