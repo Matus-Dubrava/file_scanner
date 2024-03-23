@@ -494,6 +494,16 @@ class MetadataManager:
                 sys.exit(3)
 
     def list_files(self, dir: Path, status_filter: Optional[FileStatus] = None) -> None:
+        """
+        TODO:
+        List files:
+            - by default show relative paths
+                - show absolute pahts if --absolute flag is specified
+            - by default list only active files
+                - --all can be used to list all files
+                - --untracked can be used to list untracked files
+                - --removed can be used to list removed files
+        """
         assert dir.is_absolute()
 
         maybe_md_root = self.get_md_root(dir=dir)

@@ -12,6 +12,9 @@ data
 .pytest_cache
 
 __pycache__
+
+working_dir
+
 metadata_manager/.md
 metadata_manager/.vscode
 metadata_manager/tests/__pycache__
