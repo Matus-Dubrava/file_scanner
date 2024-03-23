@@ -1,6 +1,7 @@
 import pytest
 from pathlib import Path
 import os
+import sys
 
 from db import create_db
 import tests.utils as utils
@@ -272,3 +273,32 @@ def test_write_line_hashes_to_hash_file(working_dir, md_manager, rel_filepath):
     with open(hashes_path_or_err, "r") as f:
         lines = f.readlines()
         assert expected_hashes[2:] == [line.strip() for line in lines]
+
+
+@pytest.mark.c118d5efca
+@pytest.mark.manager
+@pytest.mark.sanity
+@pytest.mark.decorator
+def test_with_md_repository_paths_decorator_validation_logic(working_dir, md_manager):
+    filepath = working_dir.joinpath("testfile")
+
+    with pytest.raises(SystemExit) as err:
+        md_manager.touch(filepath)
+
+    assert err.value.code == 100
+
+
+@pytest.mark.a1270e6c8b
+@pytest.mark.manager
+@pytest.mark.sanity
+@pytest.mark.decorator
+@pytest.mark.init_md(True)
+def test_with_md_repository_paths_decorator_sets_paths(working_dir, md_manager):
+    filepath = working_dir.joinpath("testfile")
+    md_manager.touch(filepath)
+
+    assert md_manager.repository_root == working_dir
+    assert md_manager.md_path == working_dir.joinpath(md_manager.md_config.md_dir_name)
+    assert md_manager.md_db_path == working_dir.joinpath(
+        md_manager.md_config.md_dir_name, md_manager.md_config.md_db_name
+    )
