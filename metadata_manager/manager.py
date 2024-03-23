@@ -491,7 +491,48 @@ class MetadataManager:
         if len(errors):
             for err in errors:
                 print(err, file=sys.stderr)
-                sys.exit(3)
+                sys.exit(1)
+
+    def untrack(self, filepath: Path) -> None:
+        """
+        Set file status to "UNTRACKED" if file is in "ACTIVE" state, fail otherwise.
+        """
+        assert filepath.is_absolute()
+
+        maybe_md_root = self.get_md_root(dir=filepath.parent)
+        if not maybe_md_root:
+            print("Not an .md repository (or any of the parent directories). Abort.")
+            sys.exit(100)
+
+        print(f"filepath: {filepath} | {filepath.exists()}")
+        if not filepath.exists():
+            print(f"File {filepath.relative_to(Path.cwd())} doesn't exist. Abort.")
+            sys.exit(1)
+
+        session = get_session(
+            maybe_md_root.joinpath(self.md_config.md_dir_name),
+            self.md_config.md_db_name,
+        )
+
+        file_record = session.query(FileORM).filter_by(filepath=filepath).first()
+        if not file_record:
+            print(
+                f"File {filepath.relative_to(Path.cwd())} is not in md database.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        if file_record.status == FileStatus.REMOVED:
+            print(
+                "Cannot change status of file that is in 'REMOVED' state.",
+                file=sys.stderr,
+            )
+            sys.exit(3)
+
+        file_record.status = FileStatus.UNTRACKED
+        session.commit()
+        session.close()
+        print(f"Status of {filepath.relative_to(Path.cwd())} was set to untracked.")
 
     def list_files(self, dir: Path, status_filter: Optional[FileStatus] = None) -> None:
         """

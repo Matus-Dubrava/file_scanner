@@ -9,13 +9,17 @@ from db import get_session
 
 
 @pytest.fixture(scope="function")
-def working_dir():
-    print("creating working dir")
+def working_dir(monkeypatch, md_manager):
     working_dir_path = Path("/tmp/working_dir/")
+
     if working_dir_path.exists():
         shutil.rmtree(working_dir_path)
 
     os.makedirs(working_dir_path)
+    print(f"[{__name__}] created working dir: {working_dir_path}")
+    monkeypatch.chdir(working_dir_path)
+    print(f"[{__name__}] changed CWD to: {working_dir_path}")
+
     yield working_dir_path
     shutil.rmtree(working_dir_path)
 
@@ -36,6 +40,11 @@ def touch_cmd(md_cmd):
     return [*md_cmd, "touch"]
 
 
+@pytest.fixture(scope="module")
+def untrack_cmd(md_cmd):
+    return [*md_cmd, "untrack"]
+
+
 @pytest.fixture(scope="function")
 def md_manager():
     with open(Path(__file__).parent / "config" / ".mdconfig_dev", "r") as f:
@@ -47,6 +56,9 @@ def md_manager():
 @pytest.fixture(scope="function")
 def initialize_working_dir(working_dir, md_manager):
     md_manager.initalize_md_repository(working_dir)
+    print(
+        f"[{__name__}] initialized md repository: {working_dir.joinpath(md_manager.md_config.md_dir_name)}"
+    )
     return None
 
 
@@ -56,6 +68,7 @@ def session(working_dir, initialize_working_dir, md_manager):
         working_dir.joinpath(md_manager.md_config.md_dir_name),
         md_manager.md_config.md_db_name,
     )
+    print(f"[{__name__}] created session object")
     yield sess
     sess.close()
 

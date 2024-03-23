@@ -115,6 +115,7 @@
     -   add script for running test coverage
     -   refactor logic that check for initilized `md` repository into decorator and make `md_root`
         available via `md_manager` attrubute
+    -   refactor `intialize_working_dir` fixture into marker
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist

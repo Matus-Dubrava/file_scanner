@@ -37,6 +37,14 @@ def list(ctx):
     md_manager.list_files(Path.cwd())
 
 
+@cli.command()
+@click.argument("target")
+@click.pass_context
+def untrack(ctx, target):
+    md_manager: MetadataManager = ctx.obj
+    md_manager.untrack(Path(target).absolute())
+
+
 if __name__ == "__main__":
     with open(CONFIG_PATH, "r") as f:
         md_config = Config.model_validate_json(f.read())
