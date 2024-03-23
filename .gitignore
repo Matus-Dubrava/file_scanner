@@ -6,6 +6,7 @@ reports
 logs
 data
 
+.coverage
 .vscode
 .mypy_cache
 .pytest_cache

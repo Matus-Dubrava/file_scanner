@@ -5,7 +5,6 @@ from typing import Any, Union, Optional, List
 
 from sqlalchemy import Column, Dialect, Integer, String, Enum, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, declarative_base, Mapped, Session
-from sqlalchemy.sql.functions import current_timestamp
 from sqlalchemy.types import TypeDecorator
 
 from md_enums import FileStatus, BuildType
@@ -35,11 +34,11 @@ class FileORM(Base):
     )
     filename: Mapped[str] = Column(String, nullable=False)
     timestamp_added: Mapped[datetime] = Column(
-        DateTime, nullable=False, default=current_timestamp()
+        DateTime, nullable=False, default=datetime.now()
     )
     timestamp_deleted: Mapped[datetime] = Column(DateTime, nullable=True)
     fs_timestamp_created: Mapped[datetime] = Column(
-        DateTime, nullable=False, default=current_timestamp()
+        DateTime, nullable=False, default=datetime.now()
     )
     version_control_branch: Mapped[Optional[str]] = Column(String, nullable=True)
     status: Mapped[FileStatus] = Column(Enum(FileStatus), name="status_enum")
@@ -58,11 +57,11 @@ class HistoryORM(Base):
     )
     version_control_branch: Mapped[Optional[str]] = Column(String, nullable=True)
     timestamp_record_added: Mapped[datetime] = Column(
-        DateTime, nullable=False, default=current_timestamp()
+        DateTime, nullable=False, default=datetime.now()
     )
     fs_size: Mapped[int] = Column(Integer, nullable=False)
     fs_date_modified: Mapped[datetime] = Column(
-        DateTime, nullable=False, default=current_timestamp()
+        DateTime, nullable=False, default=datetime.now()
     )
     fs_inode: Mapped[int] = Column(Integer, nullable=False)
     count_total_lines: Mapped[int] = Column(Integer, nullable=False)

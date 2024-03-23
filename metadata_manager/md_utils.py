@@ -5,6 +5,7 @@ import hashlib
 import subprocess
 from datetime import datetime
 from pathlib import Path
+import uuid
 
 import md_constants
 from md_models import FileStat, LineChanges
@@ -70,12 +71,12 @@ def get_current_git_branch() -> Optional[str]:
 
 
 def get_filename_with_delete_prefix(filename: Union[str, Path]) -> str:
-    return f"{md_constants.DELETED_PREFIX}{filename}"
+    return f"{md_constants.DELETED_PREFIX}_{uuid.uuid4()}_{datetime.timestamp(datetime.now())}__{filename}"
 
 
 def get_filepath_with_delete_prefix(filepath: Union[str, Path]) -> str:
     filepath = Path(filepath)
-    return f"{filepath.parent}{get_filename_with_delete_prefix(filepath.name)}"
+    return f"{filepath.parent}/{get_filename_with_delete_prefix(filepath.name)}"
 
 
 def count_line_changes(old_hashes: List[str], new_hashes: List[str]) -> LineChanges:

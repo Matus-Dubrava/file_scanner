@@ -4,31 +4,30 @@ import subprocess
 from md_models import FileORM, HistoryORM
 import md_utils
 import md_enums
-import utils
 
 
-# Calling touch if .md repository wasn't initialized fails
+@pytest.mark.da11592f36
+@pytest.mark.cli
+@pytest.mark.touch_subcommand
+@pytest.mark.sanity
+def test_touch_fails_if_md_wasnt_initialized(working_dir, touch_cmd):
+    filepath = working_dir.joinpath("testfile")
+    proc = subprocess.run([*touch_cmd, filepath], capture_output=True)
+    assert proc.returncode != 0
+
+
 @pytest.mark.e63032638e
 @pytest.mark.cli
 @pytest.mark.touch_subcommand
 @pytest.mark.sanity
 def test_touch_fails_if_provided_path_doesnt_exist(
-    working_dir, touch_cmd, md_manager, initialize_working_dir, session
+    working_dir, touch_cmd, initialize_working_dir
 ):
     filepath = working_dir.joinpath("dir1", "testfile")
     proc = subprocess.run([*touch_cmd, filepath], capture_output=True)
     assert proc.returncode != 0
 
 
-# Calling touch directly within .md directory fails
-
-
-# File doesnt exists in netiher .md nor fs
-# expectations:
-# - new file will be created
-# - new file record will be created
-# - new history record will be created
-# - empty hash file will be created
 @pytest.mark.b9b291b049
 @pytest.mark.cli
 @pytest.mark.touch_subcommand
@@ -36,6 +35,14 @@ def test_touch_fails_if_provided_path_doesnt_exist(
 def test_touch_creates_new_file_in_cwd(
     working_dir, touch_cmd, md_manager, initialize_working_dir, session
 ):
+    """
+    File doesnt exists in netiher .md nor fs
+    expectations:
+    - new file will be created
+    - new file record will be created
+    - new history record will be created
+    - empty hash file will be created
+    """
     filename = "testfile"
     proc = subprocess.run([*touch_cmd, filename], capture_output=True, cwd=working_dir)
     assert proc.returncode == 0
@@ -116,10 +123,6 @@ def test_touch_creates_new_file_in_target_location_using_relative_path(
     assert not len(hash_filepath.read_text())
 
 
-# File exists in fs but not .md
-# - new file record will be created
-# - new history record will be created
-# - hash file will be created and populated with correct hashes
 @pytest.mark.b7409e9e71
 @pytest.mark.cli
 @pytest.mark.touch_subcommand
@@ -127,6 +130,12 @@ def test_touch_creates_new_file_in_target_location_using_relative_path(
 def test_touch_creates_new_md_record_for_existing_file(
     working_dir, initialize_working_dir, touch_cmd, session, md_manager
 ):
+    """
+    File exists in fs but not .md
+    - new file record will be created
+    - new history record will be created
+    - hash file will be created and populated with correct hashes
+    """
     lines = ["test1\n", "test2\n", "test3\n"]
     expected_line_hashes = [md_utils.get_line_hash(line) for line in lines]
     filepath = working_dir.joinpath("testfile")
@@ -152,10 +161,6 @@ def test_touch_creates_new_md_record_for_existing_file(
         assert expected_line_hashes == actual_lines_hashes
 
 
-# File exits in .md but not fs
-# - old .md file record and history records will be correctly updated
-# - new record is added to both file and history tables
-# - hash file is overwritten
 @pytest.mark.f35711bc67
 @pytest.mark.cli
 @pytest.mark.touch_subcommand
@@ -163,6 +168,13 @@ def test_touch_creates_new_md_record_for_existing_file(
 def test_touch_handles_removed_files_cleanup(
     working_dir, initialize_working_dir, touch_cmd, session, md_manager
 ):
+    """
+    File exits in .md but not fs,
+    expecting:
+    - old .md file record and history records will be correctly updated
+    - new record is added to both file and history tables
+    - hash file is overwritten
+    """
     filename = "testfile"
     filepath = working_dir.joinpath(filename)
     subprocess.check_output([*touch_cmd, filepath])
@@ -183,9 +195,7 @@ def test_touch_handles_removed_files_cleanup(
     assert history_record
 
     updated_history_record = (
-        session.query(FileORM)
-        .filter_by(filepath=md_utils.get_filepath_with_delete_prefix(filepath))
-        .first()
+        session.query(FileORM).filter_by(status=md_enums.FileStatus.REMOVED).first()
     )
     assert updated_history_record
     assert updated_history_record.timestamp_deleted
@@ -199,12 +209,39 @@ def test_touch_handles_removed_files_cleanup(
     assert updated_history_record
 
 
-# File exists in both
-# expectations:
-# - new history record will be created
-# - file record is untouched
-# - hash file is overwritten with new hash lines
-# - file & history attributes are updated correctly
+@pytest.mark.b41aca5376
+@pytest.mark.cli
+@pytest.mark.touch_subcommand
+@pytest.mark.sanity
+def test_touch_handles_multiple_deletions_of_the_same_file(
+    working_dir, initialize_working_dir, touch_cmd, session, md_manager
+):
+    filepath = working_dir.joinpath("testfile")
+    subprocess.check_output([*touch_cmd, filepath])
+
+    filepath.unlink()
+    subprocess.check_output([*touch_cmd, filepath])
+    assert (
+        session.query(FileORM).filter_by(status=md_enums.FileStatus.ACTIVE).count() == 1
+    )
+    assert (
+        session.query(FileORM).filter_by(status=md_enums.FileStatus.REMOVED).count()
+        == 1
+    )
+    assert session.query(HistoryORM).filter_by(filepath=filepath).count() == 1
+
+    filepath.unlink()
+    subprocess.check_output([*touch_cmd, filepath])
+    assert (
+        session.query(FileORM).filter_by(status=md_enums.FileStatus.ACTIVE).count() == 1
+    )
+    assert (
+        session.query(FileORM).filter_by(status=md_enums.FileStatus.REMOVED).count()
+        == 2
+    )
+    assert session.query(HistoryORM).filter_by(filepath=filepath).count() == 1
+
+
 @pytest.mark.f4951ee374
 @pytest.mark.cli
 @pytest.mark.touch_subcommand
@@ -212,13 +249,21 @@ def test_touch_handles_removed_files_cleanup(
 def test_each_touch_creates_new_history_record(
     working_dir, initialize_working_dir, touch_cmd, session, md_manager
 ):
+    """
+    File exists in both .md and fs
+
+    expecting:
+    - new history record will be created
+    - file record is untouched
+    - hash file is overwritten with new hash lines
+    - file & history attributes are updated correctly
+    """
     filepath = working_dir.joinpath("testfile")
 
     lines = ["a"]
     filepath.write_text("".join([f"{line}\n" for line in lines]))
 
     subprocess.check_output([*touch_cmd, filepath])
-
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert file_record
     assert session.query(HistoryORM).count() == 1
@@ -234,7 +279,7 @@ def test_each_touch_creates_new_history_record(
     filepath.write_text("".join([f"{line}\n" for line in lines]))
 
     subprocess.check_output([*touch_cmd, filepath])
-
+    session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 2
     latest_history_record = HistoryORM.get_latest(session)
@@ -249,7 +294,7 @@ def test_each_touch_creates_new_history_record(
     filepath.write_text("".join([f"{line}\n" for line in lines]))
 
     subprocess.check_output([*touch_cmd, filepath])
-
+    session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 3
     latest_history_record = HistoryORM.get_latest(session)
@@ -264,7 +309,7 @@ def test_each_touch_creates_new_history_record(
     filepath.write_text("".join([f"{line}\n" for line in lines]))
 
     subprocess.check_output([*touch_cmd, filepath])
-
+    session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 4
     latest_history_record = HistoryORM.get_latest(session)
@@ -279,7 +324,7 @@ def test_each_touch_creates_new_history_record(
     filepath.write_text("".join([f"{line}\n" for line in lines]))
 
     subprocess.check_output([*touch_cmd, filepath])
-
+    session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 5
     latest_history_record = HistoryORM.get_latest(session)
@@ -294,7 +339,7 @@ def test_each_touch_creates_new_history_record(
     filepath.write_text("".join([f"{line}\n" for line in lines]))
 
     subprocess.check_output([*touch_cmd, filepath])
-
+    session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 6
     latest_history_record = HistoryORM.get_latest(session)
@@ -309,7 +354,7 @@ def test_each_touch_creates_new_history_record(
     filepath.write_text("".join([f"{line}\n" for line in lines]))
 
     subprocess.check_output([*touch_cmd, filepath])
-
+    session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 7
     latest_history_record = HistoryORM.get_latest(session)
@@ -321,7 +366,44 @@ def test_each_touch_creates_new_history_record(
     assert latest_history_record.running_removed_lines == 5
 
 
-# Touch correctly sets version control branch name
+@pytest.mark.b2b08c4655
+@pytest.mark.cli
+@pytest.mark.touch_subcommand
+@pytest.mark.sanity
+def test_init_updates_branch_name(
+    working_dir, initialize_working_dir, touch_cmd, session, md_manager, monkeypatch
+):
+    """
+    Whenever file is touched, the current branch name should be recorded
+    in both 'file' record and latest 'history' record.
+    """
+    filepath = working_dir.joinpath("testfile")
+    md_manager.touch(filepath)
 
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
+    history_record = HistoryORM.get_latest(session)
+    assert file_record.version_control_branch is None
+    assert history_record.version_control_branch is None
 
-# Touch handles multiple deletions of the same file
+    monkeypatch.chdir(working_dir)
+    initial_branch = "main"
+    subprocess.check_output(["git", "init", "--initial-branch", initial_branch])
+
+    md_manager.touch(filepath)
+    session.expire_all()
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
+    history_record = HistoryORM.get_latest(session)
+    assert session.query(HistoryORM).count() == 2
+    assert history_record.version_control_branch == initial_branch
+    assert file_record.version_control_branch == initial_branch
+
+    new_branch_name = "develop"
+    subprocess.check_output(["git", "checkout", "-b", new_branch_name])
+
+    md_manager.touch(filepath)
+    session.expire_all()
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
+    history_record = HistoryORM.get_latest(session)
+    assert session.query(HistoryORM).count() == 3
+    assert history_record.version_control_branch == new_branch_name
+    assert file_record.version_control_branch == new_branch_name
