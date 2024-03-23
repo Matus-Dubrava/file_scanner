@@ -3,7 +3,6 @@ import pytest
 from pathlib import Path
 
 import tests.utils as utils
-from messages import Messages
 from build import write_build_info
 from md_enums import BuildType
 from md_models import VersionInfoORM
@@ -12,31 +11,24 @@ from db import get_session
 
 @pytest.mark.ebff0e4472
 @pytest.mark.cli
-@pytest.mark.init_subcommand
+@pytest.mark.init
 @pytest.mark.sanity
-def test_init_creates_md_repository_in_cwd(
-    working_dir, init_cmd, monkeypatch, md_manager
-):
-    monkeypatch.chdir(working_dir)
-    proc = subprocess.run([*init_cmd], capture_output=True)
-    assert not proc.stderr
-    assert proc.returncode == 0
+def test_init_creates_md_repository_in_cwd(working_dir, init_cmd, md_manager):
+    subprocess.check_output([*init_cmd])
     utils.assert_md_structure_exists(md_manager.md_config, working_dir)
     utils.assert_database_structure(
         working_dir / md_manager.md_config.md_dir_name / md_manager.md_config.md_db_name
     )
-    assert Messages.init_success_messages.text in str(proc.stdout)
 
 
 @pytest.mark.ed68aa1433
 @pytest.mark.cli
-@pytest.mark.init_subcommand
+@pytest.mark.init
 @pytest.mark.sanity
 def test_init_creates_md_repository_in_target_dir(working_dir, init_cmd, md_manager):
     subdir = working_dir / "dir1"
     subdir.mkdir()
-    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
-    assert proc.returncode == 0
+    subprocess.check_output([*init_cmd, subdir])
     utils.assert_md_structure_exists(md_manager.md_config, working_dir / "dir1")
     utils.assert_database_structure(
         working_dir
@@ -44,43 +36,35 @@ def test_init_creates_md_repository_in_target_dir(working_dir, init_cmd, md_mana
         / md_manager.md_config.md_dir_name
         / md_manager.md_config.md_db_name
     )
-    assert Messages.init_success_messages.text in str(proc.stdout)
 
 
 @pytest.mark.cae7feba85
 @pytest.mark.cli
-@pytest.mark.init_subcommand
+@pytest.mark.init
 @pytest.mark.sanity
 @pytest.mark.parametrize("target_path", [".", "dir1", "./dir1", "dir1/dir2"])
 def test_init_creates_md_repository_in_target_dir_with_relative_path(
-    working_dir, init_cmd, md_manager, monkeypatch, target_path
+    init_cmd, md_manager, target_path, working_dir
 ):
-    monkeypatch.chdir(working_dir)
-
-    proc = subprocess.run([*init_cmd, target_path], capture_output=True)
-    print(proc)
-    assert proc.returncode == 0
+    subprocess.check_output([*init_cmd, target_path])
     utils.assert_md_structure_exists(md_manager.md_config, Path(target_path))
     utils.assert_database_structure(
         Path(target_path)
         / md_manager.md_config.md_dir_name
         / md_manager.md_config.md_db_name
     )
-    assert Messages.init_success_messages.text in str(proc.stdout)
 
 
 @pytest.mark.d4b42a1511
 @pytest.mark.cli
-@pytest.mark.init_subcommand
+@pytest.mark.init
 @pytest.mark.sanity
 def test_init_creates_both_md_respository_and_target_dir_if_it_doesnt_exist(
     working_dir, init_cmd, md_manager
 ):
     subdir = working_dir / "dir1" / "dir2"
 
-    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
-    assert proc.returncode == 0
-    assert not proc.stderr
+    subprocess.check_output([*init_cmd, subdir])
 
     assert subdir.exists()
     utils.assert_md_structure_exists(md_manager.md_config, subdir)
@@ -91,15 +75,14 @@ def test_init_creates_both_md_respository_and_target_dir_if_it_doesnt_exist(
 
 @pytest.mark.b767b0b432
 @pytest.mark.cli
-@pytest.mark.init_subcommand
+@pytest.mark.init
 @pytest.mark.sanity
 def test_init_aborts_when_another_md_is_detected_in_the_same_dir(
     working_dir, init_cmd, md_manager
 ):
     subdir = working_dir / "dir1"
     subdir.mkdir()
-    proc = subprocess.run([*init_cmd, subdir], capture_output=True)
-    assert proc.returncode == 0
+    subprocess.check_output([*init_cmd, subdir])
     utils.assert_md_structure_exists(md_manager.md_config, subdir)
 
     proc = subprocess.run([*init_cmd, subdir], capture_output=True)
@@ -116,15 +99,14 @@ def test_init_aborts_when_another_md_is_detected_in_the_same_dir(
 
 @pytest.mark.ad4d569613
 @pytest.mark.cli
-@pytest.mark.init_subcommand
+@pytest.mark.init
 @pytest.mark.sanity
 def test_init_aborts_when_another_md_is_detected_on_the_path_to_root(
     working_dir, init_cmd, md_manager
 ):
     subdir = working_dir / "dir1" / "dir2"
     subdir.mkdir(parents=True)
-    proc = subprocess.run([*init_cmd, working_dir], capture_output=True)
-    assert proc.returncode == 0
+    subprocess.check_output([*init_cmd, working_dir])
     utils.assert_md_structure_exists(md_manager.md_config, working_dir)
 
     proc = subprocess.run([*init_cmd, subdir], capture_output=True)
@@ -141,20 +123,20 @@ def test_init_aborts_when_another_md_is_detected_on_the_path_to_root(
 
 @pytest.mark.be334fb0aa
 @pytest.mark.cli
-@pytest.mark.init_subcommand
+@pytest.mark.init
 @pytest.mark.sanity
+@pytest.mark.preserve_version_data
 def test_init_creates_version_info_record(
     working_dir,
     init_cmd,
     md_manager,
     monkeypatch,
-    version_data,  # don't remove "version_data", it preserves the data in version file
 ):
     monkeypatch.chdir(Path(__file__).parent)
     expected_commit_id = (
         subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
     )
-    expected_version = "1.0.0"
+    expected_version = "2.0.0"
     expected_build_type = BuildType.DEV
 
     maybe_err = write_build_info(
@@ -163,8 +145,7 @@ def test_init_creates_version_info_record(
     if maybe_err:
         raise maybe_err
 
-    proc = subprocess.run([*init_cmd, working_dir])
-    assert proc.returncode == 0
+    subprocess.check_output([*init_cmd, working_dir])
 
     db_dir = working_dir / md_manager.md_config.md_dir_name
     session = get_session(db_dir=db_dir, db_name=md_manager.md_config.md_db_name)

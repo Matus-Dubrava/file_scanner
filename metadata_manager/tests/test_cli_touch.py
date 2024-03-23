@@ -8,7 +8,7 @@ import md_enums
 
 @pytest.mark.da11592f36
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
 def test_touch_fails_if_md_wasnt_initialized(working_dir, touch_cmd):
     filepath = working_dir.joinpath("testfile")
@@ -18,11 +18,10 @@ def test_touch_fails_if_md_wasnt_initialized(working_dir, touch_cmd):
 
 @pytest.mark.e63032638e
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
-def test_touch_fails_if_provided_path_doesnt_exist(
-    working_dir, touch_cmd, initialize_working_dir
-):
+@pytest.mark.init_md(True)
+def test_touch_fails_if_provided_path_doesnt_exist(working_dir, touch_cmd):
     filepath = working_dir.joinpath("dir1", "testfile")
     proc = subprocess.run([*touch_cmd, filepath], capture_output=True)
     assert proc.returncode != 0
@@ -30,11 +29,10 @@ def test_touch_fails_if_provided_path_doesnt_exist(
 
 @pytest.mark.b9b291b049
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
-def test_touch_creates_new_file_in_cwd(
-    working_dir, touch_cmd, md_manager, initialize_working_dir, session
-):
+@pytest.mark.init_md(True)
+def test_touch_creates_new_file_in_cwd(working_dir, touch_cmd, md_manager, session):
     """
     File doesnt exists in netiher .md nor fs
     expectations:
@@ -62,13 +60,14 @@ def test_touch_creates_new_file_in_cwd(
 
 @pytest.mark.a64ec6e711
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
+@pytest.mark.init_md(True)
 @pytest.mark.parametrize(
     "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
 )
 def test_touch_creates_new_file_in_target_location_using_absolute_path(
-    working_dir, touch_cmd, md_manager, initialize_working_dir, session, rel_filepath
+    working_dir, touch_cmd, md_manager, session, rel_filepath
 ):
     filepath = working_dir.joinpath(rel_filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -90,8 +89,9 @@ def test_touch_creates_new_file_in_target_location_using_absolute_path(
 
 @pytest.mark.fad5734b38
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
+@pytest.mark.init_md(True)
 @pytest.mark.parametrize(
     "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
 )
@@ -99,12 +99,9 @@ def test_touch_creates_new_file_in_target_location_using_relative_path(
     working_dir,
     touch_cmd,
     md_manager,
-    initialize_working_dir,
     session,
     rel_filepath,
-    monkeypatch,
 ):
-    monkeypatch.chdir(working_dir)
     filepath = working_dir.joinpath(rel_filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run([*touch_cmd, rel_filepath], capture_output=True)
@@ -125,10 +122,11 @@ def test_touch_creates_new_file_in_target_location_using_relative_path(
 
 @pytest.mark.b7409e9e71
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
+@pytest.mark.init_md(True)
 def test_touch_creates_new_md_record_for_existing_file(
-    working_dir, initialize_working_dir, touch_cmd, session, md_manager
+    working_dir, touch_cmd, session, md_manager
 ):
     """
     File exists in fs but not .md
@@ -163,11 +161,10 @@ def test_touch_creates_new_md_record_for_existing_file(
 
 @pytest.mark.f35711bc67
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
-def test_touch_handles_removed_files_cleanup(
-    working_dir, initialize_working_dir, touch_cmd, session, md_manager
-):
+@pytest.mark.init_md(True)
+def test_touch_handles_removed_files_cleanup(working_dir, touch_cmd, session):
     """
     File exits in .md but not fs,
     expecting:
@@ -211,10 +208,11 @@ def test_touch_handles_removed_files_cleanup(
 
 @pytest.mark.b41aca5376
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
+@pytest.mark.init_md(True)
 def test_touch_handles_multiple_deletions_of_the_same_file(
-    working_dir, initialize_working_dir, touch_cmd, session, md_manager
+    working_dir, touch_cmd, session
 ):
     filepath = working_dir.joinpath("testfile")
     subprocess.check_output([*touch_cmd, filepath])
@@ -244,11 +242,10 @@ def test_touch_handles_multiple_deletions_of_the_same_file(
 
 @pytest.mark.f4951ee374
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
-def test_each_touch_creates_new_history_record(
-    working_dir, initialize_working_dir, touch_cmd, session, md_manager
-):
+@pytest.mark.init_md(True)
+def test_each_touch_creates_new_history_record(working_dir, touch_cmd, session):
     """
     File exists in both .md and fs
 
@@ -368,28 +365,26 @@ def test_each_touch_creates_new_history_record(
 
 @pytest.mark.b2b08c4655
 @pytest.mark.cli
-@pytest.mark.touch_subcommand
+@pytest.mark.touch
 @pytest.mark.sanity
-def test_init_updates_branch_name(
-    working_dir, initialize_working_dir, touch_cmd, session, md_manager, monkeypatch
-):
+@pytest.mark.init_md(True)
+def test_init_updates_branch_name(working_dir, touch_cmd, session):
     """
     Whenever file is touched, the current branch name should be recorded
     in both 'file' record and latest 'history' record.
     """
     filepath = working_dir.joinpath("testfile")
-    md_manager.touch(filepath)
 
+    subprocess.check_output([*touch_cmd, filepath])
     file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     history_record = HistoryORM.get_latest(session)
     assert file_record.version_control_branch is None
     assert history_record.version_control_branch is None
 
-    monkeypatch.chdir(working_dir)
     initial_branch = "main"
     subprocess.check_output(["git", "init", "--initial-branch", initial_branch])
 
-    md_manager.touch(filepath)
+    subprocess.check_output([*touch_cmd, filepath])
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     history_record = HistoryORM.get_latest(session)
@@ -400,7 +395,7 @@ def test_init_updates_branch_name(
     new_branch_name = "develop"
     subprocess.check_output(["git", "checkout", "-b", new_branch_name])
 
-    md_manager.touch(filepath)
+    subprocess.check_output([*touch_cmd, filepath])
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     history_record = HistoryORM.get_latest(session)

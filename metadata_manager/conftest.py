@@ -8,8 +8,25 @@ from md_models import Config
 from db import get_session
 
 
+def pytest_runtest_setup(item):
+    if "preserve_version_data" in item.keywords:
+        item.session.version_file_path = Path(__file__).parent.joinpath("version.json")
+        version_data = ""
+        with open(item.session.version_file_path, "rb") as bf:
+            version_data = bf.read()
+            item.session.version_data = version_data
+
+
+def pytest_runtest_teardown(item):
+    if "preserve_version_data" in item.keywords:
+        with open(item.session.version_file_path, "wb") as bf:
+            bf.write(item.session.version_data)
+
+
 @pytest.fixture(scope="function")
-def working_dir(monkeypatch, md_manager):
+def working_dir(request, monkeypatch, md_manager):
+    should_init_md = request.node.get_closest_marker("init_md")
+
     working_dir_path = Path("/tmp/working_dir/")
 
     if working_dir_path.exists():
@@ -19,6 +36,12 @@ def working_dir(monkeypatch, md_manager):
     print(f"[{__name__}] created working dir: {working_dir_path}")
     monkeypatch.chdir(working_dir_path)
     print(f"[{__name__}] changed CWD to: {working_dir_path}")
+
+    if should_init_md and should_init_md.args[0]:
+        md_manager.initalize_md_repository(working_dir_path)
+        print(
+            f"[{__name__}] initialized md repository: {working_dir_path.joinpath(md_manager.md_config.md_dir_name)}"
+        )
 
     yield working_dir_path
     shutil.rmtree(working_dir_path)
@@ -54,16 +77,8 @@ def md_manager():
 
 
 @pytest.fixture(scope="function")
-def initialize_working_dir(working_dir, md_manager):
-    md_manager.initalize_md_repository(working_dir)
-    print(
-        f"[{__name__}] initialized md repository: {working_dir.joinpath(md_manager.md_config.md_dir_name)}"
-    )
-    return None
-
-
-@pytest.fixture(scope="function")
-def session(working_dir, initialize_working_dir, md_manager):
+@pytest.mark.init_md(True)
+def session(working_dir, md_manager):
     sess = get_session(
         working_dir.joinpath(md_manager.md_config.md_dir_name),
         md_manager.md_config.md_db_name,
