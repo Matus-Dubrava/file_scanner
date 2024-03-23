@@ -113,6 +113,7 @@
         -   add command that can collect this data
     -   refactor Union types to use `|` instead
     -   add script for running test coverage
+    -   refactor logic that check for initilized `md` repository into decorator
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist
