@@ -113,6 +113,9 @@
         -   add command that can collect this data
     -   refactor Union types to use `|` instead
     -   add script for running test coverage
+    -   add option to search based on custom attributes and values via `md list` once the custom file attributes
+        are implemented
+    -   implement `md rm`
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist

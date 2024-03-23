@@ -520,7 +520,8 @@ class MetadataManager:
     @with_md_repository_paths
     def untrack(self, filepath: Path) -> None:
         """
-        Set file status to "UNTRACKED" if file is in "ACTIVE" state, fail otherwise.
+        Set file status to "UNTRACKED" if file is in "ACTIVE" state. Do nothing
+        if file is already in "UNTRACKED" state. Otherwise fail.
         """
         assert filepath.is_absolute()
 
@@ -556,22 +557,25 @@ class MetadataManager:
         """
         TODO:
         List files:
-            - by default show relative paths
-                - show absolute pahts if --absolute flag is specified
+            - by default list files in current directory
             - by default list only active files
-                - --all can be used to list all files
-                - --untracked can be used to list untracked files
-                - --removed can be used to list removed files
+            - --all can be used to list all files using relative paths to md repository root
+            - --abs-path list files using their absolute paths
+            - --untracked can be used to list untracked files
+            - --removed can be used to list removed files
+            - TODO: add option to search based on custom attributes and values
+                    once the custom file attributes are implemented
         """
         assert dir.is_absolute()
         assert self.md_db_path
+        assert self.repository_root
         session = get_session(self.md_db_path)
 
         if status_filter:
             files = session.query(FileORM).filter_by(status=status_filter).all()
             for file in files:
-                print(file.filepath)
+                print(Path(file.filepath).relative_to(Path.cwd()))
         else:
             files = session.query(FileORM).all()
             for file in files:
-                print(file.filepath)
+                print(Path(file.filepath).relative_to(self.repository_root))
