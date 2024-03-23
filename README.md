@@ -115,10 +115,10 @@
     -   add script for running test coverage
     -   refactor logic that check for initilized `md` repository into decorator and make `md_root`
         available via `md_manager` attrubute
-    -   refactor `intialize_working_dir` fixture into marker
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist
     -   add version tracking into app & into store it in db, create new table during,
         initliazation with app-specific data
         -   add version file, tracking version, commit_id & build_type
+    -   refactor `intialize_working_dir` fixture into marker
