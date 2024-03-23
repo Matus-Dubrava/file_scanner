@@ -31,7 +31,6 @@
 
     -   holds a sqlite database called .metadata.db tracking the above mentioned structure
         -   sqlalchemy is used for db operations on the sqlite file
-    -   creates an empty `delete` root folder to hold deleted files
     -   creates an empty `hashes` folder to hold copy of tracked files from previous refresh
         -   this one is used to hold copies of all of the tracked files
         -   each time the `hashes` is run, this gets replaced by current files
@@ -41,12 +40,18 @@
     -   check if this folder is controlled by git, if so, inform user about this fact as this can lead to
         inconistencies if metadata is initialized outside of the 'main' branch
 
--   always execute these commands as if they were run from the MD `root` folder
-
 -   md touch:
-    -   creates new file and adds the initial record to history
-    -   creates a copy of that file in the refresh folder
-    -   does nothing if the file already exists in MD
+    -   purpose of this command is to collect current file stats and store them in database
+    -   it automatically creates a tracked file if one doesn't exists yet or starts tracking an existing file
+    -   if file doesn't exist yet:
+        -   create new file
+        -   add record to `file` table
+        -   add record to `history` table
+        -   creates empty `hash` file
+    -   if file exists:
+        -   update record in `file` table if necessary
+        -   add record to `history` table
+        -   write line hashes to `hash` file (create if it doesn't exist yet/overwrite its contents otherwise)
 -   md add:
     -   adds file to metadata if it is not already there
     -   use os info to populate date_modified, and date_created
@@ -54,9 +59,6 @@
     -   does nothing if the file is alrady tracked and in active state
     -   if the file is in untracked state, change it to tracked state and create a copy in `hashes` folder
 -   md rm:
-    -   creates a minimal subfoler structure in the `delete` folder
-    -   creates a copy of the file and stores it in the corresponding place in the `delete` folder
-    -   the name of the copied file is `<original_filename>__rm__timestamp__uuid.<original_ext>`
     -   remove file from fs and set status to `removed` in metadata
     -   remove the file from the `hashes` folder
 -   md untrack:
@@ -110,6 +112,7 @@
         -   also include total no. files
         -   add command that can collect this data
     -   refactor Union types to use `|` instead
+    -   add script for running test coverage
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist
