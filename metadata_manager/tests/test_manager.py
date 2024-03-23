@@ -1,7 +1,6 @@
 import pytest
 from pathlib import Path
 import os
-import sys
 
 from db import create_db
 import tests.utils as utils
