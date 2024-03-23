@@ -1,11 +1,13 @@
 from typing import List, Union
-from pydantic import BaseModel
+from collections import Counter
 from typing import Optional
 import hashlib
 import subprocess
 from datetime import datetime
-
 from pathlib import Path
+
+import md_constants
+from md_models import FileStat, LineChanges
 
 
 def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
@@ -27,12 +29,6 @@ def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
 
     timestamp = int(proc.stdout.strip())
     return datetime.fromtimestamp(timestamp)
-
-
-class FileStat(BaseModel):
-    n_lines: int
-    hashes: List[str]
-    file_hash: str
 
 
 def get_line_hash(line: str) -> str:
@@ -71,3 +67,40 @@ def get_current_git_branch() -> Optional[str]:
         return None
     else:
         return proc.stdout.decode("utf-8").strip()
+
+
+def get_filename_with_delete_prefix(filename: Union[str, Path]) -> str:
+    return f"{md_constants.DELETED_PREFIX}{filename}"
+
+
+def get_filepath_with_delete_prefix(filepath: Union[str, Path]) -> str:
+    filepath = Path(filepath)
+    return f"{filepath.parent}{get_filename_with_delete_prefix(filepath.name)}"
+
+
+def count_line_changes(old_hashes: List[str], new_hashes: List[str]) -> LineChanges:
+    """
+    Compare hashes and get count of new lines.
+
+    old_hashes:     list of existing hashes
+    new_hashes:     list of new hashes
+    """
+    line_changes = LineChanges.new()
+    old_c = Counter(old_hashes)
+    new_c = Counter(new_hashes)
+
+    for hash, count in new_c.items():
+        if hash in old_c:
+            diff = count - old_c[hash]
+            line_changes.lines_added += diff if diff > 0 else 0
+        else:
+            line_changes.lines_added += count
+
+    for hash, count in old_c.items():
+        if hash in new_c:
+            diff = count - new_c[hash]
+            line_changes.lines_removed += diff if diff > 0 else 0
+        else:
+            line_changes.lines_removed += count
+
+    return line_changes

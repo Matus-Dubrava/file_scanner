@@ -95,9 +95,6 @@
     -   add support for custom metadata associated with the file in form of json document
         stored in the metadata database
         -   add option to list the metadata as well as fetch specific one
-    -   add version tracking into app & into store it in db, create new table during,
-        initliazation with app-specific data
-        -   add version file, tracking version, commit_id & build_type
     -   test file stats are computed correctly
     -   test adding records to md database
     -   ensure that md init/add/mv cannot be applied on files under .md directory itself
@@ -105,7 +102,17 @@
         -   files will be tracked in the closest .md repository on the path to the root
     -   add `commit` argument to functions that perform database operations so that they can optionally
         changes
-    -   refactor paths to use .joinpath instead of "/"
+    -   refactor paths to use .joinpath instead of `/`
+    -   refactor `subprocess.run` commands into `subprocess.check_output` in test cases where all we care
+        about is that the operation was successful
+    -   add `md --purge` to purge all removed records
+    -   add new table tracking summary statistics such as no. tracked files, no. lines, no. updated lines
+        -   also include total no. files
+        -   add command that can collect this data
+    -   refactor Union types to use `|` instead
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist
+    -   add version tracking into app & into store it in db, create new table during,
+        initliazation with app-specific data
+        -   add version file, tracking version, commit_id & build_type

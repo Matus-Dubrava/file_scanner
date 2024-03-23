@@ -12,6 +12,7 @@ from md_models import (
     Config,
     FileORM,
     FileStatus,
+    FileStat,
     HistoryORM,
     VersionInfo,
     VersionInfoORM,
@@ -100,6 +101,28 @@ class MetadataManager:
         filepath.unlink(missing_ok=True)
         return None
 
+    def read_line_hashes_from_hash_file(self, filepath: Path) -> List[str] | Exception:
+        """
+        Reads hashes from the corresponding hash file.
+
+        filepath:       path to the original file, not the hash file
+        """
+        assert filepath.exists(), f"Expected {filepath} to exist."
+
+        hashes_path_or_err = self.get_path_to_hash_file(filepath=filepath)
+        if isinstance(hashes_path_or_err, Exception):
+            return hashes_path_or_err
+
+        hashes = []
+        try:
+            with open(hashes_path_or_err, "r") as f:
+                for line in f:
+                    hashes.append(line.strip())
+        except Exception as err:
+            return err
+
+        return hashes
+
     def write_line_hashes_to_hash_file(
         self, filepath: Path, line_hashes: List[str]
     ) -> Optional[Exception]:
@@ -157,17 +180,31 @@ class MetadataManager:
 
         return False
 
-    def create_new_file(
-        self, session: Session, filepath: Path, branch_name: Optional[str] = None
+    def create_new_file_record(
+        self,
+        session: Session,
+        filepath: Path,
+        file_exists: bool,
+        branch_name: Optional[str] = None,
     ) -> Optional[Exception]:
         try:
-            filepath.touch()
+            if not file_exists:
+                filepath.touch()
+
+            file_stat = FileStat.new()
+
+            if file_exists:
+                file_stat_or_err = md_utils.compute_file_stats(filepath=filepath)
+                if isinstance(file_stat_or_err, Exception):
+                    return file_stat_or_err
+                file_stat = file_stat_or_err
+
             hash_filepath_or_err = self.get_path_to_hash_file(filepath=filepath)
             if isinstance(hash_filepath_or_err, Exception):
                 raise hash_filepath_or_err
 
             maybe_err = self.write_line_hashes_to_hash_file(
-                filepath=filepath, line_hashes=[]
+                filepath=filepath, line_hashes=file_stat.hashes
             )
             if maybe_err:
                 raise maybe_err
@@ -182,12 +219,19 @@ class MetadataManager:
             history_record = HistoryORM(
                 filepath=str(filepath),
                 version_control_branch=branch_name,
-                fs_size=0,
+                fs_size=filepath.lstat().st_size if file_exists else 0,
                 fs_inode=filepath.lstat().st_ino,
-                n_total_lines=0,
-                n_changed_lines=0,
-                running_changed_lines=0,
-                file_hash="",
+                count_total_lines=file_stat.n_lines,
+                count_added_lines=file_stat.n_lines,
+                count_removed_lines=0,
+                running_added_lines=file_stat.n_lines,
+                running_removed_lines=0,
+                file_hash=file_stat.file_hash,
+                fs_date_modified=(
+                    datetime.fromtimestamp(filepath.lstat().st_mtime)
+                    if file_exists
+                    else datetime.now()
+                ),
             )
 
             session.add(file_record)
@@ -207,7 +251,6 @@ class MetadataManager:
         self,
         session: Session,
         filepath: Path,
-        file_exists: bool,
         branch_name: Optional[str] = None,
     ) -> List[Optional[Exception]]:
         try:
@@ -221,40 +264,49 @@ class MetadataManager:
             if isinstance(timestamp_created_or_err, Exception):
                 return [timestamp_created_or_err]
 
-            # Create file if it doesn't exist.
-            if not file_exists:
-                filepath.touch()
+            # Read existing hashes.
+            hashes_or_err = self.read_line_hashes_from_hash_file(filepath)
+            if isinstance(hashes_or_err, Exception):
+                return [hashes_or_err]
 
-            # Create the file containing line hashes.
+            # Write new hashes.
             maybe_err = self.write_line_hashes_to_hash_file(
                 filepath=filepath, line_hashes=file_stat_or_err.hashes
             )
             if maybe_err:
                 return [maybe_err]
 
-            # If file was just created, create file record as well.
-            if not file_exists:
-                file_record = FileORM(
-                    filepath=str(filepath),
-                    fs_timestamp_created=timestamp_created_or_err,
-                    version_control_branch=branch_name,
-                    filename=filepath.name,
-                    status=FileStatus.ACTIVE,
-                )
+            # Get the corresponding file record and potentially update branch.
+            file_record = session.query(FileORM).filter_by(filepath=filepath).first()
+            assert file_record, f"Expected file recrod for {filepath} to exist"
+            file_record.version_control_branch = branch_name
+            session.add(file_record)
+
+            latest_history_record = (
+                session.query(HistoryORM).order_by(HistoryORM.id.desc()).first()
+            )
+            assert latest_history_record, "Expected at least one history record."
+
+            line_changes = md_utils.count_line_changes(
+                old_hashes=hashes_or_err, new_hashes=file_stat_or_err.hashes
+            )
 
             history_record = HistoryORM(
                 filepath=str(filepath),
                 version_control_branch=branch_name,
                 fs_size=filepath.lstat().st_size,
                 fs_inode=filepath.lstat().st_ino,
-                n_total_lines=file_stat_or_err.n_lines,
-                n_changed_lines=file_stat_or_err.n_lines,
-                running_changed_lines=file_stat_or_err.n_lines,
+                count_total_lines=file_stat_or_err.n_lines,
+                count_added_lines=line_changes.lines_added,
+                count_removed_lines=line_changes.lines_removed,
+                running_added_lines=latest_history_record.running_added_lines
+                + line_changes.lines_added,
+                running_removed_lines=latest_history_record.running_removed_lines
+                + line_changes.lines_removed,
                 file_hash=file_stat_or_err.file_hash,
                 fs_date_modified=datetime.fromtimestamp(filepath.lstat().st_mtime),
             )
 
-            session.add(file_record)
             session.add(history_record)
             session.commit()
         except Exception as err:
@@ -366,20 +418,23 @@ class MetadataManager:
 
         # File doesn't exist it fs nor in the .md database.
         if not filepath.exists() and not old_file_record:
-            maybe_err = self.create_new_file(
-                session=session, filepath=filepath, branch_name=branch_name
-            )
-            maybe_errors.append(maybe_err)
-
-        # file doesn't exist in md but exits in fs (i.e file wasnt created using md touch or due to branch switch)
-        elif filepath.exists() and not old_file_record:
-            maybe_errs = self.add_file_to_md(
+            maybe_err = self.create_new_file_record(
                 session=session,
                 filepath=filepath,
                 branch_name=branch_name,
                 file_exists=False,
             )
-            maybe_errors.extend(maybe_errs)
+            maybe_errors.append(maybe_err)
+
+        # file doesn't exist in md but exits in fs (i.e file wasnt created using md touch or due to branch switch)
+        elif filepath.exists() and not old_file_record:
+            maybe_err = self.create_new_file_record(
+                session=session,
+                filepath=filepath,
+                branch_name=branch_name,
+                file_exists=True,
+            )
+            maybe_errors.append(maybe_err)
 
         # file exists in md but not in fs (file was removed)
         elif not filepath.exists() and old_file_record:
@@ -389,14 +444,18 @@ class MetadataManager:
                 .all()
             )
 
-            timestamp = int(datetime.now().timestamp())
-            new_filename = f"deleted__{timestamp}__{old_file_record.filename}"
-            new_filepath = f"{Path(filepath).parent.joinpath(new_filename)}"
+            new_filename = md_utils.get_filename_with_delete_prefix(
+                old_file_record.filename
+            )
+            new_filepath = md_utils.get_filepath_with_delete_prefix(
+                old_file_record.filepath
+            )
 
             # Update the File record.
             old_file_record.filename = new_filename
             old_file_record.filepath = new_filepath
             old_file_record.status = FileStatus.REMOVED
+            old_file_record.timestamp_deleted = datetime.now()
 
             # Update assocaited history records.
             for history_record in history_records:
@@ -410,8 +469,11 @@ class MetadataManager:
             # Note that "create_new_file" intentionally commits the staged changes
             # so that it can perform cleanup if necessary. This also commits
             # the above staged changes.
-            maybe_err = self.create_new_file(
-                session=session, filepath=filepath, branch_name=branch_name
+            maybe_err = self.create_new_file_record(
+                session=session,
+                filepath=filepath,
+                branch_name=branch_name,
+                file_exists=False,
             )
             maybe_errors.append(maybe_err)
 
@@ -421,7 +483,6 @@ class MetadataManager:
                 session=session,
                 filepath=filepath,
                 branch_name=branch_name,
-                file_exists=True,
             )
 
         session.close()
