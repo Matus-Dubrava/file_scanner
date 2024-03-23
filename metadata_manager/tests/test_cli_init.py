@@ -147,8 +147,10 @@ def test_init_creates_version_info_record(
 
     subprocess.check_output([*init_cmd, working_dir])
 
-    db_dir = working_dir / md_manager.md_config.md_dir_name
-    session = get_session(db_dir=db_dir, db_name=md_manager.md_config.md_db_name)
+    db_path = working_dir.joinpath(
+        md_manager.md_config.md_dir_name, md_manager.md_config.md_db_name
+    )
+    session = get_session(db_path)
 
     version_info = session.query(VersionInfoORM).first()
 

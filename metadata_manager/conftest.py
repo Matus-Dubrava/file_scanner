@@ -80,26 +80,10 @@ def md_manager():
 @pytest.mark.init_md(True)
 def session(working_dir, md_manager):
     sess = get_session(
-        working_dir.joinpath(md_manager.md_config.md_dir_name),
-        md_manager.md_config.md_db_name,
+        working_dir.joinpath(
+            md_manager.md_config.md_dir_name, md_manager.md_config.md_db_name
+        )
     )
     print(f"[{__name__}] created session object")
     yield sess
     sess.close()
-
-
-@pytest.fixture(scope="function")
-def version_data():
-    """
-    Used to save and restore version data if some
-    test case needs to update it.
-    """
-    version_file_path = Path(__file__).parent.joinpath("version.json")
-    version_data_copy = ""
-    with open(version_file_path, "rb") as bf:
-        version_data_copy = bf.read()
-
-    yield
-
-    with open(version_file_path, "wb") as bf:
-        bf.write(version_data_copy)

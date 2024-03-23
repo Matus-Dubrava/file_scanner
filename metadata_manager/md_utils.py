@@ -105,3 +105,7 @@ def count_line_changes(old_hashes: List[str], new_hashes: List[str]) -> LineChan
             line_changes.lines_removed += count
 
     return line_changes
+
+
+def is_fs_root_dir(dir: Path, root_dir: Path = Path("/")) -> bool:
+    return str(dir) == str(root_dir)

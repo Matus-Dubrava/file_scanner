@@ -1,9 +1,10 @@
 import sys
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Callable
 import subprocess
 import shutil
 from datetime import datetime
+from functools import wraps
 
 from sqlalchemy.orm import Session
 
@@ -23,9 +24,37 @@ import md_utils
 class MetadataManager:
     def __init__(self, md_config: Config):
         self.md_config = md_config
+        self.repository_root: Optional[Path] = None
+        self.md_path: Optional[Path] = None
+        self.md_db_path: Optional[Path] = None
 
-    def is_fs_root_dir(self, dir: Path, root_dir: Path = Path("/")) -> bool:
-        return str(dir) == str(root_dir)
+    @staticmethod
+    def with_md_repository_paths(func: Callable) -> Callable:
+        """
+        Decorator providing access to below mentioned attributes via 'self':
+            - repository_root:  directory where md was initalized
+            - md_path:          path to .md directory inside md repository
+            - md_db_path:       path to metadata.db inside .md directory
+
+        Performs additional validation. If md root doesn't exist,
+        exit with failure status code 100.
+        """
+
+        @wraps(func)
+        def wrapper(self: "MetadataManager", dir: Path, *args, **kwargs) -> Callable:
+            maybe_md_root = self.get_md_root(dir)
+            if not maybe_md_root:
+                print(
+                    "Not an .md repository (or any of the parent directories). Abort."
+                )
+                sys.exit(100)
+
+            self.repository_root = maybe_md_root
+            self.md_path = maybe_md_root.joinpath(self.md_config.md_dir_name)
+            self.md_db_path = self.md_path.joinpath(self.md_config.md_db_name)
+            return func(self, dir, *args, **kwargs)
+
+        return wrapper
 
     def create_md_dirs(self, where: Path):
         (where / self.md_config.md_dir_name).mkdir()
@@ -55,7 +84,7 @@ class MetadataManager:
         """
         current_dir = dir
 
-        while not self.is_fs_root_dir(current_dir):
+        while not md_utils.is_fs_root_dir(current_dir):
             if (current_dir / self.md_config.md_dir_name).exists():
                 return current_dir
 
@@ -153,7 +182,7 @@ class MetadataManager:
     ) -> bool:
         current_dir = dir
 
-        while not self.is_fs_root_dir(current_dir):
+        while not md_utils.is_fs_root_dir(current_dir):
             if (current_dir / self.md_config.md_dir_name).exists():
                 return True
 
@@ -169,7 +198,7 @@ class MetadataManager:
     ) -> bool:
         current_dir = dir
 
-        while not self.is_fs_root_dir(current_dir):
+        while not md_utils.is_fs_root_dir(current_dir):
             if (current_dir / ".git").exists():
                 return True
 
@@ -372,10 +401,10 @@ class MetadataManager:
 
             # create sqlite metadata.db and initialize tracking table
             db_path = dir / self.md_config.md_dir_name
-            create_db(db_path, self.md_config.md_db_name)
+            create_db(db_path / self.md_config.md_db_name)
 
             # write version info to db
-            session = get_session(db_path, self.md_config.md_db_name)
+            session = get_session(db_path / self.md_config.md_db_name)
             maybe_err = self.write_version_info_to_db(session=session)
             if maybe_err:
                 raise maybe_err
@@ -390,6 +419,7 @@ class MetadataManager:
             print("Abort.")
             sys.exit(1)
 
+    @with_md_repository_paths
     def touch(self, filepath: Path) -> None:
         """
         ...
@@ -400,14 +430,8 @@ class MetadataManager:
             print(f"Directory {filepath.parent} doesn't exist. Abort.")
             sys.exit(1)
 
-        maybe_md_root = self.get_md_root(dir=filepath.parent)
-        if not maybe_md_root:
-            print("Not an .md repository (or any of the parent directories). Abort.")
-            sys.exit(1)
-
-        session = get_session(
-            maybe_md_root / self.md_config.md_dir_name, self.md_config.md_db_name
-        )
+        assert self.md_db_path, "Expected db path to be set."
+        session = get_session(self.md_db_path)
         branch_name = self.get_current_git_branch(filepath.parent)
 
         old_file_record = (
@@ -493,26 +517,19 @@ class MetadataManager:
                 print(err, file=sys.stderr)
                 sys.exit(1)
 
+    @with_md_repository_paths
     def untrack(self, filepath: Path) -> None:
         """
         Set file status to "UNTRACKED" if file is in "ACTIVE" state, fail otherwise.
         """
         assert filepath.is_absolute()
 
-        maybe_md_root = self.get_md_root(dir=filepath.parent)
-        if not maybe_md_root:
-            print("Not an .md repository (or any of the parent directories). Abort.")
-            sys.exit(100)
-
-        print(f"filepath: {filepath} | {filepath.exists()}")
         if not filepath.exists():
             print(f"File {filepath.relative_to(Path.cwd())} doesn't exist. Abort.")
             sys.exit(1)
 
-        session = get_session(
-            maybe_md_root.joinpath(self.md_config.md_dir_name),
-            self.md_config.md_db_name,
-        )
+        assert self.md_db_path
+        session = get_session(self.md_db_path)
 
         file_record = session.query(FileORM).filter_by(filepath=filepath).first()
         if not file_record:
@@ -534,6 +551,7 @@ class MetadataManager:
         session.close()
         print(f"Status of {filepath.relative_to(Path.cwd())} was set to untracked.")
 
+    @with_md_repository_paths
     def list_files(self, dir: Path, status_filter: Optional[FileStatus] = None) -> None:
         """
         TODO:
@@ -546,14 +564,8 @@ class MetadataManager:
                 - --removed can be used to list removed files
         """
         assert dir.is_absolute()
-
-        maybe_md_root = self.get_md_root(dir=dir)
-        if not maybe_md_root:
-            print("Not an .md repository (or any of the parent directories). Abort.")
-            sys.exit(1)
-
-        db_path = maybe_md_root.joinpath(self.md_config.md_dir_name)
-        session = get_session(db_dir=db_path, db_name=self.md_config.md_db_name)
+        assert self.md_db_path
+        session = get_session(self.md_db_path)
 
         if status_filter:
             files = session.query(FileORM).filter_by(status=status_filter).all()

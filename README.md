@@ -113,8 +113,6 @@
         -   add command that can collect this data
     -   refactor Union types to use `|` instead
     -   add script for running test coverage
-    -   refactor logic that check for initilized `md` repository into decorator and make `md_root`
-        available via `md_manager` attrubute
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist
@@ -122,3 +120,5 @@
         initliazation with app-specific data
         -   add version file, tracking version, commit_id & build_type
     -   refactor `intialize_working_dir` fixture into marker
+    -   refactor logic that check for initilized `md` repository into decorator and make `md_root`
+        available via `md_manager` attrubute
