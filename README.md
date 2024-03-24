@@ -78,7 +78,7 @@
     -   add new history entry for each active file, comuting all required values
 
 -   md list: list tracked files
-    -   --active same as `md list`
+    -   --active same as `mdm list`
     -   --all/-a same as md list
     -   --removed list only removed files
     -   --untracked list only untracked files
@@ -91,19 +91,35 @@
 
     -   block multiple executions of file scanner at the same time
     -   parallelize the execution of file scanner, multiple source dirs can be scanned at the same time
-    -   add docker build for MD
+    -   add docker build for `mdm`
     -   crete build scripts
-    -   add logging to `md`
+    -   add logging to `mdm`
     -   add support for custom metadata associated with the file in form of json document
         stored in the metadata database
         -   add option to list the metadata as well as fetch specific one
     -   test file stats are computed correctly
-    -   test adding records to md database
-    -   ensure that md init/add/mv cannot be applied on files under .md directory itself
-    -   add support for .md sub-repositories
-        -   files will be tracked in the closest .md repository on the path to the root
+    -   test adding records to `mdm` database
+    -   currently `mdm` and `file scanner` are different tools called separatelly, eventually `scanner` should be part of `mdm` avaialable via `scanner` subcommand
+
+    -   add support for `mdm` sub-repositories
+
+        -   this will require new table `repository`
+
+            -   it can also hold the version info that is currently stored in `version_info` table
+
+        -   files will be tracked in the closest `mdm` repository on the path to the root
+        -   if file is currently tracked in parent `mdm` database and new `mdm` subrepository is created
+            -   mark the file as `SUBREPOSITORY_TRACKED`, don't remove anything from the current `mdm` respoitory
+            -   copy `ACTIVE` file entires from current `mdm` repository to subrepository
+                -   history and hash files are not copied, instead, new intial records are created in subrepository as if this was a new record
+                -   file's metadata is copies to to subrepository
+                -   global metadata is NOT copied
+                -   all following operations on the file will be tracked by the nearest subrepostiory
+                -   each `mdm` repository stores pointer to both nearest parent and child `mdm` repositories
+            -   there should be an option that allows users to remove `mdm` subrepository which will synchronize the subrepository's records into parent `mdm` repository, if one doesn't exists then the data is simply removed
+            -   add field to `history` table that records current subrepository
+
     -   refactor paths to use .joinpath instead of `/`
-    -   add `md --purge` to purge all removed records
     -   add new table tracking summary statistics such as no. tracked files, no. lines, no. updated lines
         -   also include total no. files
         -   add command that can collect this data
@@ -111,20 +127,22 @@
     -   add script for running test coverage
     -   add option to search based on custom attributes and values via `md list` once the custom file attributes
         are implemented
-    -   implement `md rm`
+    -   implement `mdm rm`
+        -   add `mdm rm --purge` to purge all removed records
     -   add `commit` argument to functions that perform database operations so that they can optionally
         commit changes
-    -   rename `md` to `mdm` (MetadataManager)
+    -   rename `mdm` to `mdm` (MetadataManager)
     -   add support for both global (repository-level) and file-level custom metadata and
         option to filter out records based on them
+    -   add CHANGELOG.md file
 
 -   DONE:
-    -   test case which covers that `md init` creates target dir if it doesn't exist
+    -   test case which covers that `mdm init` creates target dir if it doesn't exist
     -   add version tracking into app & into store it in db, create new table during,
         initliazation with app-specific data
         -   add version file, tracking version, commit_id & build_type
     -   refactor `intialize_working_dir` fixture into marker
-    -   refactor logic that check for initilized `md` repository into decorator and make `md_root`
+    -   refactor logic that check for initilized `mdm` repository into decorator and make `mdm_root`
         available via `md_manager` attrubute
     -   refactor `subprocess.run` commands into `subprocess.check_output` in test cases where all we care
         about is that the operation was successful
