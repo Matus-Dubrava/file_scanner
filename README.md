@@ -99,14 +99,12 @@
         -   add option to list the metadata as well as fetch specific one
     -   test file stats are computed correctly
     -   test adding records to `mdm` database
-    -   currently `mdm` and `file scanner` are different tools called separatelly, eventually `scanner` should be part of `mdm` avaialable via `scanner` subcommand
+    -   currently `mdm` and `file scanner` are different tools called separatelly, eventually `scanner` should be part of `mdm` avaialable via `scan` subcommand
 
     -   add support for `mdm` sub-repositories
 
         -   this will require new table `repository`
-
             -   it can also hold the version info that is currently stored in `version_info` table
-
         -   files will be tracked in the closest `mdm` repository on the path to the root
         -   if file is currently tracked in parent `mdm` database and new `mdm` subrepository is created
             -   mark the file as `SUBREPOSITORY_TRACKED`, don't remove anything from the current `mdm` respoitory
@@ -125,9 +123,9 @@
         -   add command that can collect this data
     -   refactor Union types to use `|` instead
     -   add script for running test coverage
-    -   add option to search based on custom attributes and values via `md list` once the custom file attributes
+    -   add option to search based on custom attributes and values via `mdm list` once the custom file attributes
         are implemented
-    -   implement `mdm rm`
+    -   implement `mdm rm <FILE>`
         -   add `mdm rm --purge` to purge all removed records
     -   add `commit` argument to functions that perform database operations so that they can optionally
         commit changes
@@ -143,6 +141,6 @@
         -   add version file, tracking version, commit_id & build_type
     -   refactor `intialize_working_dir` fixture into marker
     -   refactor logic that check for initilized `mdm` repository into decorator and make `mdm_root`
-        available via `md_manager` attrubute
+        available via `mdm_manager` attrubute
     -   refactor `subprocess.run` commands into `subprocess.check_output` in test cases where all we care
         about is that the operation was successful
