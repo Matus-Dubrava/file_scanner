@@ -1,6 +1,6 @@
 from typing import List, Union
 from collections import Counter
-from typing import Optional
+from typing import Optional, Tuple
 import hashlib
 import subprocess
 from datetime import datetime
@@ -70,13 +70,22 @@ def get_current_git_branch() -> Optional[str]:
         return proc.stdout.decode("utf-8").strip()
 
 
-def get_filename_with_delete_prefix(filename: Union[str, Path]) -> str:
-    return f"{md_constants.DELETED_PREFIX}_{uuid.uuid4()}_{datetime.timestamp(datetime.now())}__{filename}"
+def get_filepath_with_delete_prefix(filepath: str | Path) -> Tuple[str, str]:
+    """
+    Generates unique filename/filepath for the provided filepath.
 
+    Format: <md_delete_contant>_<uuid4>_<current_timestamp>__<original_filename>
 
-def get_filepath_with_delete_prefix(filepath: Union[str, Path]) -> str:
+    Returns:
+    Tuple (updated_filename, updated_filepath)
+    """
+    uid = uuid.uuid4()
     filepath = Path(filepath)
-    return f"{filepath.parent}/{get_filename_with_delete_prefix(filepath.name)}"
+    filename = filepath.name
+
+    updated_filename = f"{md_constants.DELETED_PREFIX}_{uid}_{datetime.timestamp(datetime.now())}__{filename}"
+    updated_filepath = f"{filepath.parent}/{updated_filename}"
+    return updated_filename, updated_filepath
 
 
 def count_line_changes(old_hashes: List[str], new_hashes: List[str]) -> LineChanges:

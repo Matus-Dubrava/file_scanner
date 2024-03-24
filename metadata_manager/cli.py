@@ -45,6 +45,24 @@ def untrack(ctx, target):
     md_manager.untrack(Path(target).absolute())
 
 
+@cli.command()
+@click.argument("file", nargs=-1, required=False)
+@click.option("--debug", is_flag=True, show_default=True, default=False)
+@click.option("--purge", is_flag=True, show_default=True, default=False)
+@click.option("--force", is_flag=True, show_default=True, default=False)
+@click.pass_context
+def rm(ctx, file, debug, purge, force):
+    md_manager: MetadataManager = ctx.obj
+    if file:
+        md_manager.remove_file(
+            Path(file[0]).absolute(), purge=purge, debug=debug, force=force
+        )
+    elif purge:
+        md_manager.purge_removed_files(Path.cwd().absolute())
+    else:
+        click.echo(click.get_current_context().get_help())
+
+
 if __name__ == "__main__":
     with open(CONFIG_PATH, "r") as f:
         md_config = Config.model_validate_json(f.read())

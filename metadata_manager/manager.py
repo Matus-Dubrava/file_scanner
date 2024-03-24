@@ -1,4 +1,5 @@
 import sys
+import traceback
 from pathlib import Path
 from typing import Optional, List, Union, Callable
 import subprocess
@@ -68,7 +69,13 @@ class MetadataManager:
         @wraps(func)
         def wrapper(self: "MetadataManager", *args, **kwargs) -> Callable:
             assert self.md_db_path, "Can't create session without database path."
-            self.session = create_or_get_session(self.md_db_path)
+            session_or_err = create_or_get_session(self.md_db_path)
+            if isinstance(session_or_err, Exception):
+                print(f"{session_or_err}\n", file=sys.stderr)
+                print("Failed to connect to Mdm database.", file=sys.stderr)
+                sys.exit(101)
+
+            self.session = session_or_err
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -415,14 +422,18 @@ class MetadataManager:
 
             # create sqlite metadata.db and initialize tracking table
             db_path = dir / self.md_config.md_dir_name
-            session = create_or_get_session(db_path / self.md_config.md_db_name)
+            session_or_err = create_or_get_session(db_path / self.md_config.md_db_name)
+
+            # TODO: handle this better, this is already handled by decorator
+            # - refactor and reuse that logic
+            assert isinstance(session_or_err, Session)
 
             # write version info to db
-            maybe_err = self.write_version_info_to_db(session=session)
+            maybe_err = self.write_version_info_to_db(session=session_or_err)
             if maybe_err:
                 raise maybe_err
 
-            session.close()
+            session_or_err.close()
 
             print(f"Intialized empty .md repository in {dir}")
         except Exception as err:
@@ -434,7 +445,7 @@ class MetadataManager:
 
     @with_md_repository_paths
     @with_session
-    def touch(self, filepath: Path) -> None:
+    def touch(self, filepath: Path, debug: bool = False) -> None:
         """
         ...
         """
@@ -483,22 +494,19 @@ class MetadataManager:
                 .all()
             )
 
-            new_filename = md_utils.get_filename_with_delete_prefix(
-                old_file_record.filename
-            )
-            new_filepath = md_utils.get_filepath_with_delete_prefix(
-                old_file_record.filepath
+            updated_filename, updated_filepath = (
+                md_utils.get_filepath_with_delete_prefix(filepath)
             )
 
             # Update the File record.
-            old_file_record.filename = new_filename
-            old_file_record.filepath = new_filepath
+            old_file_record.filename = updated_filename
+            old_file_record.filepath = updated_filepath
             old_file_record.status = FileStatus.REMOVED
             old_file_record.timestamp_deleted = datetime.now()
 
             # Update assocaited history records.
             for history_record in history_records:
-                history_record.filepath = new_filepath
+                history_record.filepath = updated_filepath
 
             # Remove hash file if it exists.
             maybe_err = self.remove_hash_file(filepath=filepath)
@@ -568,7 +576,141 @@ class MetadataManager:
 
     @with_md_repository_paths
     @with_session
-    def list_files(self, dir: Path, status_filter: Optional[FileStatus] = None) -> None:
+    def remove_file(
+        self,
+        filepath: Path,
+        purge: bool = False,
+        force: bool = False,
+        debug: bool = False,
+    ) -> None:
+        """
+        Marks file in Mdm as REMOVED and removes the file from file system if the file exits.
+
+        * If file doesn't exist in Mdm, it only removes the file from file system.
+        * If file doesn't exist in file system, it marks it in Mdm as REMOVED if it has record in Mdm.
+        * If file exists in file system but can't be removed by Mdm, the correspoding Mdm
+          record won't be marked as REMOVED. -f/--force bypasses this check.
+
+        Arguments
+        filepath:   Filepath to the file.
+        purge:      Removes all records associated with the file completely.
+        force:      Removes Mdm records associated with the file even if Mdm is unable to remove
+                    the file from file system. This only applies if the file exists. If file
+                    doesn't exits then Mdm record will be removed automatically.
+        debug:      Print error tracebacks to stderr together.
+
+        Exit codes
+        1           Failed to remove the file from file system. If file exists in file system but
+                    can't be removed by Mdm, the correspoding Mdm record won't be marked as REMOVED.
+        2           Failed to remove records from Mdm database.
+        """
+        assert filepath.is_absolute(), f"Expected absolute path. Got {filepath}"
+        assert self.session, "Expected established session."
+        stdout_messages: List[str] = []
+
+        # Handle removing file from file system.
+        if filepath.exists():
+            try:
+                filepath.unlink()
+            except Exception:
+                if not force:
+                    if debug:
+                        print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+                    print(
+                        f"Failed to delete {filepath}.\nUse --force to remove Mdm record anyway.",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
+
+        # Handle removing file from Mdm database and hash file.
+        try:
+            file_record = (
+                self.session.query(FileORM).filter_by(filepath=filepath).first()
+            )
+            history_records = (
+                self.session.query(HistoryORM).filter_by(filepath=filepath).all()
+            )
+
+            if file_record:
+                if purge:
+                    self.session.delete(file_record)
+                    for h_record in history_records:
+                        self.session.delete(h_record)
+                    # TODO: remove custom metadata records here
+                    stdout_messages.append(f"{filepath} successfully purged from Mdm.")
+                else:
+                    updated_filename, updated_filepath = (
+                        md_utils.get_filepath_with_delete_prefix(filepath=filepath)
+                    )
+                    file_record.status = FileStatus.REMOVED
+                    file_record.filepath = updated_filepath
+                    file_record.filename = updated_filename
+
+                    for h_record in history_records:
+                        h_record.filepath = updated_filepath
+                    # TODO: update custom metadata records
+                    stdout_messages.append(f"{filepath} successfully removed.")
+
+                hash_filepath_or_err = self.get_path_to_hash_file(filepath=filepath)
+                if isinstance(hash_filepath_or_err, Exception):
+                    raise hash_filepath_or_err
+
+                hash_filepath_or_err.unlink(missing_ok=True)
+
+            self.session.commit()
+            for message in stdout_messages:
+                print(message)
+        except Exception:
+            if debug:
+                print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+            print(f"\nFailed to remove {filepath} from Mdm.", file=sys.stderr)
+            sys.exit(2)
+
+    @with_md_repository_paths
+    @with_session
+    def purge_removed_files(self, debug: bool = False) -> None:
+        """
+        Purges files in 'removed' state from Mdm database.
+
+        Arguments
+        debug:      Print error tracebacks to stderr together.
+
+        Exit codes
+        1           Failed to purge the records from Mdm database.
+        """
+        assert self.session, "Expected established session."
+
+        try:
+            deleted_file_records = (
+                self.session.query(FileORM).filter_by(status=FileStatus.REMOVED).all()
+            )
+
+            for file_record in deleted_file_records:
+                # TODO: purge custom file metadata once implemented
+                history_records = (
+                    self.session.query(HistoryORM)
+                    .filter_by(filepath=file_record.filepath)
+                    .all()
+                )
+                self.session.delete(file_record)
+                for history_record in history_records:
+                    self.session.delete(history_record)
+
+            self.session.commit()
+        except Exception:
+            if debug:
+                print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+            print("Failed to purge removed files.", file=sys.stderr)
+            sys.exit(1)
+
+    @with_md_repository_paths
+    @with_session
+    def list_files(
+        self, path: Path, status_filter: Optional[FileStatus] = None
+    ) -> None:
         """
         TODO:
         List files:
@@ -581,7 +723,7 @@ class MetadataManager:
             - TODO: add option to search based on custom attributes and values
                     once the custom file attributes are implemented
         """
-        assert dir.is_absolute(), f"Expected absolute path. Got {dir}"
+        assert path.is_absolute(), f"Expected absolute path. Got {path}"
         assert self.md_db_path, "Expected database path to be set."
         assert self.repository_root, "Expected repository root to be set."
         assert self.session, "Expected established session."

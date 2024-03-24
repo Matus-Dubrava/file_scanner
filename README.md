@@ -133,6 +133,7 @@
     -   add support for both global (repository-level) and file-level custom metadata and
         option to filter out records based on them
     -   add CHANGELOG.md file
+    -   add `--debug` flag to control printing of trackeback to stderr
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
