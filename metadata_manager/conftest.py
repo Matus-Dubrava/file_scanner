@@ -5,7 +5,7 @@ import os
 
 from manager import MetadataManager
 from md_models import Config
-from db import get_session
+from db import create_or_get_session
 
 
 def pytest_runtest_setup(item):
@@ -79,7 +79,7 @@ def md_manager():
 @pytest.fixture(scope="function")
 @pytest.mark.init_md(True)
 def session(working_dir, md_manager):
-    sess = get_session(
+    sess = create_or_get_session(
         working_dir.joinpath(
             md_manager.md_config.md_dir_name, md_manager.md_config.md_db_name
         )

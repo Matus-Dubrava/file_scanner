@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 import os
 
-from db import create_db
+from db import create_or_get_session
 import tests.utils as utils
 
 
@@ -118,7 +118,7 @@ def test_dir_is_managed_by_git_stop_at(working_dir, md_manager):
 @pytest.mark.cleanup
 def test_cleanup(working_dir, md_manager):
     md_manager.create_md_dirs(working_dir)
-    create_db(
+    create_or_get_session(
         working_dir.joinpath(
             md_manager.md_config.md_dir_name, md_manager.md_config.md_db_name
         )

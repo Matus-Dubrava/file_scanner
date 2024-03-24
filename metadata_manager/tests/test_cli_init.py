@@ -6,7 +6,7 @@ import tests.utils as utils
 from build import write_build_info
 from md_enums import BuildType
 from md_models import VersionInfoORM
-from db import get_session
+from db import create_or_get_session
 
 
 @pytest.mark.ebff0e4472
@@ -150,7 +150,7 @@ def test_init_creates_version_info_record(
     db_path = working_dir.joinpath(
         md_manager.md_config.md_dir_name, md_manager.md_config.md_db_name
     )
-    session = get_session(db_path)
+    session = create_or_get_session(db_path)
 
     version_info = session.query(VersionInfoORM).first()
 

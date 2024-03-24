@@ -8,7 +8,7 @@ from functools import wraps
 
 from sqlalchemy.orm import Session
 
-from db import create_db, get_session
+from db import create_or_get_session
 from md_models import (
     Config,
     FileORM,
@@ -27,6 +27,7 @@ class MetadataManager:
         self.repository_root: Optional[Path] = None
         self.md_path: Optional[Path] = None
         self.md_db_path: Optional[Path] = None
+        self.session: Optional[Session] = None
 
     @staticmethod
     def with_md_repository_paths(func: Callable) -> Callable:
@@ -53,6 +54,22 @@ class MetadataManager:
             self.md_path = maybe_md_root.joinpath(self.md_config.md_dir_name)
             self.md_db_path = self.md_path.joinpath(self.md_config.md_db_name)
             return func(self, dir, *args, **kwargs)
+
+        return wrapper
+
+    @staticmethod
+    def with_session(func: Callable) -> Callable:
+        """
+        Decorator providing access to database session object via 'self'.
+
+        Fails if database path hasn't been set.
+        """
+
+        @wraps(func)
+        def wrapper(self: "MetadataManager", *args, **kwargs) -> Callable:
+            assert self.md_db_path, "Can't create session without database path."
+            self.session = create_or_get_session(self.md_db_path)
+            return func(self, *args, **kwargs)
 
         return wrapper
 
@@ -369,15 +386,12 @@ class MetadataManager:
 
     def initalize_md_repository(self, dir: Path) -> None:
         """
-        Initliaze MD repository and sqlite database.
-        Performs all neccessary check - checking for existence of Git and MD repositories
+        Initliaze 'md' repository and sqlite database.
+        TODO: don't perform this check - just allow nested 'md' repositories
+        Performs all neccessary check - checking for existence 'md' repositories
         on the path to the root.
 
-        dir:    where to initilize the md repository
-        force:  required to confirm the initialization if git repository is detected
-                somewhere on the path to the root
-        db_dir: where sqlite db will be initlized, mainly for testing purposes
-                to trigger cleanup process
+        dir:    Directory where 'md' will be initialized.
         """
 
         # Relative path can lead to bugs and infinite loops when traversing fs structure.
@@ -401,10 +415,9 @@ class MetadataManager:
 
             # create sqlite metadata.db and initialize tracking table
             db_path = dir / self.md_config.md_dir_name
-            create_db(db_path / self.md_config.md_db_name)
+            session = create_or_get_session(db_path / self.md_config.md_db_name)
 
             # write version info to db
-            session = get_session(db_path / self.md_config.md_db_name)
             maybe_err = self.write_version_info_to_db(session=session)
             if maybe_err:
                 raise maybe_err
@@ -420,22 +433,24 @@ class MetadataManager:
             sys.exit(1)
 
     @with_md_repository_paths
+    @with_session
     def touch(self, filepath: Path) -> None:
         """
         ...
         """
-        assert filepath.is_absolute()
+        assert filepath.is_absolute(), f"Expected absolute filepath. Got {filepath}"
 
         if not filepath.parent.exists():
             print(f"Directory {filepath.parent} doesn't exist. Abort.")
             sys.exit(1)
 
-        assert self.md_db_path, "Expected db path to be set."
-        session = get_session(self.md_db_path)
+        assert self.md_db_path, "Expected database path to be set."
+        assert self.session, "Expected established session."
+
         branch_name = self.get_current_git_branch(filepath.parent)
 
         old_file_record = (
-            session.query(FileORM).filter_by(filepath=str(filepath)).first()
+            self.session.query(FileORM).filter_by(filepath=str(filepath)).first()
         )
 
         maybe_errors: List[Optional[Exception]] = []
@@ -443,7 +458,7 @@ class MetadataManager:
         # File doesn't exist it fs nor in the .md database.
         if not filepath.exists() and not old_file_record:
             maybe_err = self.create_new_file_record(
-                session=session,
+                session=self.session,
                 filepath=filepath,
                 branch_name=branch_name,
                 file_exists=False,
@@ -453,7 +468,7 @@ class MetadataManager:
         # file doesn't exist in md but exits in fs (i.e file wasnt created using md touch or due to branch switch)
         elif filepath.exists() and not old_file_record:
             maybe_err = self.create_new_file_record(
-                session=session,
+                session=self.session,
                 filepath=filepath,
                 branch_name=branch_name,
                 file_exists=True,
@@ -463,7 +478,7 @@ class MetadataManager:
         # file exists in md but not in fs (file was removed)
         elif not filepath.exists() and old_file_record:
             history_records = (
-                session.query(HistoryORM)
+                self.session.query(HistoryORM)
                 .filter_by(filepath=old_file_record.filepath)
                 .all()
             )
@@ -494,7 +509,7 @@ class MetadataManager:
             # so that it can perform cleanup if necessary. This also commits
             # the above staged changes.
             maybe_err = self.create_new_file_record(
-                session=session,
+                session=self.session,
                 filepath=filepath,
                 branch_name=branch_name,
                 file_exists=False,
@@ -504,12 +519,12 @@ class MetadataManager:
         # file exists in both md and fs.
         elif filepath.exists() and old_file_record:
             maybe_errors = self.add_file_to_md(
-                session=session,
+                session=self.session,
                 filepath=filepath,
                 branch_name=branch_name,
             )
 
-        session.close()
+        self.session.close()
 
         errors = [err for err in maybe_errors if err is not None]
         if len(errors):
@@ -518,21 +533,20 @@ class MetadataManager:
                 sys.exit(1)
 
     @with_md_repository_paths
+    @with_session
     def untrack(self, filepath: Path) -> None:
         """
         Set file status to "UNTRACKED" if file is in "ACTIVE" state. Do nothing
         if file is already in "UNTRACKED" state. Otherwise fail.
         """
-        assert filepath.is_absolute()
+        assert filepath.is_absolute(), f"Expected absolute filepath. Got {filepath}."
+        assert self.session, "Expected established session."
 
         if not filepath.exists():
             print(f"File {filepath.relative_to(Path.cwd())} doesn't exist. Abort.")
             sys.exit(1)
 
-        assert self.md_db_path
-        session = get_session(self.md_db_path)
-
-        file_record = session.query(FileORM).filter_by(filepath=filepath).first()
+        file_record = self.session.query(FileORM).filter_by(filepath=filepath).first()
         if not file_record:
             print(
                 f"File {filepath.relative_to(Path.cwd())} is not in md database.",
@@ -548,11 +562,12 @@ class MetadataManager:
             sys.exit(3)
 
         file_record.status = FileStatus.UNTRACKED
-        session.commit()
-        session.close()
+        self.session.commit()
+        self.session.close()
         print(f"Status of {filepath.relative_to(Path.cwd())} was set to untracked.")
 
     @with_md_repository_paths
+    @with_session
     def list_files(self, dir: Path, status_filter: Optional[FileStatus] = None) -> None:
         """
         TODO:
@@ -566,16 +581,16 @@ class MetadataManager:
             - TODO: add option to search based on custom attributes and values
                     once the custom file attributes are implemented
         """
-        assert dir.is_absolute()
-        assert self.md_db_path
-        assert self.repository_root
-        session = get_session(self.md_db_path)
+        assert dir.is_absolute(), f"Expected absolute path. Got {dir}"
+        assert self.md_db_path, "Expected database path to be set."
+        assert self.repository_root, "Expected repository root to be set."
+        assert self.session, "Expected established session."
 
         if status_filter:
-            files = session.query(FileORM).filter_by(status=status_filter).all()
+            files = self.session.query(FileORM).filter_by(status=status_filter).all()
             for file in files:
                 print(Path(file.filepath).relative_to(Path.cwd()))
         else:
-            files = session.query(FileORM).all()
+            files = self.session.query(FileORM).all()
             for file in files:
                 print(Path(file.filepath).relative_to(self.repository_root))
