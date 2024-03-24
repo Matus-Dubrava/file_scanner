@@ -125,8 +125,6 @@
     -   add script for running test coverage
     -   add option to search based on custom attributes and values via `mdm list` once the custom file attributes
         are implemented
-    -   implement `mdm rm <FILE>`
-        -   add `mdm rm --purge` to purge all removed records
     -   add `commit` argument to functions that perform database operations so that they can optionally
         commit changes
     -   rename `mdm` to `mdm` (MetadataManager)
@@ -134,6 +132,8 @@
         option to filter out records based on them
     -   add CHANGELOG.md file
     -   add `--debug` flag to control printing of trackeback to stderr
+    -   refactor decorators to better handle arguments passthrough
+    -   check how exceptions are passed throughout the code and make necessary changes so that traceback is not lost
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
@@ -145,3 +145,5 @@
         available via `mdm_manager` attrubute
     -   refactor `subprocess.run` commands into `subprocess.check_output` in test cases where all we care
         about is that the operation was successful
+    -   implement `mdm rm <FILE>`
+        -   add `mdm rm --purge` to purge all removed records
