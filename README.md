@@ -117,7 +117,7 @@
             -   there should be an option that allows users to remove `mdm` subrepository which will synchronize the subrepository's records into parent `mdm` repository, if one doesn't exists then the data is simply removed
             -   add field to `history` table that records current subrepository
 
-    -   refactor paths to use .joinpath instead of `/`
+    -   refactor paths to use `joinpath` instead of `/`
     -   add new table tracking summary statistics such as no. tracked files, no. lines, no. updated lines
         -   also include total no. files
         -   add command that can collect this data
