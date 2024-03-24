@@ -93,7 +93,7 @@
     -   parallelize the execution of file scanner, multiple source dirs can be scanned at the same time
     -   add docker build for MD
     -   crete build scripts
-    -   add logging to MD
+    -   add logging to `md`
     -   add support for custom metadata associated with the file in form of json document
         stored in the metadata database
         -   add option to list the metadata as well as fetch specific one
@@ -102,11 +102,7 @@
     -   ensure that md init/add/mv cannot be applied on files under .md directory itself
     -   add support for .md sub-repositories
         -   files will be tracked in the closest .md repository on the path to the root
-    -   add `commit` argument to functions that perform database operations so that they can optionally
-        changes
     -   refactor paths to use .joinpath instead of `/`
-    -   refactor `subprocess.run` commands into `subprocess.check_output` in test cases where all we care
-        about is that the operation was successful
     -   add `md --purge` to purge all removed records
     -   add new table tracking summary statistics such as no. tracked files, no. lines, no. updated lines
         -   also include total no. files
@@ -116,6 +112,11 @@
     -   add option to search based on custom attributes and values via `md list` once the custom file attributes
         are implemented
     -   implement `md rm`
+    -   add `commit` argument to functions that perform database operations so that they can optionally
+        commit changes
+    -   rename `md` to `mdm` (MetadataManager)
+    -   add support for both global (repository-level) and file-level custom metadata and
+        option to filter out records based on them
 
 -   DONE:
     -   test case which covers that `md init` creates target dir if it doesn't exist
@@ -125,3 +126,5 @@
     -   refactor `intialize_working_dir` fixture into marker
     -   refactor logic that check for initilized `md` repository into decorator and make `md_root`
         available via `md_manager` attrubute
+    -   refactor `subprocess.run` commands into `subprocess.check_output` in test cases where all we care
+        about is that the operation was successful
