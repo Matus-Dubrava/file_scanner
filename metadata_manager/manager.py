@@ -43,8 +43,8 @@ class MetadataManager:
         """
 
         @wraps(func)
-        def wrapper(self: "MetadataManager", path: Path, *args, **kwargs) -> Callable:
-            maybe_md_root = self.get_md_root(path)
+        def wrapper(self: "MetadataManager", dir: Path, *args, **kwargs) -> Callable:
+            maybe_md_root = self.get_md_root(dir)
             if not maybe_md_root:
                 print(
                     "Not an .md repository (or any of the parent directories). Abort."
@@ -54,7 +54,7 @@ class MetadataManager:
             self.repository_root = maybe_md_root
             self.md_path = maybe_md_root.joinpath(self.md_config.md_dir_name)
             self.md_db_path = self.md_path.joinpath(self.md_config.md_db_name)
-            return func(self, *args, path=path, **kwargs)
+            return func(self, dir, *args, **kwargs)
 
         return wrapper
 
@@ -67,9 +67,7 @@ class MetadataManager:
         """
 
         @wraps(func)
-        def wrapper(
-            self: "MetadataManager", *args, debug: bool = False, **kwargs
-        ) -> Callable:
+        def wrapper(self: "MetadataManager", *args, **kwargs) -> Callable:
             assert self.md_db_path, "Can't create session without database path."
             session_or_err = create_or_get_session(self.md_db_path)
             if isinstance(session_or_err, Exception):
@@ -78,7 +76,7 @@ class MetadataManager:
                 sys.exit(101)
 
             self.session = session_or_err
-            return func(self, *args, debug=debug, **kwargs)
+            return func(self, *args, **kwargs)
 
         return wrapper
 
@@ -447,49 +445,49 @@ class MetadataManager:
 
     @with_md_repository_paths
     @with_session
-    def touch(self, path: Path, debug: bool = False) -> None:
+    def touch(self, filepath: Path, debug: bool = False) -> None:
         """
         ...
         """
-        assert path.is_absolute(), f"Expected absolute filepath. Got {path}"
+        assert filepath.is_absolute(), f"Expected absolute filepath. Got {filepath}"
 
-        if not path.parent.exists():
-            print(f"Directory {path.parent} doesn't exist. Abort.")
+        if not filepath.parent.exists():
+            print(f"Directory {filepath.parent} doesn't exist. Abort.")
             sys.exit(1)
 
         assert self.md_db_path, "Expected database path to be set."
         assert self.session, "Expected established session."
 
-        branch_name = self.get_current_git_branch(path.parent)
+        branch_name = self.get_current_git_branch(filepath.parent)
 
         old_file_record = (
-            self.session.query(FileORM).filter_by(filepath=str(path)).first()
+            self.session.query(FileORM).filter_by(filepath=str(filepath)).first()
         )
 
         maybe_errors: List[Optional[Exception]] = []
 
         # File doesn't exist it fs nor in the .md database.
-        if not path.exists() and not old_file_record:
+        if not filepath.exists() and not old_file_record:
             maybe_err = self.create_new_file_record(
                 session=self.session,
-                filepath=path,
+                filepath=filepath,
                 branch_name=branch_name,
                 file_exists=False,
             )
             maybe_errors.append(maybe_err)
 
         # file doesn't exist in md but exits in fs (i.e file wasnt created using md touch or due to branch switch)
-        elif path.exists() and not old_file_record:
+        elif filepath.exists() and not old_file_record:
             maybe_err = self.create_new_file_record(
                 session=self.session,
-                filepath=path,
+                filepath=filepath,
                 branch_name=branch_name,
                 file_exists=True,
             )
             maybe_errors.append(maybe_err)
 
         # file exists in md but not in fs (file was removed)
-        elif not path.exists() and old_file_record:
+        elif not filepath.exists() and old_file_record:
             history_records = (
                 self.session.query(HistoryORM)
                 .filter_by(filepath=old_file_record.filepath)
@@ -497,7 +495,7 @@ class MetadataManager:
             )
 
             updated_filename, updated_filepath = (
-                md_utils.get_filepath_with_delete_prefix(path)
+                md_utils.get_filepath_with_delete_prefix(filepath)
             )
 
             # Update the File record.
@@ -511,7 +509,7 @@ class MetadataManager:
                 history_record.filepath = updated_filepath
 
             # Remove hash file if it exists.
-            maybe_err = self.remove_hash_file(filepath=path)
+            maybe_err = self.remove_hash_file(filepath=filepath)
             maybe_errors.append(maybe_err)
 
             # Create new file and new .md record.
@@ -520,17 +518,17 @@ class MetadataManager:
             # the above staged changes.
             maybe_err = self.create_new_file_record(
                 session=self.session,
-                filepath=path,
+                filepath=filepath,
                 branch_name=branch_name,
                 file_exists=False,
             )
             maybe_errors.append(maybe_err)
 
         # file exists in both md and fs.
-        elif path.exists() and old_file_record:
+        elif filepath.exists() and old_file_record:
             maybe_errors = self.add_file_to_md(
                 session=self.session,
-                filepath=path,
+                filepath=filepath,
                 branch_name=branch_name,
             )
 
@@ -544,22 +542,22 @@ class MetadataManager:
 
     @with_md_repository_paths
     @with_session
-    def untrack(self, path: Path, debug: bool = False) -> None:
+    def untrack(self, filepath: Path) -> None:
         """
         Set file status to "UNTRACKED" if file is in "ACTIVE" state. Do nothing
         if file is already in "UNTRACKED" state. Otherwise fail.
         """
-        assert path.is_absolute(), f"Expected absolute filepath. Got {path}."
+        assert filepath.is_absolute(), f"Expected absolute filepath. Got {filepath}."
         assert self.session, "Expected established session."
 
-        if not path.exists():
-            print(f"File {path.relative_to(Path.cwd())} doesn't exist. Abort.")
+        if not filepath.exists():
+            print(f"File {filepath.relative_to(Path.cwd())} doesn't exist. Abort.")
             sys.exit(1)
 
-        file_record = self.session.query(FileORM).filter_by(filepath=path).first()
+        file_record = self.session.query(FileORM).filter_by(filepath=filepath).first()
         if not file_record:
             print(
-                f"File {path.relative_to(Path.cwd())} is not in md database.",
+                f"File {filepath.relative_to(Path.cwd())} is not in md database.",
                 file=sys.stderr,
             )
             sys.exit(2)
@@ -574,13 +572,13 @@ class MetadataManager:
         file_record.status = FileStatus.UNTRACKED
         self.session.commit()
         self.session.close()
-        print(f"Status of {path.relative_to(Path.cwd())} was set to untracked.")
+        print(f"Status of {filepath.relative_to(Path.cwd())} was set to untracked.")
 
     @with_md_repository_paths
     @with_session
     def remove_file(
         self,
-        path: Path,
+        filepath: Path,
         purge: bool = False,
         force: bool = False,
         debug: bool = False,
@@ -594,7 +592,7 @@ class MetadataManager:
           record won't be marked as REMOVED. -f/--force bypasses this check.
 
         Arguments
-        path:       Filepath to the file.
+        filepath:   Filepath to the file.
         purge:      Removes all records associated with the file completely.
         force:      Removes Mdm records associated with the file even if Mdm is unable to remove
                     the file from file system. This only applies if the file exists. If file
@@ -606,30 +604,32 @@ class MetadataManager:
                     can't be removed by Mdm, the correspoding Mdm record won't be marked as REMOVED.
         2           Failed to remove records from Mdm database.
         """
-        assert path.is_absolute(), f"Expected absolute path. Got {path}"
+        assert filepath.is_absolute(), f"Expected absolute path. Got {filepath}"
         assert self.session, "Expected established session."
         stdout_messages: List[str] = []
 
         # Handle removing file from file system.
-        if path.exists():
+        if filepath.exists():
             try:
-                path.unlink()
+                filepath.unlink()
             except Exception:
                 if not force:
                     if debug:
                         print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
                     print(
-                        f"Failed to delete {path}.\nUse --force to remove Mdm record anyway.",
+                        f"Failed to delete {filepath}.\nUse --force to remove Mdm record anyway.",
                         file=sys.stderr,
                     )
                     sys.exit(1)
 
         # Handle removing file from Mdm database and hash file.
         try:
-            file_record = self.session.query(FileORM).filter_by(filepath=path).first()
+            file_record = (
+                self.session.query(FileORM).filter_by(filepath=filepath).first()
+            )
             history_records = (
-                self.session.query(HistoryORM).filter_by(filepath=path).all()
+                self.session.query(HistoryORM).filter_by(filepath=filepath).all()
             )
 
             if file_record:
@@ -638,10 +638,10 @@ class MetadataManager:
                     for h_record in history_records:
                         self.session.delete(h_record)
                     # TODO: remove custom metadata records here
-                    stdout_messages.append(f"{path} successfully purged from Mdm.")
+                    stdout_messages.append(f"{filepath} successfully purged from Mdm.")
                 else:
                     updated_filename, updated_filepath = (
-                        md_utils.get_filepath_with_delete_prefix(filepath=path)
+                        md_utils.get_filepath_with_delete_prefix(filepath=filepath)
                     )
                     file_record.status = FileStatus.REMOVED
                     file_record.filepath = updated_filepath
@@ -650,9 +650,9 @@ class MetadataManager:
                     for h_record in history_records:
                         h_record.filepath = updated_filepath
                     # TODO: update custom metadata records
-                    stdout_messages.append(f"{path} successfully removed.")
+                    stdout_messages.append(f"{filepath} successfully removed.")
 
-                hash_filepath_or_err = self.get_path_to_hash_file(filepath=path)
+                hash_filepath_or_err = self.get_path_to_hash_file(filepath=filepath)
                 if isinstance(hash_filepath_or_err, Exception):
                     raise hash_filepath_or_err
 
@@ -665,18 +665,16 @@ class MetadataManager:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
-            print(f"\nFailed to remove {path} from Mdm.", file=sys.stderr)
+            print(f"\nFailed to remove {filepath} from Mdm.", file=sys.stderr)
             sys.exit(2)
 
     @with_md_repository_paths
     @with_session
-    def purge_removed_files(self, path: Path, debug: bool = False) -> None:
+    def purge_removed_files(self, debug: bool = False) -> None:
         """
         Purges files in 'removed' state from Mdm database.
 
         Arguments
-        path:       Any path within Mdm repository. Required to find Mdm database
-                    and establish connection to it.
         debug:      Print error tracebacks to stderr together.
 
         Exit codes

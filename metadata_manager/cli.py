@@ -58,7 +58,7 @@ def rm(ctx, file, debug, purge, force):
             Path(file[0]).absolute(), purge=purge, debug=debug, force=force
         )
     elif purge:
-        md_manager.purge_removed_files(Path.cwd().absolute(), debug=debug)
+        md_manager.purge_removed_files(Path.cwd().absolute())
     else:
         click.echo(click.get_current_context().get_help())
 
@@ -68,5 +68,4 @@ if __name__ == "__main__":
         md_config = Config.model_validate_json(f.read())
 
     md_manager = MetadataManager(md_config)
-    md_manager.remove_file()
     cli(obj=md_manager)
