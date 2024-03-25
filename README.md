@@ -147,3 +147,4 @@
         about is that the operation was successful
     -   implement `mdm rm <FILE>`
         -   add `mdm rm --purge` to purge all removed records
+    -   refactor `mdm rm --purge` into its own subcommand `mdm purge`

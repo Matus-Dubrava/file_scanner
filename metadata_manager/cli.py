@@ -46,6 +46,13 @@ def untrack(ctx, target):
 
 
 @cli.command()
+@click.pass_context
+def purge(ctx):
+    mdm: MetadataManager = ctx.obj
+    mdm.purge_removed_files(Path.cwd().absolute())
+
+
+@cli.command()
 @click.argument("file", nargs=-1, required=False)
 @click.option("--debug", is_flag=True, show_default=True, default=False)
 @click.option("--purge", is_flag=True, show_default=True, default=False)
