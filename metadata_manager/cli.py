@@ -69,7 +69,7 @@ def purge(ctx):
 
 
 @cli.command()
-@click.argument("file", nargs=1, required=False)
+@click.argument("file", nargs=1, required=True)
 @click.option("--debug", is_flag=True, show_default=True, default=False)
 @click.option("--purge", is_flag=True, show_default=True, default=False)
 @click.option("--force", is_flag=True, show_default=True, default=False)
