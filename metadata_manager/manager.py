@@ -1,11 +1,10 @@
 import sys
 import traceback
 from pathlib import Path
-from typing import Optional, List, Union, Callable
+from typing import Optional, List, Union
 import subprocess
 import shutil
 from datetime import datetime
-from functools import wraps
 
 from sqlalchemy.orm import Session
 
@@ -30,10 +29,9 @@ class MetadataManager:
         self.md_db_path: Optional[Path] = None
         self.session: Optional[Session] = None
 
-    @staticmethod
-    def with_md_repository_paths(func: Callable) -> Callable:
+    def set_mdm_repository_paths(self, path: Path) -> None:
         """
-        Decorator providing access to below mentioned attributes via 'self':
+        Provide access to below mentioned attributes via 'self':
             - repository_root:  directory where md was initalized
             - md_path:          path to .md directory inside md repository
             - md_db_path:       path to metadata.db inside .md directory
@@ -41,44 +39,29 @@ class MetadataManager:
         Performs additional validation. If md root doesn't exist,
         exit with failure status code 100.
         """
+        maybe_md_root = self.get_md_root(path)
+        if not maybe_md_root:
+            print("Not an .md repository (or any of the parent directories). Abort.")
+            sys.exit(100)
 
-        @wraps(func)
-        def wrapper(self: "MetadataManager", dir: Path, *args, **kwargs) -> Callable:
-            maybe_md_root = self.get_md_root(dir)
-            if not maybe_md_root:
-                print(
-                    "Not an .md repository (or any of the parent directories). Abort."
-                )
-                sys.exit(100)
+        self.repository_root = maybe_md_root
+        self.md_path = maybe_md_root.joinpath(self.md_config.md_dir_name)
+        self.md_db_path = self.md_path.joinpath(self.md_config.md_db_name)
 
-            self.repository_root = maybe_md_root
-            self.md_path = maybe_md_root.joinpath(self.md_config.md_dir_name)
-            self.md_db_path = self.md_path.joinpath(self.md_config.md_db_name)
-            return func(self, dir, *args, **kwargs)
-
-        return wrapper
-
-    @staticmethod
-    def with_session(func: Callable) -> Callable:
+    def set_session(self) -> None:
         """
-        Decorator providing access to database session object via 'self'.
+        Provide access to database session object via 'self'.
 
         Fails if database path hasn't been set.
         """
+        assert self.md_db_path, "Can't create session without database path."
+        session_or_err = create_or_get_session(self.md_db_path)
+        if isinstance(session_or_err, Exception):
+            print(f"{session_or_err}\n", file=sys.stderr)
+            print("Failed to connect to Mdm database.", file=sys.stderr)
+            sys.exit(101)
 
-        @wraps(func)
-        def wrapper(self: "MetadataManager", *args, **kwargs) -> Callable:
-            assert self.md_db_path, "Can't create session without database path."
-            session_or_err = create_or_get_session(self.md_db_path)
-            if isinstance(session_or_err, Exception):
-                print(f"{session_or_err}\n", file=sys.stderr)
-                print("Failed to connect to Mdm database.", file=sys.stderr)
-                sys.exit(101)
-
-            self.session = session_or_err
-            return func(self, *args, **kwargs)
-
-        return wrapper
+        self.session = session_or_err
 
     def create_md_dirs(self, where: Path):
         (where / self.md_config.md_dir_name).mkdir()
@@ -443,8 +426,6 @@ class MetadataManager:
             print("Abort.")
             sys.exit(1)
 
-    @with_md_repository_paths
-    @with_session
     def touch(self, filepath: Path, debug: bool = False) -> None:
         """
         ...
@@ -455,6 +436,8 @@ class MetadataManager:
             print(f"Directory {filepath.parent} doesn't exist. Abort.")
             sys.exit(1)
 
+        self.set_mdm_repository_paths(filepath)
+        self.set_session()
         assert self.md_db_path, "Expected database path to be set."
         assert self.session, "Expected established session."
 
@@ -540,13 +523,13 @@ class MetadataManager:
                 print(err, file=sys.stderr)
                 sys.exit(1)
 
-    @with_md_repository_paths
-    @with_session
     def untrack(self, filepath: Path) -> None:
         """
         Set file status to "UNTRACKED" if file is in "ACTIVE" state. Do nothing
         if file is already in "UNTRACKED" state. Otherwise fail.
         """
+        self.set_mdm_repository_paths(filepath)
+        self.set_session()
         assert filepath.is_absolute(), f"Expected absolute filepath. Got {filepath}."
         assert self.session, "Expected established session."
 
@@ -574,8 +557,6 @@ class MetadataManager:
         self.session.close()
         print(f"Status of {filepath.relative_to(Path.cwd())} was set to untracked.")
 
-    @with_md_repository_paths
-    @with_session
     def remove_file(
         self,
         filepath: Path,
@@ -604,6 +585,8 @@ class MetadataManager:
                     can't be removed by Mdm, the correspoding Mdm record won't be marked as REMOVED.
         2           Failed to remove records from Mdm database.
         """
+        self.set_mdm_repository_paths(filepath)
+        self.set_session()
         assert filepath.is_absolute(), f"Expected absolute path. Got {filepath}"
         assert self.session, "Expected established session."
         stdout_messages: List[str] = []
@@ -668,9 +651,7 @@ class MetadataManager:
             print(f"\nFailed to remove {filepath} from Mdm.", file=sys.stderr)
             sys.exit(2)
 
-    @with_md_repository_paths
-    @with_session
-    def purge_removed_files(self, debug: bool = False) -> None:
+    def purge_removed_files(self, path: Path, debug: bool = False) -> None:
         """
         Purges files in 'removed' state from Mdm database.
 
@@ -680,6 +661,8 @@ class MetadataManager:
         Exit codes
         1           Failed to purge the records from Mdm database.
         """
+        self.set_mdm_repository_paths(path)
+        self.set_session()
         assert self.session, "Expected established session."
 
         try:
@@ -706,8 +689,6 @@ class MetadataManager:
             print("Failed to purge removed files.", file=sys.stderr)
             sys.exit(1)
 
-    @with_md_repository_paths
-    @with_session
     def list_files(
         self, path: Path, status_filter: Optional[FileStatus] = None
     ) -> None:
@@ -723,6 +704,8 @@ class MetadataManager:
             - TODO: add option to search based on custom attributes and values
                     once the custom file attributes are implemented
         """
+        self.set_mdm_repository_paths(path)
+        self.set_session()
         assert path.is_absolute(), f"Expected absolute path. Got {path}"
         assert self.md_db_path, "Expected database path to be set."
         assert self.repository_root, "Expected repository root to be set."
