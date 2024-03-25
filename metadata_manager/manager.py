@@ -78,10 +78,11 @@ class MetadataManager:
         if maybe_err:
             mdm.cleanup(path)
             print(maybe_err)
-            print("Failed to initialize .md repository.")
-            print("Abort.")
+            print("Failed to initialize .md repository.", file=sys.stderr)
+            print("Abort.", file=sys.stderr)
             sys.exit(1)
 
+        print(f"Intialized empty .md repository in {path}")
         return mdm
 
     @staticmethod
@@ -90,7 +91,10 @@ class MetadataManager:
 
         maybe_md_root = md_utils.get_mdm_root(path=path, config=md_config)
         if not maybe_md_root:
-            print("Not an Mdm repository (or any of the parent directories). Abort.")
+            print(
+                "Not an Mdm repository (or any of the parent directories). Abort.",
+                file=sys.stderr,
+            )
             sys.exit(100)
 
         md_path = maybe_md_root.joinpath(md_config.md_dir_name)
