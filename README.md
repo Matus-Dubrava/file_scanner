@@ -132,8 +132,8 @@
         option to filter out records based on them
     -   add CHANGELOG.md file
     -   add `--debug` flag to control printing of trackeback to stderr
-    -   refactor decorators to better handle arguments passthrough
     -   check how exceptions are passed throughout the code and make necessary changes so that traceback is not lost
+    -   implement `mdm refresh` which will create new `history` record for each `ACTIVE` record in `file` table
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
@@ -148,3 +148,4 @@
     -   implement `mdm rm <FILE>`
         -   add `mdm rm --purge` to purge all removed records
     -   refactor `mdm rm --purge` into its own subcommand `mdm purge`
+    -   refactor decorators to better handle arguments passthrough
