@@ -1,6 +1,4 @@
 import pytest
-from pathlib import Path
-import os
 
 import tests.utils as utils
 import md_utils
