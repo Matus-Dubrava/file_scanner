@@ -155,3 +155,19 @@ def get_mdm_root_or_exit(path: Path, config: Config) -> Path:
         sys.exit(100)
 
     return maybe_mdm_root
+
+
+def is_file_within_repository(
+    repository_root: Path, filepath: Path
+) -> bool | Exception:
+    try:
+        assert (
+            repository_root.is_absolute()
+        ), f"Expected absolute path, got {repository_root}"
+        assert filepath.is_absolute(), f"Expected absolute path, got {filepath}"
+        filepath.relative_to(repository_root)
+        return True
+    except ValueError:
+        return False
+    except Exception as exc:
+        return exc

@@ -1,5 +1,7 @@
 import pytest
-from md_utils import count_line_changes
+from pathlib import Path
+
+from md_utils import count_line_changes, is_file_within_repository
 
 
 @pytest.mark.e35aeef590
@@ -50,3 +52,88 @@ def test_count_line_changes():
     new_hashes = ["a"] * 500_000 + ["b"] * 500_000
     assert count_line_changes(old_hashes, new_hashes).lines_added == 500_000
     assert count_line_changes(old_hashes, new_hashes).lines_removed == 500_000
+
+
+@pytest.mark.c5e6a25207
+@pytest.mark.utils
+@pytest.mark.sanity
+def test_is_file_within_repository():
+    repository_paths = [
+        Path("/"),
+        Path("/dir1"),
+        Path("/dir1/dir2"),
+        Path("/dir1/dir2/dir3"),
+        Path("/another"),
+        Path("/another/dir1"),
+        Path("/another/dir1/dir2"),
+    ]
+
+    filepath = Path("/testfile")
+    expected_results = [True, False, False, False, False, False, False]
+    for repository_path, expected_result in zip(repository_paths, expected_results):
+        assert (
+            is_file_within_repository(
+                repository_root=repository_path, filepath=filepath
+            )
+            == expected_result
+        )
+
+    filepath = Path("/dir1/testfile")
+    expected_results = [True, True, False, False, False, False, False]
+    for repository_path, expected_result in zip(repository_paths, expected_results):
+        assert (
+            is_file_within_repository(
+                repository_root=repository_path, filepath=filepath
+            )
+            == expected_result
+        )
+
+    filepath = Path("/dir1/dir2/testfile")
+    expected_results = [True, True, True, False, False, False, False]
+    for repository_path, expected_result in zip(repository_paths, expected_results):
+        assert (
+            is_file_within_repository(
+                repository_root=repository_path, filepath=filepath
+            )
+            == expected_result
+        )
+
+    filepath = Path("/dir1/dir2/dir3/testfile")
+    expected_results = [True, True, True, True, False, False, False]
+    for repository_path, expected_result in zip(repository_paths, expected_results):
+        assert (
+            is_file_within_repository(
+                repository_root=repository_path, filepath=filepath
+            )
+            == expected_result
+        )
+
+    filepath = Path("/dir1/dir2/dir3/dir4/testfile")
+    expected_results = [True, True, True, True, False, False, False]
+    for repository_path, expected_result in zip(repository_paths, expected_results):
+        assert (
+            is_file_within_repository(
+                repository_root=repository_path, filepath=filepath
+            )
+            == expected_result
+        )
+
+    filepath = Path("/another/testfile")
+    expected_results = [True, False, False, False, True, False, False]
+    for repository_path, expected_result in zip(repository_paths, expected_results):
+        assert (
+            is_file_within_repository(
+                repository_root=repository_path, filepath=filepath
+            )
+            == expected_result
+        )
+
+    filepath = Path("/another/another/testfile")
+    expected_results = [True, False, False, False, True, False, False]
+    for repository_path, expected_result in zip(repository_paths, expected_results):
+        assert (
+            is_file_within_repository(
+                repository_root=repository_path, filepath=filepath
+            )
+            == expected_result
+        )
