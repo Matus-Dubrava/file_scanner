@@ -74,6 +74,11 @@ def purge_cmd(md_cmd):
     return [*md_cmd, "purge"]
 
 
+@pytest.fixture(scope="module")
+def list_cmd(md_cmd):
+    return [*md_cmd, "list"]
+
+
 @pytest.fixture(scope="function")
 def mdm_config():
     with open(Path(__file__).parent / "config" / ".mdconfig_dev", "r") as f:

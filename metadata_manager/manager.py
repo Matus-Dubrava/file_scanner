@@ -512,9 +512,12 @@ class MetadataManager:
             )
             sys.exit(2)
 
-        if file_record.status == FileStatus.REMOVED:
+        if (
+            file_record.status != FileStatus.ACTIVE
+            and file_record.status != FileStatus.UNTRACKED
+        ):
             print(
-                "Cannot change status of file that is in 'REMOVED' state.",
+                f"Cannot change status of file that is in {file_record.status} state.",
                 file=sys.stderr,
             )
             sys.exit(3)
@@ -522,7 +525,7 @@ class MetadataManager:
         file_record.status = FileStatus.UNTRACKED
         self.session.commit()
         self.session.close()
-        print(f"Status of {filepath.relative_to(Path.cwd())} was set to untracked.")
+        print(f"'untrack' {filepath.relative_to(Path.cwd())}")
 
     def remove_file(
         self,

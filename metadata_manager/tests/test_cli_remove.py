@@ -3,7 +3,6 @@ import subprocess
 
 from md_models import FileORM, HistoryORM
 from md_enums import FileStatus
-from manager import MetadataManager
 
 
 # test rm fails when called outside of mdm repository
@@ -170,42 +169,6 @@ def test_force_and_debug_flags(working_dir, rm_cmd, mdm):
     subprocess.check_output([*rm_cmd, filepath, "--force"])
 
     assert mdm.session.query(FileORM).filter_by(status=FileStatus.REMOVED).first()
-
-
-@pytest.mark.e26c08024c
-@pytest.mark.cli
-@pytest.mark.rm
-@pytest.mark.sanity
-def test_rm_cant_be_used_outside_of_mdm_repository(
-    working_dir, rm_cmd, mdm_config, monkeypatch
-):
-    repository_root = working_dir.joinpath("dir1")
-    repository_root.mkdir()
-    subdir = repository_root.joinpath("dir2")
-    subdir.mkdir()
-
-    filepath1 = repository_root.joinpath("testfile1")
-    filepath2 = subdir.joinpath("testfile2")
-
-    mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    mdm.touch(filepath1)
-    mdm.touch(filepath2)
-
-    # These operations should fail since we are switching away from mdm repository.
-    monkeypatch.chdir(working_dir)
-    proc = subprocess.run([*rm_cmd, filepath1], capture_output=True)
-    assert proc.returncode == 100
-    proc = subprocess.run([*rm_cmd, filepath2], capture_output=True)
-    assert proc.returncode == 100
-    assert filepath1.exists()
-    assert filepath2.exists()
-
-    # Now they should work correctly.
-    monkeypatch.chdir(repository_root)
-    subprocess.check_output([*rm_cmd, filepath1])
-    subprocess.check_output([*rm_cmd, filepath2])
-    assert not filepath1.exists()
-    assert not filepath2.exists()
 
 
 # test rming multiple files at once

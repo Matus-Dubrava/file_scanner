@@ -4,7 +4,7 @@ import click
 
 from manager import MetadataManager
 from md_models import Config
-import md_utils
+import cli_utils
 
 CONFIG_PATH = Path(__file__).parent / "config" / ".mdconfig"
 
@@ -26,6 +26,9 @@ def init(ctx, target):
 @click.argument("target")
 @click.pass_context
 def touch(ctx, target):
+    mdm_config = ctx.obj
+    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
+
     mdm = MetadataManager.from_repository(
         md_config=ctx.obj, path=Path(target).absolute()
     )
@@ -35,6 +38,9 @@ def touch(ctx, target):
 @cli.command()
 @click.pass_context
 def list(ctx):
+    mdm_config = ctx.obj
+    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
+
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd().absolute())
     mdm.list_files(Path.cwd())
 
@@ -43,6 +49,9 @@ def list(ctx):
 @click.argument("target")
 @click.pass_context
 def untrack(ctx, target):
+    mdm_config = ctx.obj
+    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
+
     mdm = MetadataManager.from_repository(
         md_config=ctx.obj, path=Path(target).absolute()
     )
@@ -52,6 +61,9 @@ def untrack(ctx, target):
 @cli.command()
 @click.pass_context
 def purge(ctx):
+    mdm_config = ctx.obj
+    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
+
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd().absolute())
     mdm.purge_removed_files(Path.cwd().absolute())
 
@@ -64,10 +76,7 @@ def purge(ctx):
 @click.pass_context
 def rm(ctx, file, debug, purge, force):
     mdm_config = ctx.obj
-
-    # Validate that the location where the command is issued from is valid
-    # Mdm repository.
-    md_utils.get_mdm_root_or_exit(path=Path.cwd(), config=mdm_config)
+    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
 
     mdm = MetadataManager.from_repository(
         md_config=mdm_config, path=Path(file).absolute()
