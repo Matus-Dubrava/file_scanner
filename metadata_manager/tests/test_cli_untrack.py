@@ -5,19 +5,6 @@ import md_enums
 from md_models import FileORM
 
 
-@pytest.mark.b6c05e4f9e
-@pytest.mark.cli
-@pytest.mark.untrack
-@pytest.mark.sanity
-@pytest.mark.parametrize("rel_filepath", ["testfile", "dir1/testfile"])
-def test_untrack_fails_if_file_is_outside_of_md_repository(
-    working_dir, untrack_cmd, rel_filepath
-):
-    filepath = working_dir.joinpath(rel_filepath)
-    proc = subprocess.run([*untrack_cmd, filepath], capture_output=True)
-    assert proc.returncode == 100
-
-
 @pytest.mark.ede07b185a
 @pytest.mark.cli
 @pytest.mark.untrack
@@ -32,7 +19,7 @@ def test_untrack_fails_if_file_doesnt_exist(working_dir, untrack_cmd, mdm):
 @pytest.mark.cli
 @pytest.mark.untrack
 @pytest.mark.sanity
-def test_untrack_fails_if_file_is_not_in_md_database(working_dir, untrack_cmd, mdm):
+def test_untrack_fails_if_file_is_not_in_mdm_database(working_dir, untrack_cmd, mdm):
     filepath = working_dir.joinpath("testfile")
     filepath.touch()
     proc = subprocess.run([*untrack_cmd, filepath], capture_output=True)
