@@ -6,11 +6,11 @@ from md_enums import FileStatus
 
 
 # test rm fails when called outside of mdm repository
-@pytest.mark.a55ce6600f
+@pytest.mark.c8691b666c
 @pytest.mark.cli
 @pytest.mark.rm
 @pytest.mark.sanity
-def test_rm_fails_when_mdm_repository_doesnt_exsist(working_dir, md_manager, rm_cmd):
+def test_rm_fails_when_mdm_repository_doesnt_exsist(working_dir, rm_cmd):
     filepath = working_dir.joinpath("testfile")
     filepath.touch()
 
@@ -26,23 +26,23 @@ def test_rm_fails_when_mdm_repository_doesnt_exsist(working_dir, md_manager, rm_
 @pytest.mark.parametrize(
     "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
 )
-def test_file_is_removed_from_both_fs_and_mdm(
-    working_dir, md_manager, session, rel_filepath, rm_cmd
-):
+def test_file_is_removed_from_both_fs_and_mdm(working_dir, mdm, rel_filepath, rm_cmd):
     filepath = working_dir.joinpath(rel_filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    md_manager.touch(filepath)
+    mdm.touch(filepath)
     assert filepath.exists()
 
     subprocess.check_output([*rm_cmd, filepath])
 
     # records has been renamed
-    assert not session.query(FileORM).filter_by(filepath=filepath).first()
-    assert not session.query(HistoryORM).filter_by(filepath=filepath).first()
-    file_record = session.query(FileORM).filter_by(status=FileStatus.REMOVED).first()
+    assert not mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    assert not mdm.session.query(HistoryORM).filter_by(filepath=filepath).first()
+    file_record = (
+        mdm.session.query(FileORM).filter_by(status=FileStatus.REMOVED).first()
+    )
     assert file_record
     history_record = (
-        session.query(HistoryORM).filter_by(filepath=file_record.filepath).first()
+        mdm.session.query(HistoryORM).filter_by(filepath=file_record.filepath).first()
     )
     assert history_record
 
@@ -50,31 +50,28 @@ def test_file_is_removed_from_both_fs_and_mdm(
     assert not filepath.exists()
 
     # hash file was removed
-    assert not md_manager.get_path_to_hash_file(filepath).exists()
+    assert not mdm.get_path_to_hash_file(filepath).exists()
 
 
 @pytest.mark.edb25df6cb
 @pytest.mark.cli
 @pytest.mark.rm
 @pytest.mark.sanity
-@pytest.mark.init_md(True)
 @pytest.mark.parametrize(
     "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
 )
-def test_file_is_removed_from_fs_when_not_in_mdm(
-    working_dir, md_manager, session, rel_filepath, rm_cmd
-):
+def test_file_is_removed_from_fs_when_not_in_mdm(working_dir, mdm, rel_filepath):
     filepath = working_dir.joinpath(rel_filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
     filepath.touch()
     assert filepath.exists()
 
     # subprocess.check_output([*rm_cmd, filepath])
-    md_manager.remove_file(filepath)
+    mdm.remove_file(filepath)
 
     assert not filepath.exists()
-    assert not session.query(FileORM).all()
-    assert not session.query(HistoryORM).all()
+    assert not mdm.session.query(FileORM).all()
+    assert not mdm.session.query(HistoryORM).all()
 
 
 @pytest.mark.edb25df6cb
@@ -86,11 +83,11 @@ def test_file_is_removed_from_fs_when_not_in_mdm(
     "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
 )
 def test_file_is_removed_from_mdm_when_not_in_fs(
-    working_dir, md_manager, session, rel_filepath, rm_cmd
+    working_dir, mdm, rel_filepath, rm_cmd
 ):
     filepath = working_dir.joinpath(rel_filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    md_manager.touch(filepath)
+    mdm.touch(filepath)
     assert filepath.exists()
 
     # delete the file manually
@@ -98,14 +95,18 @@ def test_file_is_removed_from_mdm_when_not_in_fs(
 
     subprocess.check_output([*rm_cmd, filepath])
 
-    assert not session.query(FileORM).filter_by(filepath=filepath).first()
-    assert not session.query(HistoryORM).filter_by(filepath=filepath).first()
+    assert not mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    assert not mdm.session.query(HistoryORM).filter_by(filepath=filepath).first()
 
-    file_record = session.query(FileORM).filter_by(status=FileStatus.REMOVED).first()
+    file_record = (
+        mdm.session.query(FileORM).filter_by(status=FileStatus.REMOVED).first()
+    )
     assert file_record
-    assert session.query(HistoryORM).filter_by(filepath=file_record.filepath).first()
+    assert (
+        mdm.session.query(HistoryORM).filter_by(filepath=file_record.filepath).first()
+    )
 
-    assert not md_manager.get_path_to_hash_file(filepath).exists()
+    assert not mdm.get_path_to_hash_file(filepath).exists()
 
 
 @pytest.mark.a946122a8d
@@ -113,7 +114,7 @@ def test_file_is_removed_from_mdm_when_not_in_fs(
 @pytest.mark.rm
 @pytest.mark.sanity
 @pytest.mark.init_md(True)
-def test_remove_file_not_in_fs_nor_mdm(working_dir, rm_cmd):
+def test_remove_file_not_in_fs_nor_mdm(working_dir, rm_cmd, mdm):
     filepath = working_dir.joinpath("testfile")
     subprocess.check_output([*rm_cmd, filepath])
 
@@ -122,27 +123,25 @@ def test_remove_file_not_in_fs_nor_mdm(working_dir, rm_cmd):
 @pytest.mark.cli
 @pytest.mark.rm
 @pytest.mark.sanity
-@pytest.mark.init_md(True)
-def test_remove_file_with_purge_option(working_dir, rm_cmd, md_manager, session):
+def test_remove_file_with_purge_option(working_dir, rm_cmd, mdm):
     filepath = working_dir.joinpath("testfile")
-    md_manager.touch(filepath)
+    mdm.touch(filepath)
 
     subprocess.check_output([*rm_cmd, "--purge", filepath])
 
     assert not filepath.exists()
-    assert not md_manager.get_path_to_hash_file(filepath).exists()
-    assert not len(session.query(FileORM).all())
-    assert not len(session.query(HistoryORM).all())
+    assert not mdm.get_path_to_hash_file(filepath).exists()
+    assert not len(mdm.session.query(FileORM).all())
+    assert not len(mdm.session.query(HistoryORM).all())
 
 
 @pytest.mark.c168cc10cb
 @pytest.mark.cli
 @pytest.mark.rm
 @pytest.mark.sanity
-@pytest.mark.init_md(True)
-def test_force_and_debug_flags(working_dir, rm_cmd, md_manager, session):
+def test_force_and_debug_flags(working_dir, rm_cmd, mdm):
     filepath = working_dir.joinpath("testfile")
-    md_manager.touch(filepath)
+    mdm.touch(filepath)
 
     # delete the file manualy and then instead of it create
     # a directory with the same name, that way Mdm won't be
@@ -169,4 +168,4 @@ def test_force_and_debug_flags(working_dir, rm_cmd, md_manager, session):
     # execute with --force, expect the operation to succeed
     subprocess.check_output([*rm_cmd, filepath, "--force"])
 
-    assert session.query(FileORM).filter_by(status=FileStatus.REMOVED).first()
+    assert mdm.session.query(FileORM).filter_by(status=FileStatus.REMOVED).first()

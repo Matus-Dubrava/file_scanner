@@ -18,61 +18,55 @@ def cli(ctx):
 @click.argument("target", default=Path.cwd())
 @click.pass_context
 def init(ctx, target):
-    md_manager: MetadataManager = ctx.obj
-    md_manager.initalize_md_repository(Path(target).absolute())
+    MetadataManager.new(md_config=ctx.obj, path=Path(target).absolute())
 
 
 @cli.command()
 @click.argument("target")
 @click.pass_context
 def touch(ctx, target):
-    md_manager: MetadataManager = ctx.obj
-    md_manager.touch(Path(target).absolute())
+    mdm = MetadataManager.from_repository(
+        md_config=ctx.obj, path=Path(target).absolute()
+    )
+    mdm.touch(Path(target).absolute())
 
 
 @cli.command()
 @click.pass_context
 def list(ctx):
-    md_manager: MetadataManager = ctx.obj
-    md_manager.list_files(Path.cwd())
+    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd().absolute())
+    mdm.list_files(Path.cwd())
 
 
 @cli.command()
 @click.argument("target")
 @click.pass_context
 def untrack(ctx, target):
-    md_manager: MetadataManager = ctx.obj
-    md_manager.untrack(Path(target).absolute())
+    mdm = MetadataManager.from_repository(
+        md_config=ctx.obj, path=Path(target).absolute()
+    )
+    mdm.untrack(Path(target).absolute())
 
 
 @cli.command()
 @click.pass_context
 def purge(ctx):
-    mdm: MetadataManager = ctx.obj
+    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd().absolute())
     mdm.purge_removed_files(Path.cwd().absolute())
 
 
 @cli.command()
-@click.argument("file", nargs=-1, required=False)
+@click.argument("file", nargs=1, required=False)
 @click.option("--debug", is_flag=True, show_default=True, default=False)
 @click.option("--purge", is_flag=True, show_default=True, default=False)
 @click.option("--force", is_flag=True, show_default=True, default=False)
 @click.pass_context
 def rm(ctx, file, debug, purge, force):
-    md_manager: MetadataManager = ctx.obj
-    if file:
-        md_manager.remove_file(
-            Path(file[0]).absolute(), purge=purge, debug=debug, force=force
-        )
-    elif purge:
-        md_manager.purge_removed_files(Path.cwd().absolute())
-    else:
-        click.echo(click.get_current_context().get_help())
+    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path(file).absolute())
+    mdm.remove_file(Path(file).absolute(), purge=purge, debug=debug, force=force)
 
 
 if __name__ == "__main__":
     with open(CONFIG_PATH, "r") as f:
-        md_config = Config.model_validate_json(f.read())
-
-    md_manager = MetadataManager(md_config)
-    cli(obj=md_manager)
+        mdm_config = Config.model_validate_json(f.read())
+        cli(obj=mdm_config)

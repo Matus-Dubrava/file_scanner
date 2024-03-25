@@ -26,7 +26,6 @@ def validate_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
 
 
 def write_build_info(version: str, build_type: BuildType) -> Optional[Exception]:
-    # build_type = BuildType.from_str(build_type)  # type: ignore
     try:
         version_path = Path(__file__).parent / "version.json"
         os.chdir(Path(__file__).parent)

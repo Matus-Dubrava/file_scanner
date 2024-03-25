@@ -22,46 +22,96 @@ import md_utils
 
 
 class MetadataManager:
-    def __init__(self, md_config: Config):
+    def __init__(
+        self,
+        md_config: Config,
+        repository_root: Path,
+        md_path: Path,
+        md_db_path: Path,
+        session: Session,
+    ):
         self.md_config = md_config
-        self.repository_root: Optional[Path] = None
-        self.md_path: Optional[Path] = None
-        self.md_db_path: Optional[Path] = None
-        self.session: Optional[Session] = None
+        self.repository_root = repository_root
+        self.md_path = md_path
+        self.md_db_path = md_db_path
+        self.session = session
 
-    def set_mdm_repository_paths(self, path: Path) -> None:
-        """
-        Provide access to below mentioned attributes via 'self':
-            - repository_root:  directory where md was initalized
-            - md_path:          path to .md directory inside md repository
-            - md_db_path:       path to metadata.db inside .md directory
+    @staticmethod
+    def new(md_config: Config, path: Path):
+        assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
-        Performs additional validation. If md root doesn't exist,
-        exit with failure status code 100.
-        """
-        maybe_md_root = self.get_md_root(path)
-        if not maybe_md_root:
-            print("Not an .md repository (or any of the parent directories). Abort.")
-            sys.exit(100)
+        # If specified directory doesn't exist. Create one.
+        if not path.exists():
+            path.mkdir(parents=True)
 
-        self.repository_root = maybe_md_root
-        self.md_path = maybe_md_root.joinpath(self.md_config.md_dir_name)
-        self.md_db_path = self.md_path.joinpath(self.md_config.md_db_name)
+        # TODO: remove this and add support for subrepositories
+        # this is currently untested
+        if md_utils.get_mdm_root(path=path, config=md_config):
+            print(
+                "Mdm repository already exists in this or parent dir. Abort",
+                file=sys.stderr,
+            )
+            sys.exit(200)
 
-    def set_session(self) -> None:
-        """
-        Provide access to database session object via 'self'.
+        md_path = path.joinpath(md_config.md_dir_name)
+        md_db_path = md_path.joinpath(md_config.md_db_name)
 
-        Fails if database path hasn't been set.
-        """
-        assert self.md_db_path, "Can't create session without database path."
-        session_or_err = create_or_get_session(self.md_db_path)
+        md_path.mkdir()
+        md_path.joinpath("deleted").mkdir()
+        md_path.joinpath("hashes").mkdir()
+
+        session_or_err = create_or_get_session(md_db_path)
         if isinstance(session_or_err, Exception):
             print(f"{session_or_err}\n", file=sys.stderr)
             print("Failed to connect to Mdm database.", file=sys.stderr)
             sys.exit(101)
 
-        self.session = session_or_err
+        mdm = MetadataManager(
+            md_config=md_config,
+            repository_root=path,
+            md_path=md_path,
+            md_db_path=md_db_path,
+            session=session_or_err,
+        )
+
+        maybe_err = mdm.write_version_info_to_db()
+        if maybe_err:
+            mdm.cleanup(path)
+            print(maybe_err)
+            print("Failed to initialize .md repository.")
+            print("Abort.")
+            sys.exit(1)
+
+        return mdm
+
+    @staticmethod
+    def from_repository(md_config: Config, path: Path):
+        assert path.is_absolute(), f"Expected aboslute path. Got {path}."
+
+        maybe_md_root = md_utils.get_mdm_root(path=path, config=md_config)
+        if not maybe_md_root:
+            print("Not an Mdm repository (or any of the parent directories). Abort.")
+            sys.exit(100)
+
+        md_path = maybe_md_root.joinpath(md_config.md_dir_name)
+        md_db_path = md_path.joinpath(md_config.md_db_name)
+        # TODO: handle this more gracefully
+        assert md_path.exists()
+
+        # if path contains .md repo, load all necessary data from there
+        session_or_err = create_or_get_session(md_db_path)
+        if isinstance(session_or_err, Exception):
+            print(f"{session_or_err}\n", file=sys.stderr)
+            print("Failed to connect to Mdm database.", file=sys.stderr)
+            sys.exit(101)
+
+        return MetadataManager(
+            md_config=md_config,
+            repository_root=maybe_md_root,
+            md_path=md_path,
+            md_db_path=md_db_path,
+            session=session_or_err,
+        )
 
     def create_md_dirs(self, where: Path):
         (where / self.md_config.md_dir_name).mkdir()
@@ -82,23 +132,6 @@ class MetadataManager:
 
         return None
 
-    def get_md_root(self, dir: Path) -> Optional[Path]:
-        """
-        Retruns path to directory where .md is located or None if .md is not found
-        in this or any parent directories.
-
-        dir:    directory where to start the search
-        """
-        current_dir = dir
-
-        while not md_utils.is_fs_root_dir(current_dir):
-            if (current_dir / self.md_config.md_dir_name).exists():
-                return current_dir
-
-            current_dir = current_dir.parent
-
-        return None
-
     def get_path_to_hash_file(self, filepath: Path) -> Union[Exception, Path]:
         """
         Returns corresponding hash file path.
@@ -110,13 +143,10 @@ class MetadataManager:
 
         Returns error if .md repository is not found.
         """
-        maybe_md_root = self.get_md_root(filepath.parent)
-        if not maybe_md_root:
-            return Exception("Expected .md to exist.")
 
         try:
-            path_diff = filepath.relative_to(maybe_md_root)
-            return maybe_md_root / self.md_config.md_dir_name / "hashes" / path_diff
+            path_diff = filepath.relative_to(self.repository_root)
+            return self.md_path.joinpath("hashes", path_diff)
         except Exception as err:
             # This should be unreachable because we are checking
             # for the presence of .md repository before computing relative path.
@@ -134,7 +164,7 @@ class MetadataManager:
         if isinstance(hashes_path_or_err, Exception):
             return hashes_path_or_err
 
-        filepath.unlink(missing_ok=True)
+        hashes_path_or_err.unlink(missing_ok=True)
         return None
 
     def read_line_hashes_from_hash_file(self, filepath: Path) -> List[str] | Exception:
@@ -354,7 +384,7 @@ class MetadataManager:
 
         return []
 
-    def write_version_info_to_db(self, session: Session) -> Optional[Exception]:
+    def write_version_info_to_db(self) -> Optional[Exception]:
         version_info_or_err = VersionInfo.get_info()
         if isinstance(version_info_or_err, Exception):
             return version_info_or_err
@@ -367,64 +397,12 @@ class MetadataManager:
                 build_date=version_info_or_err.build_date,
             )
 
-            session.add(version_info_record)
-            session.commit()
+            self.session.add(version_info_record)
+            self.session.commit()
         except Exception as err:
             return err
 
         return None
-
-    def initalize_md_repository(self, dir: Path) -> None:
-        """
-        Initliaze 'md' repository and sqlite database.
-        TODO: don't perform this check - just allow nested 'md' repositories
-        Performs all neccessary check - checking for existence 'md' repositories
-        on the path to the root.
-
-        dir:    Directory where 'md' will be initialized.
-        """
-
-        # Relative path can lead to bugs and infinite loops when traversing fs structure.
-        assert dir.is_absolute(), f"Expected aboslute path. Got {dir}."
-
-        # If specified dir doesn't exist. Create one.
-        if not dir.exists():
-            dir.mkdir(parents=True)
-
-        try:
-            # Check if .md folder exists somewhere along the path to the root of the fs
-            # Don't initialize nested .md.
-            if self.check_dir_is_md_managed(dir):
-                print(
-                    ".md repository exists in this or one of the parent directories. Abort.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            self.create_md_dirs(dir)
-
-            # create sqlite metadata.db and initialize tracking table
-            db_path = dir / self.md_config.md_dir_name
-            session_or_err = create_or_get_session(db_path / self.md_config.md_db_name)
-
-            # TODO: handle this better, this is already handled by decorator
-            # - refactor and reuse that logic
-            assert isinstance(session_or_err, Session)
-
-            # write version info to db
-            maybe_err = self.write_version_info_to_db(session=session_or_err)
-            if maybe_err:
-                raise maybe_err
-
-            session_or_err.close()
-
-            print(f"Intialized empty .md repository in {dir}")
-        except Exception as err:
-            self.cleanup(dir)
-            print(err)
-            print("Failed to initialize .md repository.")
-            print("Abort.")
-            sys.exit(1)
 
     def touch(self, filepath: Path, debug: bool = False) -> None:
         """
@@ -435,11 +413,6 @@ class MetadataManager:
         if not filepath.parent.exists():
             print(f"Directory {filepath.parent} doesn't exist. Abort.")
             sys.exit(1)
-
-        self.set_mdm_repository_paths(filepath)
-        self.set_session()
-        assert self.md_db_path, "Expected database path to be set."
-        assert self.session, "Expected established session."
 
         branch_name = self.get_current_git_branch(filepath.parent)
 
@@ -528,10 +501,6 @@ class MetadataManager:
         Set file status to "UNTRACKED" if file is in "ACTIVE" state. Do nothing
         if file is already in "UNTRACKED" state. Otherwise fail.
         """
-        self.set_mdm_repository_paths(filepath)
-        self.set_session()
-        assert filepath.is_absolute(), f"Expected absolute filepath. Got {filepath}."
-        assert self.session, "Expected established session."
 
         if not filepath.exists():
             print(f"File {filepath.relative_to(Path.cwd())} doesn't exist. Abort.")
@@ -585,10 +554,6 @@ class MetadataManager:
                     can't be removed by Mdm, the correspoding Mdm record won't be marked as REMOVED.
         2           Failed to remove records from Mdm database.
         """
-        self.set_mdm_repository_paths(filepath)
-        self.set_session()
-        assert filepath.is_absolute(), f"Expected absolute path. Got {filepath}"
-        assert self.session, "Expected established session."
         stdout_messages: List[str] = []
 
         # Handle removing file from file system.
@@ -621,7 +586,7 @@ class MetadataManager:
                     for h_record in history_records:
                         self.session.delete(h_record)
                     # TODO: remove custom metadata records here
-                    stdout_messages.append(f"{filepath} successfully purged from Mdm.")
+                    stdout_messages.append(f"'rm --purge'{filepath}")
                 else:
                     updated_filename, updated_filepath = (
                         md_utils.get_filepath_with_delete_prefix(filepath=filepath)
@@ -633,7 +598,7 @@ class MetadataManager:
                     for h_record in history_records:
                         h_record.filepath = updated_filepath
                     # TODO: update custom metadata records
-                    stdout_messages.append(f"{filepath} successfully removed.")
+                    stdout_messages.append(f"'rm' {filepath}")
 
                 hash_filepath_or_err = self.get_path_to_hash_file(filepath=filepath)
                 if isinstance(hash_filepath_or_err, Exception):
@@ -661,9 +626,6 @@ class MetadataManager:
         Exit codes
         1           Failed to purge the records from Mdm database.
         """
-        self.set_mdm_repository_paths(path)
-        self.set_session()
-        assert self.session, "Expected established session."
 
         try:
             deleted_file_records = (
@@ -704,12 +666,7 @@ class MetadataManager:
             - TODO: add option to search based on custom attributes and values
                     once the custom file attributes are implemented
         """
-        self.set_mdm_repository_paths(path)
-        self.set_session()
         assert path.is_absolute(), f"Expected absolute path. Got {path}"
-        assert self.md_db_path, "Expected database path to be set."
-        assert self.repository_root, "Expected repository root to be set."
-        assert self.session, "Expected established session."
 
         if status_filter:
             files = self.session.query(FileORM).filter_by(status=status_filter).all()

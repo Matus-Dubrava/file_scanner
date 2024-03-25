@@ -8,7 +8,7 @@ from pathlib import Path
 import uuid
 
 import md_constants
-from md_models import FileStat, LineChanges
+from md_models import FileStat, LineChanges, Config
 
 
 def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
@@ -118,3 +118,21 @@ def count_line_changes(old_hashes: List[str], new_hashes: List[str]) -> LineChan
 
 def is_fs_root_dir(dir: Path, root_dir: Path = Path("/")) -> bool:
     return str(dir) == str(root_dir)
+
+
+def get_mdm_root(path: Path, config: Config) -> Optional[Path]:
+    """
+    Retruns path to directory where .md is located or None if .md is not found
+    in this or any parent directories.
+
+    path:    directory where to start the search
+    """
+    current_dir = path
+
+    while not is_fs_root_dir(current_dir):
+        if current_dir.joinpath(config.md_dir_name).exists():
+            return current_dir
+
+        current_dir = current_dir.parent
+
+    return None
