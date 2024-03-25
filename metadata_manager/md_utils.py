@@ -6,6 +6,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 import uuid
+import sys
 
 import md_constants
 from md_models import FileStat, LineChanges, Config
@@ -120,12 +121,12 @@ def is_fs_root_dir(dir: Path, root_dir: Path = Path("/")) -> bool:
     return str(dir) == str(root_dir)
 
 
-def get_mdm_root(path: Path, config: Config) -> Optional[Path]:
+def _get_mdm_root(path: Path, config: Config) -> Optional[Path]:
     """
-    Retruns path to directory where .md is located or None if .md is not found
+    Returns path to Mdm repository root directory of None if root is not found
     in this or any parent directories.
 
-    path:    directory where to start the search
+    path:    Directory where to start the search
     """
     current_dir = path
 
@@ -136,3 +137,21 @@ def get_mdm_root(path: Path, config: Config) -> Optional[Path]:
         current_dir = current_dir.parent
 
     return None
+
+
+def get_mdm_root_or_exit(path: Path, config: Config) -> Path:
+    """
+    Returns path to Mdm repository root directory.
+    Exits with code 100 if Mdm root is not found.
+
+    path:    Directory where to start the search
+    """
+    maybe_mdm_root = _get_mdm_root(path=path, config=config)
+    if not maybe_mdm_root:
+        print(
+            "Not an Mdm repository (or any of the parent directories). Abort.",
+            file=sys.stderr,
+        )
+        sys.exit(100)
+
+    return maybe_mdm_root

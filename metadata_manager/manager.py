@@ -46,7 +46,7 @@ class MetadataManager:
 
         # TODO: remove this and add support for subrepositories
         # this is currently untested
-        if md_utils.get_mdm_root(path=path, config=md_config):
+        if md_utils._get_mdm_root(path=path, config=md_config):
             print(
                 "Mdm repository already exists in this or parent dir. Abort",
                 file=sys.stderr,
@@ -89,13 +89,7 @@ class MetadataManager:
     def from_repository(md_config: Config, path: Path):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
-        maybe_md_root = md_utils.get_mdm_root(path=path, config=md_config)
-        if not maybe_md_root:
-            print(
-                "Not an Mdm repository (or any of the parent directories). Abort.",
-                file=sys.stderr,
-            )
-            sys.exit(100)
+        maybe_md_root = md_utils.get_mdm_root_or_exit(path=path, config=md_config)
 
         md_path = maybe_md_root.joinpath(md_config.md_dir_name)
         md_db_path = md_path.joinpath(md_config.md_db_name)

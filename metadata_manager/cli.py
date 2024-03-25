@@ -4,6 +4,7 @@ import click
 
 from manager import MetadataManager
 from md_models import Config
+import md_utils
 
 CONFIG_PATH = Path(__file__).parent / "config" / ".mdconfig"
 
@@ -62,8 +63,21 @@ def purge(ctx):
 @click.option("--force", is_flag=True, show_default=True, default=False)
 @click.pass_context
 def rm(ctx, file, debug, purge, force):
-    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path(file).absolute())
-    mdm.remove_file(Path(file).absolute(), purge=purge, debug=debug, force=force)
+    mdm_config = ctx.obj
+
+    # Validate that the location where the command is issued from is valid
+    # Mdm repository.
+    md_utils.get_mdm_root_or_exit(path=Path.cwd(), config=mdm_config)
+
+    mdm = MetadataManager.from_repository(
+        md_config=mdm_config, path=Path(file).absolute()
+    )
+    mdm.remove_file(
+        filepath=Path(file).absolute(),
+        purge=purge,
+        debug=debug,
+        force=force,
+    )
 
 
 if __name__ == "__main__":
