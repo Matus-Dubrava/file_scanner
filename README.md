@@ -135,6 +135,9 @@
     -   check how exceptions are passed throughout the code and make necessary changes so that traceback is not lost
     -   implement `mdm refresh` which will create new `history` record for each `ACTIVE` record in `file` table
     -   make `mdm list` available via `mdm ls` as well
+    -   add support for `rm --recursive/-r <directory>`
+        -   this will remove all files tracked by `mdm`
+        -   if the directory is empty after files were removed, remove the directory as well
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist

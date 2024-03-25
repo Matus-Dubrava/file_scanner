@@ -173,4 +173,6 @@ def test_force_and_debug_flags(working_dir, rm_cmd, mdm):
 
 # test rming multiple files at once
 
+# test rming dir, required -r/--recrursive flag
+
 # test rming glob pattern
