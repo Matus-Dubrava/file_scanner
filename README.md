@@ -134,6 +134,7 @@
     -   add `--debug` flag to control printing of trackeback to stderr
     -   check how exceptions are passed throughout the code and make necessary changes so that traceback is not lost
     -   implement `mdm refresh` which will create new `history` record for each `ACTIVE` record in `file` table
+    -   make `mdm list` available via `mdm ls` as well
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
