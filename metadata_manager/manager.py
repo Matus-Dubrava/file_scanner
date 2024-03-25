@@ -53,6 +53,15 @@ class MetadataManager:
             )
             sys.exit(200)
 
+        # if no mdm root exits, create a new mdm repository
+        # if mdm root already exits, create new mdm repository and
+        # sync the new repository with the parent repo
+        #   -   all files that are under the new repository and are in ACTIVE or UNTRACKED state
+        #       are copied over to the new repo
+        #   -   in the old repo, these files are marked as SUBREPOSITORY_TRACKED
+        #       together with the filepath of the subrepository
+        #       -   this needs to be a new file attribute
+
         md_path = path.joinpath(md_config.md_dir_name)
         md_db_path = md_path.joinpath(md_config.md_db_name)
 

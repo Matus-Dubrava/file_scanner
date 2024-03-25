@@ -107,14 +107,13 @@
             -   it can also hold the version info that is currently stored in `version_info` table
         -   files will be tracked in the closest `mdm` repository on the path to the root
         -   if file is currently tracked in parent `mdm` database and new `mdm` subrepository is created
-            -   mark the file as `SUBREPOSITORY_TRACKED`, don't remove anything from the current `mdm` respoitory
-            -   copy `ACTIVE` file entires from current `mdm` repository to subrepository
-                -   history and hash files are not copied, instead, new intial records are created in subrepository as if this was a new record
-                -   file's metadata is copies to to subrepository
-                -   global metadata is NOT copied
+            -   mark the file as `SUBREPOSITORY_TRACKED`
+                -   this only applies to files that would end up under the new subrepository, files that are outside of the new subrepository are unaffected
+            -   copy `ACTIVE` and `UNTRACKED` file records from current `mdm` repository to subrepository
+                -   files's metadata, hash file and history are moved to new subrepsitory
                 -   all following operations on the file will be tracked by the nearest subrepostiory
-                -   each `mdm` repository stores pointer to both nearest parent and child `mdm` repositories
-            -   there should be an option that allows users to remove `mdm` subrepository which will synchronize the subrepository's records into parent `mdm` repository, if one doesn't exists then the data is simply removed
+                -   each `mdm` repository stores pointer to nearest parent `mdm` repositories in form of a filepath and uuid
+            -   there should be an option that allows users to remove `mdm` subrepository which will synchronize the subrepository's records into parent `mdm` repository if parent repository still exits, if it doesn't exists then the data is simply removed, this requires confirmation in form of `-f/--force` flag
             -   add field to `history` table that records current subrepository
 
     -   refactor paths to use `joinpath` instead of `/`
