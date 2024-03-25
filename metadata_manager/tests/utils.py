@@ -29,5 +29,5 @@ def assert_database_structure(db_path: Path):
     curs.execute(sql)
     data = curs.fetchall()
 
-    expected_tables = ["file", "history", "version_info"]
+    expected_tables = ["file", "history", "version_info", "repository"]
     assert sorted(expected_tables) == sorted([row[0] for row in data])

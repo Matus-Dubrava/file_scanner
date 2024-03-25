@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 import tests.utils as utils
 from build import write_build_info
 from md_enums import BuildType
-from md_models import VersionInfoORM
+from md_models import VersionInfoORM, RespositoryORM
 from db import create_or_get_session
+from manager import MetadataManager
 
 
 @pytest.mark.ebff0e4472
@@ -75,25 +76,6 @@ def test_init_creates_both_md_respository_and_target_dir_if_it_doesnt_exist(
     )
 
 
-@pytest.mark.b767b0b432
-@pytest.mark.cli
-@pytest.mark.init
-@pytest.mark.sanity
-def test_init_aborts_when_another_md_is_detected_in_the_same_dir(
-    working_dir, init_cmd, mdm
-):
-    # NOTE: mdm fixture automatically created mdm repository. So at this
-    # point, mdm repository already exist int the working directory.
-    proc = subprocess.run([*init_cmd, working_dir], capture_output=True)
-    assert proc.returncode == 200
-    assert "Abort" in str(proc.stderr)
-
-    # These should still exist.
-    # Make sure they are not cleaned up.
-    utils.assert_md_structure_exists(md_config=mdm.md_config, where=working_dir)
-    utils.assert_database_structure(db_path=mdm.md_db_path)
-
-
 @pytest.mark.be334fb0aa
 @pytest.mark.cli
 @pytest.mark.init
@@ -127,3 +109,53 @@ def test_init_creates_version_info_record(
     assert version_info.version == expected_version
     assert version_info.commit_id == expected_commit_id
     assert version_info.build_type.value == expected_build_type.value
+
+
+@pytest.mark.f65ee82ab6
+@pytest.mark.cli
+@pytest.mark.init
+@pytest.mark.sanity
+def test_init_creates_repository_table_without_parent_repo_info(
+    mdm_config, working_dir, init_cmd
+):
+    # Validate repository table was created duing initialization of
+    # a new repository. Parent repository's info should be set to null if
+    # parent repository doesn't exist.
+
+    subprocess.check_output([*init_cmd, working_dir])
+    mdm = MetadataManager.from_repository(path=working_dir, md_config=mdm_config)
+
+    repository_record = mdm.session.query(RespositoryORM).first()
+    assert str(repository_record.repository_filepath) == str(working_dir)
+    assert not repository_record.parent_repository_id
+    assert not repository_record.parent_repository_filepath
+
+
+@pytest.mark.d1d2d4cee1
+@pytest.mark.cli
+@pytest.mark.init
+@pytest.mark.sanity
+def test_init_creates_repository_table_with_parent_repo_info(
+    mdm_config, working_dir, init_cmd, monkeypatch
+):
+    # Validate repository table was created duing initialization of
+    # a new repository. Parent repository's info should be correctly
+    # filled in if parent repository exists.
+
+    subprocess.check_output([*init_cmd, working_dir])
+    mdm = MetadataManager.from_repository(path=working_dir, md_config=mdm_config)
+    parent_repository_record = mdm.session.query(RespositoryORM).first()
+    assert parent_repository_record
+
+    child_repo_dir = working_dir.joinpath("child_dir")
+    child_repo_dir.mkdir()
+    monkeypatch.chdir(child_repo_dir)
+    subprocess.check_output([*init_cmd, child_repo_dir])
+    child_mdm = MetadataManager.from_repository(
+        path=child_repo_dir, md_config=mdm_config
+    )
+
+    child_repository_record = child_mdm.session.query(RespositoryORM).first()
+    assert str(child_repository_record.repository_filepath) == str(child_repo_dir)
+    assert str(child_repository_record.parent_repository_filepath) == str(working_dir)
+    assert child_repository_record.parent_repository_id == parent_repository_record.id

@@ -5,6 +5,7 @@ from typing import Optional, List, Union
 import subprocess
 import shutil
 from datetime import datetime
+import uuid
 
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,7 @@ from md_models import (
     HistoryORM,
     VersionInfo,
     VersionInfoORM,
+    RespositoryORM,
 )
 import md_utils
 
@@ -46,12 +48,41 @@ class MetadataManager:
 
         # TODO: remove this and add support for subrepositories
         # this is currently untested
-        if md_utils._get_mdm_root(path=path, config=md_config):
-            print(
-                "Mdm repository already exists in this or parent dir. Abort",
-                file=sys.stderr,
+        maybe_parent_mdm_root = md_utils.get_mdm_root(path=path, config=md_config)
+
+        if maybe_parent_mdm_root:
+            parent_repository_mdm = MetadataManager.from_repository(
+                md_config=md_config, path=maybe_parent_mdm_root
             )
-            sys.exit(200)
+            parent_repository_record = parent_repository_mdm.session.query(
+                RespositoryORM
+            ).first()
+
+            repository = RespositoryORM(
+                id=str(uuid.uuid4()),
+                repository_filepath=path,
+                parent_repository_id=parent_repository_record.id,
+                parent_repository_filepath=parent_repository_record.repository_filepath,
+            )
+
+            # collect files that we would have to move (in `TRACKED` and `UNTRACKED` state)
+            # collect id of the parent repo
+            #
+            # if there are any files to move abort if -y/--yes flag is not provided, inform user about existence
+            # of this parent repo
+            #   - also inform user about option to use -v/--verbose to list files that needs to be moved
+            #
+            # copy over file's metadata, hash file and history
+            # set file status to `SUBREPOSITORY_TRACKED` in parent repository
+            # remove history records, metadata and hash file from parent repo
+            #
+            #
+            pass
+        else:
+            repository = RespositoryORM(
+                id=str(uuid.uuid4()),
+                repository_filepath=path,
+            )
 
         # if no mdm root exits, create a new mdm repository
         # if mdm root already exits, create new mdm repository and
@@ -61,7 +92,6 @@ class MetadataManager:
         #   -   in the old repo, these files are marked as SUBREPOSITORY_TRACKED
         #       together with the filepath of the subrepository
         #       -   this needs to be a new file attribute
-
         md_path = path.joinpath(md_config.md_dir_name)
         md_db_path = md_path.joinpath(md_config.md_db_name)
 
@@ -74,6 +104,9 @@ class MetadataManager:
             print(f"{session_or_err}\n", file=sys.stderr)
             print("Failed to connect to Mdm database.", file=sys.stderr)
             sys.exit(101)
+
+        session_or_err.add(repository)
+        session_or_err.commit()
 
         mdm = MetadataManager(
             md_config=md_config,

@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 import click
 
@@ -90,6 +91,9 @@ def rm(ctx, file, debug, purge, force):
 
 
 if __name__ == "__main__":
-    with open(CONFIG_PATH, "r") as f:
-        mdm_config = Config.model_validate_json(f.read())
-        cli(obj=mdm_config)
+    mdm_config = Config.from_file(CONFIG_PATH)
+    if isinstance(mdm_config, Exception):
+        print("Failed to load configuration. Abort.", file=sys.stderr)
+        sys.exit(101)
+
+    cli(obj=mdm_config)

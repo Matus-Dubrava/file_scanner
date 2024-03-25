@@ -121,7 +121,7 @@ def is_fs_root_dir(dir: Path, root_dir: Path = Path("/")) -> bool:
     return str(dir) == str(root_dir)
 
 
-def _get_mdm_root(path: Path, config: Config) -> Optional[Path]:
+def get_mdm_root(path: Path, config: Config) -> Optional[Path]:
     """
     Returns path to Mdm repository root directory of None if root is not found
     in this or any parent directories.
@@ -146,7 +146,7 @@ def get_mdm_root_or_exit(path: Path, config: Config) -> Path:
 
     path:    Directory where to start the search
     """
-    maybe_mdm_root = _get_mdm_root(path=path, config=config)
+    maybe_mdm_root = get_mdm_root(path=path, config=config)
     if not maybe_mdm_root:
         print(
             "Not an Mdm repository (or any of the parent directories). Abort.",

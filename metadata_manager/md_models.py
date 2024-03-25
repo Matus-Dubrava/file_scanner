@@ -89,9 +89,28 @@ class VersionInfoORM(Base):
     build_date: Mapped[datetime] = Column(DateTime, nullable=False)
 
 
+class RespositoryORM(Base):
+    __tablename__ = "repository"
+
+    id: Mapped[str] = Column(String, primary_key=True)
+    date_created: Mapped[datetime] = Column(
+        DateTime, nullable=False, default=datetime.now()
+    )
+    repository_filepath: Mapped[Path | str] = Column(PathType, nullable=False)
+    parent_repository_id: Mapped[str] = Column(String, nullable=True)
+    parent_repository_filepath: Mapped[Path | str] = Column(PathType, nullable=True)
+
+
 class Config(BaseModel):
     md_dir_name: str
     md_db_name: str
+
+    @staticmethod
+    def from_file(path: Path) -> Union["Config", Exception]:
+        try:
+            return Config.model_validate_json(path.read_text())
+        except Exception as exc:
+            return exc
 
 
 class FileStat(BaseModel):
