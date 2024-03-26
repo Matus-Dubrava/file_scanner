@@ -1,4 +1,5 @@
 from typing import List, Union, Optional, Tuple, Dict, Any
+import shutil
 from collections import Counter
 import hashlib
 import subprocess
@@ -214,20 +215,39 @@ def get_files_belonging_to_child_repository(
     return filepaths
 
 
-def copy_hash_files(
-    parent_mdm, child_mdm, filepaths: List[Path]
-) -> Optional[Exception]:
+def move_hash_files(source_mdm, dest_mdm, filepaths: List[Path]) -> Optional[Exception]:
     """
-    Move hash files corresponding to specified files from parent Mdm to child Mdm.
+    Move hash files corresponding to specified files from source Mdm to destination Mdm.
 
-    parent_mdm:     Parent MetadataManager object.
-    child_mdm:      Child MetadataManager object.
-    filepaths:      List of files to be synchronized between parent and child Mdms. All provided files must
-                    be located within child Mdm's subdirectory.
+    source_mdm:     Source MetadataManager object.
+    dest_mdm:       Destination MetadataManager object.
+    filepaths:      List of files to be synchronized between srouce and destination Mdms. All provided files must
+                    be located within destination Mdm's subdirectory.
     """
-    hash_filepaths: List[Path] = []
-    for filepath in filepaths:
-        pass
+    assert all(
+        [
+            is_file_within_repository(
+                repository_root=dest_mdm.repository_root, filepath=filepath
+            )
+            for filepath in filepaths
+        ]
+    ), "Expected all files to be withing child's subdirectory structure."
+
+    try:
+        source_hash_filepaths = [
+            source_mdm.get_path_to_hash_file(filepath=filepath)
+            for filepath in filepaths
+        ]
+        dest_hash_filepaths = [
+            dest_mdm.get_path_to_hash_file(filepath=filepath) for filepath in filepaths
+        ]
+
+        for source_file, dest_file in zip(source_hash_filepaths, dest_hash_filepaths):
+            dest_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_file, dest_file)
+            source_file.unlink()
+    except Exception as exc:
+        return exc
 
     return None
 

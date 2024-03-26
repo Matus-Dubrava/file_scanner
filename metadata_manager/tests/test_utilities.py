@@ -6,6 +6,7 @@ from md_utils import (
     is_file_within_repository,
     get_files_belonging_to_child_repository,
     move_mdm_records,
+    move_hash_files,
 )
 from manager import MetadataManager
 from md_models import FileORM, HistoryORM
@@ -372,3 +373,42 @@ def test_move_mdm_records(working_dir, mdm_config):
         == 1
     )
     assert not child_mdm.session.query(HistoryORM).filter_by(filepath=testfile3).first()
+
+
+@pytest.mark.fc3ae0d153
+@pytest.mark.utils
+@pytest.mark.sanity
+def test_move_hash_files(working_dir, mdm_config):
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = subdir1.joinpath("dir2")
+    subdir2.mkdir(parents=True)
+
+    testfile1 = subdir1.joinpath("testfile1")
+    testfile2 = subdir2.joinpath("testfile2")
+
+    parent_mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+    child_mdm = MetadataManager.new(md_config=mdm_config, path=subdir1)
+
+    parent_mdm.touch(testfile1)
+    parent_mdm.touch(testfile2)
+
+    filepaths = get_files_belonging_to_child_repository(
+        parent_mdm=parent_mdm,
+        child_mdm=child_mdm,
+        status_filters=[FileStatus.ACTIVE, FileStatus.UNTRACKED],
+    )
+
+    maybe_err = move_hash_files(
+        source_mdm=parent_mdm, dest_mdm=child_mdm, filepaths=filepaths
+    )
+    if maybe_err:
+        raise maybe_err
+    
+    # Files were removed from the source.
+    assert not parent_mdm.get_path_to_hash_file(filepath=testfile1).exists()
+    assert not parent_mdm.get_path_to_hash_file(filepath=testfile2).exists()
+
+    # Files we copied to the destination.
+    assert child_mdm.get_path_to_hash_file(filepath=testfile1).exists()
+    assert child_mdm.get_path_to_hash_file(filepath=testfile2).exists()
+    
