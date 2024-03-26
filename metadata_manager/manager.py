@@ -65,7 +65,7 @@ class MetadataManager:
                 parent_repository_filepath=parent_repository_record.repository_filepath,
             )
 
-            # collect files that we would have to move (in `TRACKED` and `UNTRACKED` state)
+            # collect files that we would have to move (in `ACTIVE` and `UNTRACKED` state)
             # collect id of the parent repo
             #
             # if there are any files to move abort if -y/--yes flag is not provided, inform user about existence

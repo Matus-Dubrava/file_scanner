@@ -1,6 +1,5 @@
-from typing import List, Union
+from typing import List, Union, Optional, Tuple
 from collections import Counter
-from typing import Optional, Tuple
 import hashlib
 import subprocess
 from datetime import datetime
@@ -9,7 +8,7 @@ import uuid
 import sys
 
 import md_constants
-from md_models import FileStat, LineChanges, Config
+from md_models import FileStat, LineChanges, Config, FileORM
 
 
 def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
@@ -160,6 +159,12 @@ def get_mdm_root_or_exit(path: Path, config: Config) -> Path:
 def is_file_within_repository(
     repository_root: Path, filepath: Path
 ) -> bool | Exception:
+    """
+    Determine if file is within repository's root directory or any other subdirectory.
+
+    respository_root:   Root directory of the Mdm repository.
+    filepath:           Filepath to check agains.
+    """
     try:
         assert (
             repository_root.is_absolute()
@@ -171,3 +176,23 @@ def is_file_within_repository(
         return False
     except Exception as exc:
         return exc
+
+
+def get_files_belonging_to_child_repository(parent_mdm, child_mdm) -> List[Path]:
+    """
+    Return list of all files that are recorded in parent Mdm and
+    are within child Mdm's subdirectory.
+
+    parent_mdm:     Parent MetadataManager object.
+    child_mdm:      Child MetadataManager object.
+    """
+    parent_file_records = parent_mdm.session.query(FileORM).all()
+    filepaths: List[Path] = []
+
+    for record in parent_file_records:
+        if is_file_within_repository(
+            repository_root=child_mdm.repository_root, filepath=record.filepath
+        ):
+            filepaths.append(record.filepath)
+
+    return filepaths
