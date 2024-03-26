@@ -150,7 +150,13 @@ def test_init_creates_repository_table_with_parent_repo_info(
     child_repo_dir = working_dir.joinpath("child_dir")
     child_repo_dir.mkdir()
     monkeypatch.chdir(child_repo_dir)
-    subprocess.check_output([*init_cmd, child_repo_dir])
+    proc = subprocess.run(
+        [*init_cmd, child_repo_dir, "--load-from-parent-repository", "--debug"],
+        capture_output=True,
+    )
+    print(proc)
+    assert proc.returncode == 0
+
     child_mdm = MetadataManager.from_repository(
         path=child_repo_dir, md_config=mdm_config
     )

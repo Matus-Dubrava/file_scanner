@@ -42,16 +42,12 @@ class MetadataManager:
     def new(
         md_config: Config,
         path: Path,
-        synchronize_with_parent_repository: bool = False,
     ):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
         # If specified directory doesn't exist. Create one.
         if not path.exists():
             path.mkdir(parents=True)
-
-        # Look for parent Mdm.
-        maybe_parent_mdm_root = md_utils.get_mdm_root(path=path, config=md_config)
 
         # Create Mdm directories.
         md_path = path.joinpath(md_config.md_dir_name)
@@ -61,96 +57,24 @@ class MetadataManager:
         md_path.joinpath("deleted").mkdir()
         md_path.joinpath("hashes").mkdir()
 
-        if maybe_parent_mdm_root and synchronize_with_parent_repository:
-            parent_repository_mdm = MetadataManager.from_repository(
-                md_config=md_config, path=maybe_parent_mdm_root
-            )
-            parent_repository_record = parent_repository_mdm.session.query(
-                RespositoryORM
-            ).first()
+        repository = RespositoryORM(
+            id=str(uuid.uuid4()),
+            repository_filepath=path,
+        )
 
-            repository = RespositoryORM(
-                id=str(uuid.uuid4()),
-                repository_filepath=path,
-                parent_repository_id=parent_repository_record.id,
-                parent_repository_filepath=parent_repository_record.repository_filepath,
-            )
+        session_or_err = create_or_get_session(md_db_path)
+        if isinstance(session_or_err, Exception):
+            print(f"{session_or_err}\n", file=sys.stderr)
+            print("Failed to connect to Mdm database.", file=sys.stderr)
+            sys.exit(101)
 
-            # Create current Mdm object.
-            session_or_err = create_or_get_session(md_db_path)
-            if isinstance(session_or_err, Exception):
-                print(f"{session_or_err}\n", file=sys.stderr)
-                print("Failed to connect to Mdm database.", file=sys.stderr)
-                sys.exit(101)
-
-            mdm = MetadataManager(
-                md_config=md_config,
-                repository_root=path,
-                md_path=md_path,
-                md_db_path=md_db_path,
-                session=session_or_err,
-            )
-
-            # Create parent Mdm object.
-            parent_md_path = parent_repository_record.repository_filepath.joinpath(
-                md_config.md_dir_name
-            )
-            parent_md_db_path = parent_md_path.joinpath(md_config.md_db_name)
-
-            parent_session_or_err = create_or_get_session(
-                db_path=parent_repository_record
-            )
-            if isinstance(parent_session_or_err, Exception):
-                print(f"{parent_session_or_err}\n", file=sys.stderr)
-                print("Failed to connect to parent Mdm database.", file=sys.stderr)
-                sys.exit(101)
-
-            parent_mdm = MetadataManager(
-                md_config=md_config,
-                repository_root=parent_repository_record.repository_filepath,
-                md_path=parent_md_path,
-                md_db_path=parent_md_db_path,
-                session=parent_session_or_err,
-            )
-
-            # Get filepaths of file records that need to be moved.
-            files_to_move = md_utils.get_files_belonging_to_child_repository(
-                parent_mdm=parent_mdm,
-                child_mdm=mdm,
-                status_filters=[FileStatus.ACTIVE, FileStatus.UNTRACKED],
-            )
-
-            # collect files that we would have to move (in `ACTIVE` and `UNTRACKED` state)
-            # collect id of the parent repo
-            #
-            # if there are any files to move abort if -y/--yes flag is not provided, inform user about existence
-            # of this parent repo
-            #   - also inform user about option to use -v/--verbose to list files that needs to be moved
-            #
-            # copy over file's metadata, hash file and history
-            # set file status to `SUBREPOSITORY_TRACKED` in parent repository
-            # remove history records, metadata and hash file from parent repo
-            #
-            #
-        else:
-            repository = RespositoryORM(
-                id=str(uuid.uuid4()),
-                repository_filepath=path,
-            )
-
-            session_or_err = create_or_get_session(md_db_path)
-            if isinstance(session_or_err, Exception):
-                print(f"{session_or_err}\n", file=sys.stderr)
-                print("Failed to connect to Mdm database.", file=sys.stderr)
-                sys.exit(101)
-
-            mdm = MetadataManager(
-                md_config=md_config,
-                repository_root=path,
-                md_path=md_path,
-                md_db_path=md_db_path,
-                session=session_or_err,
-            )
+        mdm = MetadataManager(
+            md_config=md_config,
+            repository_root=path,
+            md_path=md_path,
+            md_db_path=md_db_path,
+            session=session_or_err,
+        )
 
         session_or_err.add(repository)
         session_or_err.commit()
@@ -191,6 +115,57 @@ class MetadataManager:
             md_db_path=md_db_path,
             session=session_or_err,
         )
+
+    def load_data_from_parent_repository(self, debug: bool = False) -> None:
+        """
+        Looks for parent Mdm resository and move all eligible objects. Store parent's repository id
+        and filepath in current repository.
+
+        * File record from source are copied over to destination and status of file in source is set to 'TRACKED_IN_SUBREPOSITORY'
+        * History records are moved over to target Mdm.
+        * Custom Metadata is moved over to target Mdm.
+        """
+        maybe_parent_mdm_root = md_utils.get_mdm_root(
+            path=self.repository_root.parent, config=self.md_config
+        )
+        try:
+            if maybe_parent_mdm_root:
+                parent_repository_mdm = MetadataManager.from_repository(
+                    md_config=self.md_config, path=maybe_parent_mdm_root
+                )
+                parent_repository_record = parent_repository_mdm.session.query(
+                    RespositoryORM
+                ).first()
+
+                current_repository_record = self.session.query(RespositoryORM).first()
+                assert (
+                    current_repository_record
+                ), "Expected respoitory record for current repository to exist."
+
+                current_repository_record.parent_repository_filepath = (
+                    parent_repository_record.repository_filepath
+                )
+                current_repository_record.parent_repository_id = (
+                    parent_repository_record.id
+                )
+
+                maybe_err = md_utils.move_mdm_data(
+                    source_mdm=parent_repository_mdm, dest_mdm=self
+                )
+                if maybe_err:
+                    raise maybe_err
+
+                self.session.commit()
+
+                print("Succesfully loaded data from parent repository.")
+            else:
+                print("Couldn't find parent repository.")
+        except Exception:
+            if debug:
+                print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+            print("Failed to load data from parent repository. Abort.", file=sys.stderr)
+            sys.exit(2)
 
     def create_md_dirs(self, where: Path):
         (where / self.md_config.md_dir_name).mkdir()

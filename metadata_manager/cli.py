@@ -18,13 +18,19 @@ def cli(ctx):
 
 @cli.command()
 @click.argument("target", default=Path.cwd())
+@click.option("--debug", is_flag=True, show_default=True, default=False)
+@click.option(
+    "--load-from-parent-repository", is_flag=True, show_default=True, default=False
+)
 @click.pass_context
-def init(ctx, target):
-    MetadataManager.new(
+def init(ctx, target, debug, load_from_parent_repository):
+    mdm = MetadataManager.new(
         md_config=ctx.obj,
         path=Path(target).absolute(),
-        synchronize_with_parent_repository=True,
     )
+
+    if load_from_parent_repository:
+        mdm.load_data_from_parent_repository(debug=debug)
 
 
 @cli.command()

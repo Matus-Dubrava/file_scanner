@@ -182,7 +182,7 @@ def is_file_within_repository(
         return exc
 
 
-def get_files_belonging_to_child_repository(
+def get_files_belonging_to_target_repository(
     parent_mdm, child_mdm, status_filters: Optional[List[FileStatus]] = None  # type: ignore  # noqa: F821
 ) -> List[Path]:
     """
@@ -255,6 +255,8 @@ def move_hash_files(source_mdm, dest_mdm, filepaths: List[Path]) -> Optional[Exc
 def _select_and_filter_records_by_filepath(
     mdm, tablename: str, filepaths: List[Path]
 ) -> List[Dict[str, Any]]:
+    assert filepaths, "Expected non-empty list of filepaths."
+
     where_condition = " OR ".join(
         [f"filepath = '{filepath}'" for filepath in filepaths]
     )
@@ -284,10 +286,14 @@ def move_mdm_records(
     * Custom Metadata is moved over to target Mdm.
 
     source_mdm:     Source MetadataManager object.
-    dest_mdm:       Targett MetadataManager object.
+    dest_mdm:       Target MetadataManager object.
     filepaths:      List of files to be synchronized between source and destination Mdms. All provided files must
                     be located within destination Mdm's subdirectory.
     """
+
+    # Do nothing if there are no filepaths.
+    if not filepaths:
+        return None
 
     assert all(
         [
@@ -297,6 +303,7 @@ def move_mdm_records(
             for filepath in filepaths
         ]
     ), "Expected all files to be withing child's subdirectory structure."
+
     try:
         file_records = _select_and_filter_records_by_filepath(
             mdm=source_mdm, tablename="file", filepaths=filepaths
@@ -323,7 +330,44 @@ def move_mdm_records(
         # commited or rolled back.
         source_mdm.session.commit()
     except Exception as exc:
-        source_mdm.sesion.rollback()
+        source_mdm.session.rollback()
         return exc
+
+    return None
+
+
+def move_mdm_data(source_mdm, dest_mdm) -> Optional[Exception]:
+    """
+    Move Mdm records and hash files from source to destination Mdm. Only files that
+    are within destination Mdm's subdirectory are moved.
+
+    * File record from source are copied over to destination and status of file in source is set to 'TRACKED_IN_SUBREPOSITORY'
+    * History records are moved over to target Mdm.
+    * Custom Metadata is moved over to target Mdm.
+
+    source_mdm:     Source MetadataManager object.
+    dest_mdm:       Target MetadataManager object.
+    """
+
+    filepaths = get_files_belonging_to_target_repository(
+        parent_mdm=source_mdm, child_mdm=dest_mdm
+    )
+
+    maybe_err = move_hash_files(
+        source_mdm=source_mdm, dest_mdm=dest_mdm, filepaths=filepaths
+    )
+    if maybe_err:
+        return maybe_err
+
+    # TODO: add better error handling here, if moving records between Mdms fail
+    # we should be able to "rollback" the changes. Easy solution would be
+    # to keep hash files in both source and target mdm and delete them from
+    # the source only after we are sure that all database records were moved
+    # successfully.
+    maybe_err = move_mdm_records(
+        source_mdm=source_mdm, dest_mdm=dest_mdm, filepaths=filepaths
+    )
+    if maybe_err:
+        return maybe_err
 
     return None

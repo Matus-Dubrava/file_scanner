@@ -140,6 +140,7 @@
     -   update `rm` to not delete files that are not tracked by `mdm`
     -   implement 2 Phase Commit when synchronizing parent `mdm` database with child `mdm` database
     -   add Mixins to the Sqlalchemy models implementing `__repr__` method
+    -   add better "rollback" when synchronizing `mdm`s, preserve source `hash` files until transactions are done
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
