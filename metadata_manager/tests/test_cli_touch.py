@@ -1,6 +1,5 @@
 import pytest
 import subprocess
-import time
 
 from md_models import FileORM, HistoryORM
 import md_utils

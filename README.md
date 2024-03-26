@@ -138,6 +138,7 @@
         -   this will remove all files tracked by `mdm`
         -   if the directory is empty after files were removed, remove the directory as well
     -   implement 2 Phase Commit when synchronizing parent `mdm` database with child `mdm` database
+    -   add Mixins to the Sqlalchemy models implementing `__repr__` method
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
