@@ -114,7 +114,8 @@
                 -   all following operations on the file will be tracked by the nearest subrepostiory
                 -   each `mdm` repository stores pointer to nearest parent `mdm` repositories in form of a filepath and uuid
             -   there should be an option that allows users to remove `mdm` subrepository which will synchronize the subrepository's records into parent `mdm` repository if parent repository still exits, if it doesn't exists then the data is simply removed, this requires confirmation in form of `-f/--force` flag
-            -   add field to `history` table that records current subrepository
+            -   add field to `history` table that records current repository's id to track movement of records between repositories
+            -   add better error handling
 
     -   refactor paths to use `joinpath` instead of `/`
     -   add new table tracking summary statistics such as no. tracked files, no. lines, no. updated lines
@@ -141,6 +142,11 @@
     -   implement 2 Phase Commit when synchronizing parent `mdm` database with child `mdm` database
     -   add Mixins to the Sqlalchemy models implementing `__repr__` method
     -   add better "rollback" when synchronizing `mdm`s, preserve source `hash` files until transactions are done
+    -   block `touch` command if it is not clear which `mdm` the file belongs to in case there are subrepositories and the cwd's repository doesn't match file's nearest subrepository
+    -   handle scenario when `mdm init` is issued from the directory where `mdm` has already been initalized
+        -   do nothing by default
+        -   use `--recreate` to remove current `mdm` repository and create a new one
+    -   add test cases that cover `mdm init --load-from-parent-repository` flag
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
