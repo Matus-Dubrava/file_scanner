@@ -39,18 +39,29 @@ class MetadataManager:
         self.session = session
 
     @staticmethod
-    def new(md_config: Config, path: Path):
+    def new(
+        md_config: Config,
+        path: Path,
+        synchronize_with_parent_repository: bool = False,
+    ):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
         # If specified directory doesn't exist. Create one.
         if not path.exists():
             path.mkdir(parents=True)
 
-        # TODO: remove this and add support for subrepositories
-        # this is currently untested
+        # Look for parent Mdm.
         maybe_parent_mdm_root = md_utils.get_mdm_root(path=path, config=md_config)
 
-        if maybe_parent_mdm_root:
+        # Create Mdm directories.
+        md_path = path.joinpath(md_config.md_dir_name)
+        md_db_path = md_path.joinpath(md_config.md_db_name)
+
+        md_path.mkdir()
+        md_path.joinpath("deleted").mkdir()
+        md_path.joinpath("hashes").mkdir()
+
+        if maybe_parent_mdm_root and synchronize_with_parent_repository:
             parent_repository_mdm = MetadataManager.from_repository(
                 md_config=md_config, path=maybe_parent_mdm_root
             )
@@ -65,6 +76,50 @@ class MetadataManager:
                 parent_repository_filepath=parent_repository_record.repository_filepath,
             )
 
+            # Create current Mdm object.
+            session_or_err = create_or_get_session(md_db_path)
+            if isinstance(session_or_err, Exception):
+                print(f"{session_or_err}\n", file=sys.stderr)
+                print("Failed to connect to Mdm database.", file=sys.stderr)
+                sys.exit(101)
+
+            mdm = MetadataManager(
+                md_config=md_config,
+                repository_root=path,
+                md_path=md_path,
+                md_db_path=md_db_path,
+                session=session_or_err,
+            )
+
+            # Create parent Mdm object.
+            parent_md_path = parent_repository_record.repository_filepath.joinpath(
+                md_config.md_dir_name
+            )
+            parent_md_db_path = parent_md_path.joinpath(md_config.md_db_name)
+
+            parent_session_or_err = create_or_get_session(
+                db_path=parent_repository_record
+            )
+            if isinstance(parent_session_or_err, Exception):
+                print(f"{parent_session_or_err}\n", file=sys.stderr)
+                print("Failed to connect to parent Mdm database.", file=sys.stderr)
+                sys.exit(101)
+
+            parent_mdm = MetadataManager(
+                md_config=md_config,
+                repository_root=parent_repository_record.repository_filepath,
+                md_path=parent_md_path,
+                md_db_path=parent_md_db_path,
+                session=parent_session_or_err,
+            )
+
+            # Get filepaths of file records that need to be moved.
+            files_to_move = md_utils.get_files_belonging_to_child_repository(
+                parent_mdm=parent_mdm,
+                child_mdm=mdm,
+                status_filters=[FileStatus.ACTIVE, FileStatus.UNTRACKED],
+            )
+
             # collect files that we would have to move (in `ACTIVE` and `UNTRACKED` state)
             # collect id of the parent repo
             #
@@ -77,44 +132,28 @@ class MetadataManager:
             # remove history records, metadata and hash file from parent repo
             #
             #
-            pass
         else:
             repository = RespositoryORM(
                 id=str(uuid.uuid4()),
                 repository_filepath=path,
             )
 
-        # if no mdm root exits, create a new mdm repository
-        # if mdm root already exits, create new mdm repository and
-        # sync the new repository with the parent repo
-        #   -   all files that are under the new repository and are in ACTIVE or UNTRACKED state
-        #       are copied over to the new repo
-        #   -   in the old repo, these files are marked as SUBREPOSITORY_TRACKED
-        #       together with the filepath of the subrepository
-        #       -   this needs to be a new file attribute
-        md_path = path.joinpath(md_config.md_dir_name)
-        md_db_path = md_path.joinpath(md_config.md_db_name)
+            session_or_err = create_or_get_session(md_db_path)
+            if isinstance(session_or_err, Exception):
+                print(f"{session_or_err}\n", file=sys.stderr)
+                print("Failed to connect to Mdm database.", file=sys.stderr)
+                sys.exit(101)
 
-        md_path.mkdir()
-        md_path.joinpath("deleted").mkdir()
-        md_path.joinpath("hashes").mkdir()
-
-        session_or_err = create_or_get_session(md_db_path)
-        if isinstance(session_or_err, Exception):
-            print(f"{session_or_err}\n", file=sys.stderr)
-            print("Failed to connect to Mdm database.", file=sys.stderr)
-            sys.exit(101)
+            mdm = MetadataManager(
+                md_config=md_config,
+                repository_root=path,
+                md_path=md_path,
+                md_db_path=md_db_path,
+                session=session_or_err,
+            )
 
         session_or_err.add(repository)
         session_or_err.commit()
-
-        mdm = MetadataManager(
-            md_config=md_config,
-            repository_root=path,
-            md_path=md_path,
-            md_db_path=md_db_path,
-            session=session_or_err,
-        )
 
         maybe_err = mdm.write_version_info_to_db()
         if maybe_err:
@@ -323,10 +362,12 @@ class MetadataManager:
             )
 
             history_record = HistoryORM(
+                id=str(uuid.uuid4()),
                 filepath=str(filepath),
                 version_control_branch=branch_name,
                 fs_size=filepath.lstat().st_size if file_exists else 0,
                 fs_inode=filepath.lstat().st_ino,
+                timestamp_record_added=datetime.now(),
                 count_total_lines=file_stat.n_lines,
                 count_added_lines=file_stat.n_lines,
                 count_removed_lines=0,
@@ -388,9 +429,7 @@ class MetadataManager:
             file_record.version_control_branch = branch_name
             session.add(file_record)
 
-            latest_history_record = (
-                session.query(HistoryORM).order_by(HistoryORM.id.desc()).first()
-            )
+            latest_history_record = HistoryORM.get_latest(session=session)
             assert latest_history_record, "Expected at least one history record."
 
             line_changes = md_utils.count_line_changes(
@@ -398,10 +437,12 @@ class MetadataManager:
             )
 
             history_record = HistoryORM(
+                id=str(uuid.uuid4()),
                 filepath=str(filepath),
                 version_control_branch=branch_name,
                 fs_size=filepath.lstat().st_size,
                 fs_inode=filepath.lstat().st_ino,
+                timestamp_record_added=datetime.now(),
                 count_total_lines=file_stat_or_err.n_lines,
                 count_added_lines=line_changes.lines_added,
                 count_removed_lines=line_changes.lines_removed,

@@ -1,4 +1,4 @@
-from typing import List, Union, Optional, Tuple
+from typing import List, Union, Optional, Tuple, Dict, Any
 from collections import Counter
 import hashlib
 import subprocess
@@ -7,8 +7,11 @@ from pathlib import Path
 import uuid
 import sys
 
+from sqlalchemy import or_, text
+
 import md_constants
-from md_models import FileStat, LineChanges, Config, FileORM
+from md_models import FileStat, LineChanges, Config, FileORM, HistoryORM
+from md_enums import FileStatus
 
 
 def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
@@ -178,15 +181,28 @@ def is_file_within_repository(
         return exc
 
 
-def get_files_belonging_to_child_repository(parent_mdm, child_mdm) -> List[Path]:
+def get_files_belonging_to_child_repository(
+    parent_mdm, child_mdm, status_filters: Optional[List[FileStatus]] = None  # type: ignore  # noqa: F821
+) -> List[Path]:
     """
     Return list of all files that are recorded in parent Mdm and
     are within child Mdm's subdirectory.
 
     parent_mdm:     Parent MetadataManager object.
     child_mdm:      Child MetadataManager object.
+    status_filter:  List of file statuses. If provided, these will be combined into single
+                    filter using "OR" operator.
     """
-    parent_file_records = parent_mdm.session.query(FileORM).all()
+    query = parent_mdm.session.query(FileORM)
+
+    if status_filters:
+        combined_condition = or_(
+            *[FileORM.status == status for status in status_filters]
+        )
+        query = query.filter(combined_condition)
+
+    parent_file_records = query.all()
+
     filepaths: List[Path] = []
 
     for record in parent_file_records:
@@ -196,3 +212,98 @@ def get_files_belonging_to_child_repository(parent_mdm, child_mdm) -> List[Path]
             filepaths.append(record.filepath)
 
     return filepaths
+
+
+def copy_hash_files(
+    parent_mdm, child_mdm, filepaths: List[Path]
+) -> Optional[Exception]:
+    """
+    Move hash files corresponding to specified files from parent Mdm to child Mdm.
+
+    parent_mdm:     Parent MetadataManager object.
+    child_mdm:      Child MetadataManager object.
+    filepaths:      List of files to be synchronized between parent and child Mdms. All provided files must
+                    be located within child Mdm's subdirectory.
+    """
+    hash_filepaths: List[Path] = []
+    for filepath in filepaths:
+        pass
+
+    return None
+
+
+def _select_and_filter_records_by_filepath(
+    mdm, tablename: str, filepaths: List[Path]
+) -> List[Dict[str, Any]]:
+    where_condition = " OR ".join(
+        [f"filepath = '{filepath}'" for filepath in filepaths]
+    )
+    sql = text(f"SELECT * FROM {tablename} WHERE {where_condition}")
+    result = mdm.session.execute(sql)
+    column_names = result.keys()
+    return [
+        {column_name: value for column_name, value in zip(column_names, row)}
+        for row in result.fetchall()
+    ]
+
+
+def _insert_records(mdm, tablename: str, records: List[Dict[str, Any]]):
+    assert records, "Expected records to have at least one entry."
+    placeholder_str = ",".join([f":{column_name}" for column_name in records[0].keys()])
+    sql = text(f"INSERT INTO {tablename} VALUES ({placeholder_str})")
+    mdm.session.execute(sql, records)
+
+
+def move_mdm_records(
+    source_mdm, dest_mdm, filepaths: List[Path]
+) -> Optional[Exception]:
+    """
+    Moves specified files from source Mdm to target Mdm.
+    * File record from source are copied over to destination and status of file in source is set to 'TRACKED_IN_SUBREPOSITORY'
+    * History records are moved over to target Mdm.
+    * Custom Metadata is moved over to target Mdm.
+
+    source_mdm:     Source MetadataManager object.
+    dest_mdm:       Targett MetadataManager object.
+    filepaths:      List of files to be synchronized between source and destination Mdms. All provided files must
+                    be located within destination Mdm's subdirectory.
+    """
+
+    assert all(
+        [
+            is_file_within_repository(
+                repository_root=dest_mdm.repository_root, filepath=filepath
+            )
+            for filepath in filepaths
+        ]
+    ), "Expected all files to be withing child's subdirectory structure."
+    try:
+        file_records = _select_and_filter_records_by_filepath(
+            mdm=source_mdm, tablename="file", filepaths=filepaths
+        )
+        history_records = _select_and_filter_records_by_filepath(
+            mdm=source_mdm, tablename="history", filepaths=filepaths
+        )
+        # TODO: handle file metadata as well once implemented
+        _insert_records(mdm=dest_mdm, tablename="file", records=file_records)
+        _insert_records(mdm=dest_mdm, tablename="history", records=history_records)
+
+        source_mdm.session.query(FileORM).filter(
+            or_(*[FileORM.filepath == filepath for filepath in filepaths])
+        ).update({FileORM.status: FileStatus.TRACKED_IN_SUBREPOSITORY})
+
+        source_mdm.session.query(HistoryORM).filter(
+            or_(*[HistoryORM.filepath == filepath for filepath in filepaths])
+        ).delete()
+
+        # TODO: This can potentially cause issues since right now there is no guarantee that
+        # both of these commits will be successful and if parent's session fails during commit,
+        # child's changes won't be rolled back since they were already commited.
+        # This will require something like 2 Phase commit to ensure that both transactions are either
+        # commited or rolled back.
+        source_mdm.session.commit()
+    except Exception as exc:
+        source_mdm.sesion.rollback()
+        return exc
+
+    return None

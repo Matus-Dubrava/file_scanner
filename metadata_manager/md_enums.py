@@ -7,6 +7,7 @@ class FileStatus(enum.Enum):
     ACTIVE = "ACTIVE"
     REMOVED = "REMOVED"
     UNTRACKED = "UNTRACKED"
+    TRACKED_IN_SUBREPOSITORY = "TRACKED_IN_SUBREPOSITORY"
 
 
 @enum.unique

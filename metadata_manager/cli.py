@@ -20,7 +20,11 @@ def cli(ctx):
 @click.argument("target", default=Path.cwd())
 @click.pass_context
 def init(ctx, target):
-    MetadataManager.new(md_config=ctx.obj, path=Path(target).absolute())
+    MetadataManager.new(
+        md_config=ctx.obj,
+        path=Path(target).absolute(),
+        synchronize_with_parent_repository=True,
+    )
 
 
 @cli.command()

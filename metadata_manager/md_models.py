@@ -45,11 +45,22 @@ class FileORM(Base):
 
     history: Mapped["HistoryORM"] = relationship("HistoryORM", back_populates="file")
 
+    def clone(self) -> "FileORM":
+        return FileORM(
+            filepath=self.filepath,
+            filename=self.filename,
+            timestamp_added=self.timestamp_added,
+            timestamp_deleted=self.timestamp_deleted,
+            fs_timestamp_created=self.fs_timestamp_created,
+            version_control_branch=self.version_control_branch,
+            status=self.status,
+        )
+
 
 class HistoryORM(Base):
     __tablename__ = "history"
 
-    id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[str] = Column(String, primary_key=True)
     filepath: Mapped[Path | str] = Column(
         PathType,
         ForeignKey("file.filepath", ondelete="CASCADE"),
@@ -73,9 +84,36 @@ class HistoryORM(Base):
 
     file: Mapped[FileORM] = relationship("FileORM", back_populates="history")
 
+    def __repr__(self) -> str:
+        class_ = self.__class__.__name__
+        attrs = sorted((k, getattr(self, k)) for k in self.__mapper__.columns.keys())
+        str_attrs = ",\n".join(f"{key}={value!r}" for key, value in attrs)
+        return f"{class_}({str_attrs})"
+
     @classmethod
     def get_latest(cls, session: Session) -> Optional["HistoryORM"]:
-        return session.query(cls).order_by(HistoryORM.id.desc()).first()
+        return (
+            session.query(cls)
+            .order_by(HistoryORM.timestamp_record_added.desc())
+            .first()
+        )
+
+    def clone(self) -> "HistoryORM":
+        return HistoryORM(
+            id=self.id,
+            filepath=self.filepath,
+            version_control_branch=self.version_control_branch,
+            timestamp_record_added=self.timestamp_record_added,
+            fs_size=self.fs_size,
+            fs_date_modified=self.fs_date_modified,
+            fs_inode=self.fs_inode,
+            count_total_lines=self.count_total_lines,
+            count_added_lines=self.count_added_lines,
+            count_removed_lines=self.count_removed_lines,
+            running_added_lines=self.running_added_lines,
+            running_removed_lines=self.running_removed_lines,
+            file_hash=self.file_hash,
+        )
 
 
 class VersionInfoORM(Base):

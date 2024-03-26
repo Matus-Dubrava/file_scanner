@@ -5,8 +5,11 @@ from md_utils import (
     count_line_changes,
     is_file_within_repository,
     get_files_belonging_to_child_repository,
+    move_mdm_records,
 )
 from manager import MetadataManager
+from md_models import FileORM, HistoryORM
+from md_enums import FileStatus
 
 
 @pytest.mark.e35aeef590
@@ -186,3 +189,186 @@ def test_get_files_belonging_to_child_repository(working_dir, mdm_config):
             parent_mdm=parent_mdm, child_mdm=child_mdm
         )
     ) == sorted([filepath3, filepath4])
+
+
+@pytest.mark.e1e34a3c2b
+@pytest.mark.utils
+@pytest.mark.sanity
+def test_get_files_belonging_to_child_repository_filters(working_dir, mdm_config):
+    subrepository_dir = working_dir.joinpath("dir1")
+    subrepository_dir.mkdir()
+
+    active_file1 = working_dir.joinpath(subrepository_dir, "active_file1")
+    active_file2 = working_dir.joinpath(subrepository_dir, "active_file2")
+    untracked_file = working_dir.joinpath(subrepository_dir, "untracked_file")
+    removed_file = working_dir.joinpath(subrepository_dir, "removed_file")
+    subrepo_tracked_file = working_dir.joinpath(
+        subrepository_dir, "subrepo_tracked_file"
+    )
+
+    parent_mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+    child_mdm = MetadataManager.new(md_config=mdm_config, path=subrepository_dir)
+
+    parent_mdm.touch(active_file1)
+    parent_mdm.touch(active_file2)
+    parent_mdm.touch(untracked_file)
+    parent_mdm.touch(removed_file)
+    parent_mdm.touch(subrepo_tracked_file)
+
+    parent_mdm.remove_file(removed_file)
+    parent_mdm.untrack(untracked_file)
+
+    subrepo_tracked_file_record = (
+        parent_mdm.session.query(FileORM)
+        .filter_by(filepath=subrepo_tracked_file)
+        .first()
+    )
+    subrepo_tracked_file_record.status = FileStatus.TRACKED_IN_SUBREPOSITORY
+    parent_mdm.session.commit()
+
+    # Empty filters. Don't compare filepaths directly as the filepath of REMOVED files
+    # are mangled. Hence the check would fail.
+    filters = []
+    assert (
+        len(
+            get_files_belonging_to_child_repository(
+                parent_mdm=parent_mdm, child_mdm=child_mdm, status_filters=filters
+            )
+        )
+        == 5
+    )
+
+    # Single value filters
+    filters = [FileStatus.ACTIVE]
+    assert sorted(
+        get_files_belonging_to_child_repository(
+            parent_mdm=parent_mdm, child_mdm=child_mdm, status_filters=filters
+        )
+    ) == sorted([active_file1, active_file2])
+
+    filters = [FileStatus.REMOVED]
+    result = get_files_belonging_to_child_repository(
+        parent_mdm=parent_mdm, child_mdm=child_mdm, status_filters=filters
+    )
+    assert len(result) == 1 and str(removed_file.name) in str(result[0])
+
+    filters = [FileStatus.UNTRACKED]
+    assert sorted(
+        get_files_belonging_to_child_repository(
+            parent_mdm=parent_mdm, child_mdm=child_mdm, status_filters=filters
+        )
+    ) == sorted([untracked_file])
+
+    filters = [FileStatus.TRACKED_IN_SUBREPOSITORY]
+    assert sorted(
+        get_files_belonging_to_child_repository(
+            parent_mdm=parent_mdm, child_mdm=child_mdm, status_filters=filters
+        )
+    ) == sorted([subrepo_tracked_file])
+
+    # Multi-valued filters
+    filters = [FileStatus.ACTIVE, FileStatus.UNTRACKED]
+    assert sorted(
+        get_files_belonging_to_child_repository(
+            parent_mdm=parent_mdm, child_mdm=child_mdm, status_filters=filters
+        )
+    ) == sorted([active_file1, active_file2, untracked_file])
+
+    filters = [
+        FileStatus.ACTIVE,
+        FileStatus.UNTRACKED,
+        FileStatus.TRACKED_IN_SUBREPOSITORY,
+    ]
+    assert sorted(
+        get_files_belonging_to_child_repository(
+            parent_mdm=parent_mdm, child_mdm=child_mdm, status_filters=filters
+        )
+    ) == sorted([active_file1, active_file2, untracked_file, subrepo_tracked_file])
+
+
+@pytest.mark.cd476ba401
+@pytest.mark.utils
+@pytest.mark.sanity
+def test_move_mdm_records(working_dir, mdm_config):
+    another_dir = working_dir.joinpath("another")
+    subrepository_dir1 = working_dir.joinpath("dir1")
+    subrepository_dir2 = working_dir.joinpath(subrepository_dir1, "dir2")
+    another_dir.mkdir()
+    subrepository_dir1.mkdir()
+    subrepository_dir2.mkdir()
+
+    testfile1 = subrepository_dir1.joinpath("testfile1")
+    testfile2 = subrepository_dir2.joinpath("testfile2")
+    testfile3 = another_dir.joinpath("testfile3")
+
+    parent_mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+    child_mdm = MetadataManager.new(md_config=mdm_config, path=subrepository_dir1)
+
+    parent_mdm.touch(testfile1)
+    parent_mdm.touch(testfile1)  # create another history record
+    parent_mdm.touch(testfile2)
+    parent_mdm.touch(testfile3)
+    parent_mdm.untrack(testfile1)
+
+    filepaths = get_files_belonging_to_child_repository(
+        parent_mdm=parent_mdm,
+        child_mdm=child_mdm,
+        status_filters=[FileStatus.ACTIVE, FileStatus.UNTRACKED],
+    )
+
+    assert sorted(filepaths) == sorted([testfile1, testfile2])
+
+    maybe_err = move_mdm_records(
+        source_mdm=parent_mdm, dest_mdm=child_mdm, filepaths=filepaths
+    )
+    if maybe_err:
+        raise maybe_err
+
+    # Check parent file records
+    assert (
+        parent_mdm.session.query(FileORM).filter_by(filepath=testfile1).first().status
+        == FileStatus.TRACKED_IN_SUBREPOSITORY
+    )
+    assert (
+        parent_mdm.session.query(FileORM).filter_by(filepath=testfile2).first().status
+        == FileStatus.TRACKED_IN_SUBREPOSITORY
+    )
+    assert (
+        parent_mdm.session.query(FileORM).filter_by(filepath=testfile3).first().status
+        == FileStatus.ACTIVE
+    )
+
+    # Check child file records
+    assert (
+        child_mdm.session.query(FileORM).filter_by(filepath=testfile1).first().status
+        == FileStatus.UNTRACKED
+    )
+    assert (
+        child_mdm.session.query(FileORM).filter_by(filepath=testfile2).first().status
+        == FileStatus.ACTIVE
+    )
+
+    assert not child_mdm.session.query(FileORM).filter_by(filepath=testfile3).first()
+
+    # Check parent history records
+    assert (
+        not parent_mdm.session.query(HistoryORM).filter_by(filepath=testfile1).first()
+    )
+    assert (
+        not parent_mdm.session.query(HistoryORM).filter_by(filepath=testfile2).first()
+    )
+    assert (
+        len(parent_mdm.session.query(HistoryORM).filter_by(filepath=testfile3).all())
+        == 1
+    )
+
+    # Check child history records
+    assert (
+        len(child_mdm.session.query(HistoryORM).filter_by(filepath=testfile1).all())
+        == 2
+    )
+    assert (
+        len(child_mdm.session.query(HistoryORM).filter_by(filepath=testfile2).all())
+        == 1
+    )
+    assert not child_mdm.session.query(HistoryORM).filter_by(filepath=testfile3).first()

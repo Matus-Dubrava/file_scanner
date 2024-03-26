@@ -1,5 +1,6 @@
 import pytest
 import subprocess
+import time
 
 from md_models import FileORM, HistoryORM
 import md_utils
@@ -235,7 +236,6 @@ def test_touch_handles_multiple_deletions_of_the_same_file(working_dir, touch_cm
 @pytest.mark.cli
 @pytest.mark.touch
 @pytest.mark.sanity
-@pytest.mark.init_md(True)
 def test_each_touch_creates_new_history_record(working_dir, touch_cmd, mdm):
     """
     File exists in both .md and fs
