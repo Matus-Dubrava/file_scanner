@@ -148,6 +148,7 @@
         -   use `--recreate` to remove current `mdm` repository and create a new one
     -   add test cases that cover `mdm init --load-from-parent-repository` flag
     -   refactor common hardcoded exit codes >=100 (magic ints) into constants
+    -   BUG: figure out why when executing `mdm init --load-from-parent-repository`, the file records are not removed from the parent respository
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
