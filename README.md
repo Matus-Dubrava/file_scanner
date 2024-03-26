@@ -136,7 +136,8 @@
     -   make `mdm list` available via `mdm ls` as well
     -   add support for `rm --recursive/-r <directory>`
         -   this will remove all files tracked by `mdm`
-        -   if the directory is empty after files were removed, remove the directory as well
+        -   if the directory is empty after files were removed, remove the directory as
+    -   update `rm` to not delete files that are not tracked by `mdm`
     -   implement 2 Phase Commit when synchronizing parent `mdm` database with child `mdm` database
     -   add Mixins to the Sqlalchemy models implementing `__repr__` method
 
