@@ -144,7 +144,6 @@
     -   add better "rollback" when synchronizing `mdm`s, preserve source `hash` files until transactions are done
     -   add test cases that cover `mdm init --load-from-parent-repository` flag
     -   refactor common hardcoded exit codes >=100 (magic ints) into constants
-    -   BUG: figure out why when executing `mdm init --load-from-parent-repository`, the file records are not removed from the parent respository
     -   refactor catching `SystemExit` to `CalledProcessError` in test cases
 
 -   DONE:
@@ -165,3 +164,4 @@
         -   do nothing by default
         -   use `--recreate` to remove current `mdm` repository and create a new one
     -   block `touch` command if it is not clear which `mdm` the file belongs to in case there are subrepositories and the cwd's repository doesn't match file's nearest subrepository
+    -   BUG: figure out why when executing `mdm init --load-from-parent-repository`, the file records are not removed from the parent respository
