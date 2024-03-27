@@ -139,12 +139,14 @@
         -   this will remove all files tracked by `mdm`
         -   if the directory is empty after files were removed, remove the directory as
     -   update `rm` to not delete files that are not tracked by `mdm`
+    -   add `--repository-path` option to `rm` so that it can be run from outside of `mdm` repository
     -   implement 2 Phase Commit when synchronizing parent `mdm` database with child `mdm` database
     -   add Mixins to the Sqlalchemy models implementing `__repr__` method
     -   add better "rollback" when synchronizing `mdm`s, preserve source `hash` files until transactions are done
     -   add test cases that cover `mdm init --load-from-parent-repository` flag
     -   refactor common hardcoded exit codes >=100 (magic ints) into constants
     -   refactor catching `SystemExit` to `CalledProcessError` in test cases
+    -   look for options how to parallelize the test cases that run many subprocesses, ex `test_touch/test_source_repository`
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
