@@ -75,7 +75,15 @@ def touch(ctx, target, repository_path) -> None:
     default=False,
     help="List only files without printing any other information such as repository id, repository path or active filters",
 )
+@click.option(
+    "--dump-json",
+    required=False,
+    help="Dump the result into provided filepath in json format. Filters can still be applied.",
+)
 @click.option("--repository-path", required=False)
+@click.option(
+    "--debug", is_flag=True, show_default=True, default=False, help="Print debug info."
+)
 @click.pass_context
 def ls(
     ctx,
@@ -87,6 +95,8 @@ def ls(
     repository_path,
     abs_paths,
     no_header,
+    dump_json,
+    debug,
 ) -> None:
     status_filters: List[FileStatus] = []
 
@@ -125,6 +135,8 @@ def ls(
         status_filter=status_filters,
         abs_paths=abs_paths,
         no_header=no_header,
+        dump_json_path=dump_json,
+        debug=debug,
     )
 
 

@@ -151,7 +151,8 @@
     -   fix bug in `mdm init` when `--recreate` is used in a directory which is not `mdm` root
     -   fix typo in `RepositoryORM` name
     -   change `repository_filepath` to `repository_path` in `RepositoryORM` model definition
-    -   implement `mdm ls json-dump` which will dump the result into a json file provided to this option
+    -   add `--force/-f` flag to `mdm ls json-dump` to create parent directories if they don't exist
+    -   add test case for `mdm ls json-dump` testing `--debug` flag
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
@@ -174,3 +175,4 @@
     -   BUG: figure out why when executing `mdm init --load-from-parent-repository`, the file records are not removed from the parent respository
     -   make `mdm list` available via `mdm ls`
     -   add `--all`, `--active`, `--removed`, `--untracked`, `--subrepository-tracked` flags to `mdm ls` to filter out based on file status, show only `active` files by default
+    -   implement `mdm ls json-dump` which will dump the result into a json file provided to this option

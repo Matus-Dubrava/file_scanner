@@ -20,6 +20,7 @@ from md_models import (
     VersionInfo,
     VersionInfoORM,
     RespositoryORM,
+    FileListing,
 )
 import md_utils
 
@@ -733,25 +734,50 @@ class MetadataManager:
         status_filter: List[FileStatus] = [FileStatus.ACTIVE],
         abs_paths: bool = False,
         no_header: bool = False,
+        dump_json_path: Optional[Path] = None,
+        debug: bool = False,
     ) -> None:
         """
-        List files based on given condition
+        List files in tracked in repository.
         """
         assert path.is_absolute(), f"Expected absolute path. Got {path}"
 
         repository_record = self.session.query(RespositoryORM).first()
         assert repository_record, "Expected repository record to exist."
 
-        if not no_header:
-            print(f"Repository id:\t\t{repository_record.id}")
-            print(f"Repository path:\t{repository_record.repository_filepath}")
-            print()
-            print(
-                f"listing files with status: [{', '.join([status.to_str() for status in status_filter])}]\n"
+        file_records = self._list_files(status_filter=status_filter)
+
+        if dump_json_path:
+            file_listing = FileListing(
+                repository_id=repository_record.id,
+                repository_path=repository_record.repository_filepath,
+                applied_status_filters=status_filter,
+                filepaths=[record.filepath for record in file_records],
             )
 
-        for file_record in self._list_files(status_filter=status_filter):
-            if abs_paths:
-                print(Path(file_record.filepath).absolute())
-            else:
-                print(Path(file_record.filepath).relative_to(Path.cwd()))
+            try:
+                with open(dump_json_path, "w") as f:
+                    f.write(file_listing.model_dump_json())
+            except Exception:
+                if debug:
+                    print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+                print(
+                    f"Fatal: failed to write result to {dump_json_path}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        else:
+            if not no_header:
+                print(f"Repository id:\t\t{repository_record.id}")
+                print(f"Repository path:\t{repository_record.repository_filepath}")
+                print()
+                print(
+                    f"listing files with status: [{', '.join([status.to_str() for status in status_filter])}]\n"
+                )
+
+            for file_record in file_records:
+                if abs_paths:
+                    print(Path(file_record.filepath).absolute())
+                else:
+                    print(Path(file_record.filepath).relative_to(Path.cwd()))

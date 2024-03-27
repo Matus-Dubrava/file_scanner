@@ -139,6 +139,17 @@ class RespositoryORM(Base):
     parent_repository_filepath: Mapped[Path | str] = Column(PathType, nullable=True)
 
 
+class FileListing(BaseModel):
+    """
+    Used to dump listing of tracked files into json.
+    """
+
+    repository_id: str
+    repository_path: Path | str
+    applied_status_filters: List[FileStatus]
+    filepaths: List[Path | str]
+
+
 class Config(BaseModel):
     md_dir_name: str
     md_db_name: str
