@@ -41,11 +41,8 @@ def touch(ctx, target, repository_path):
     mdm_config = ctx.obj
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
 
-    # TODO: this probably doesn't work well with --repository-path
-    # check & fix
-    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
-
     if not repository_path:
+        cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
         cli_utils.validate_cwd_and_target_repository_match(
             config=mdm_config,
             target_path=Path(target).resolve(),

@@ -141,3 +141,19 @@ def test_touch_fails_when_source_prepository_is_not_mdm_repository(
         )
 
     assert err.value.returncode == md_constants.NOT_MDM_REPOSITORY
+
+
+@pytest.mark.af53a8b744
+@pytest.mark.cli
+@pytest.mark.touch
+@pytest.mark.source_repository
+@pytest.mark.sanity
+def test_touch_works_outside_of_mdm_repository_when_repository_path_is_provided(
+    working_dir, mdm_config, touch_cmd
+):
+    subdir = working_dir.joinpath("dir1")
+    subdir.mkdir()
+    filepath = subdir.joinpath("testfile")
+
+    MetadataManager.new(md_config=mdm_config, path=subdir)
+    subprocess.check_output([*touch_cmd, filepath, "--repository-path", subdir])
