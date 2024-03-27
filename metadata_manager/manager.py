@@ -39,11 +39,20 @@ class MetadataManager:
         self.session = session
 
     @staticmethod
-    def new(
-        md_config: Config,
-        path: Path,
-    ):
+    def new(md_config: Config, path: Path, recreate: bool = False):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
+
+        # If recreate flag is set, delete the existing repository
+        if recreate:
+            shutil.rmtree(path.joinpath(md_config.md_dir_name))
+
+        # Check if repository has been already initiazlied in target directory.
+        if path.joinpath(md_config.md_dir_name).exists():
+            print(f"Mdm repository already exists in {path}")
+            print(
+                "\nuse (mdm init --recreate) to recreate repository, this will delete the old repository and all data will be lost"
+            )
+            sys.exit(2)
 
         # If specified directory doesn't exist. Create one.
         if not path.exists():

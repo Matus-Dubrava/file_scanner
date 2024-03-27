@@ -22,11 +22,11 @@ def cli(ctx):
 @click.option(
     "--load-from-parent-repository", is_flag=True, show_default=True, default=False
 )
+@click.option("--recreate", is_flag=True, show_default=True, default=False)
 @click.pass_context
-def init(ctx, target, debug, load_from_parent_repository):
+def init(ctx, target, debug, load_from_parent_repository, recreate):
     mdm = MetadataManager.new(
-        md_config=ctx.obj,
-        path=Path(target).absolute(),
+        md_config=ctx.obj, path=Path(target).absolute(), recreate=recreate
     )
 
     if load_from_parent_repository:
