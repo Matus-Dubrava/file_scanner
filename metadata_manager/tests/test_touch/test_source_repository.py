@@ -119,3 +119,25 @@ def test_source_repository_option_overrides_cwd_and_unblocks_touch(
         repository_path=working_dir,
         mdm=working_dir_mdm,
     )
+
+
+@pytest.mark.baac804ddf
+@pytest.mark.cli
+@pytest.mark.touch
+@pytest.mark.source_repository
+@pytest.mark.sanity
+def test_touch_fails_when_source_prepository_is_not_mdm_repository(
+    working_dir, mdm_config, touch_cmd
+):
+    subdir = working_dir.joinpath("dir1")
+    subdir.mkdir()
+    filepath = working_dir.joinpath("testfile")
+
+    MetadataManager.new(md_config=mdm_config, path=subdir)
+
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        subprocess.check_output(
+            [*touch_cmd, filepath, "--repository-path", working_dir]
+        )
+
+    assert err.value.returncode == md_constants.NOT_MDM_REPOSITORY

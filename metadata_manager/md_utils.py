@@ -145,7 +145,7 @@ def get_mdm_root(path: Path, config: Config) -> Optional[Path]:
 def get_mdm_root_or_exit(path: Path, config: Config) -> Path:
     """
     Returns path to Mdm repository root directory.
-    Exits with code 100 if Mdm root is not found.
+    Exits if Mdm root is not found.
 
     path:    Directory where to start the search
     """
@@ -155,7 +155,7 @@ def get_mdm_root_or_exit(path: Path, config: Config) -> Path:
             "Not an Mdm repository (or any of the parent directories). Abort.",
             file=sys.stderr,
         )
-        sys.exit(100)
+        sys.exit(md_constants.NOT_MDM_REPOSITORY)
 
     return maybe_mdm_root
 

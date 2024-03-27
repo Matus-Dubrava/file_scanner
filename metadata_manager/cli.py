@@ -39,11 +39,7 @@ def init(ctx, target, debug, load_from_parent_repository, recreate):
 @click.pass_context
 def touch(ctx, target, repository_path):
     mdm_config = ctx.obj
-    source_path = (
-        Path(target).resolve()
-        if not repository_path
-        else Path(repository_path).resolve()
-    )
+    source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
 
     # TODO: this probably doesn't work well with --repository-path
     # check & fix
