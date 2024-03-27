@@ -143,9 +143,6 @@
     -   add Mixins to the Sqlalchemy models implementing `__repr__` method
     -   add better "rollback" when synchronizing `mdm`s, preserve source `hash` files until transactions are done
     -   block `touch` command if it is not clear which `mdm` the file belongs to in case there are subrepositories and the cwd's repository doesn't match file's nearest subrepository
-    -   handle scenario when `mdm init` is issued from the directory where `mdm` has already been initalized
-        -   do nothing by default
-        -   use `--recreate` to remove current `mdm` repository and create a new one
     -   add test cases that cover `mdm init --load-from-parent-repository` flag
     -   refactor common hardcoded exit codes >=100 (magic ints) into constants
     -   BUG: figure out why when executing `mdm init --load-from-parent-repository`, the file records are not removed from the parent respository
@@ -165,3 +162,6 @@
         -   add `mdm rm --purge` to purge all removed records
     -   refactor `mdm rm --purge` into its own subcommand `mdm purge`
     -   refactor decorators to better handle arguments passthrough
+    -   handle scenario when `mdm init` is issued from the directory where `mdm` has already been initalized
+        -   do nothing by default
+        -   use `--recreate` to remove current `mdm` repository and create a new one
