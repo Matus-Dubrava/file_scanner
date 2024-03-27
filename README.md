@@ -134,7 +134,6 @@
     -   add `--debug` flag to control printing of trackeback to stderr
     -   check how exceptions are passed throughout the code and make necessary changes so that traceback is not lost
     -   implement `mdm refresh` which will create new `history` record for each `ACTIVE` record in `file` table
-    -   make `mdm list` available via `mdm ls` as well
     -   add support for `rm --recursive/-r <directory>`
         -   this will remove all files tracked by `mdm`
         -   if the directory is empty after files were removed, remove the directory as
@@ -149,6 +148,11 @@
     -   look for options how to parallelize the test cases that run many subprocesses, ex `test_touch/test_source_repository`
     -   add `--name` option to `mdm init` that can be used to provide a repository name which will be stored in `repository` table
     -   add `mdm get global <key>` and `mdm set global <key> <value>` to get and set repository level metadata
+    -   add `--all`, `--active`, `--removed`, `--untracked`, `--subrepository-tracked` flags to `mdm ls` to filter out based on file status, show only `active` files by default
+    -   fix bug in `mdm init` when `--recreate` is used in a directory which is not `mdm` root
+    -   fix typo in `RepositoryORM` name
+    -   change `repository_filepath` to `repository_path` in `RepositoryORM` model definition
+    -   implement `mdm ls json-dump` which will dump the result into a json file provided to this option
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
@@ -169,3 +173,4 @@
         -   use `--recreate` to remove current `mdm` repository and create a new one
     -   block `touch` command if it is not clear which `mdm` the file belongs to in case there are subrepositories and the cwd's repository doesn't match file's nearest subrepository
     -   BUG: figure out why when executing `mdm init --load-from-parent-repository`, the file records are not removed from the parent respository
+    -   make `mdm list` available via `mdm ls`

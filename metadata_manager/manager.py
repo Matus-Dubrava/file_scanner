@@ -7,6 +7,7 @@ import shutil
 from datetime import datetime
 import uuid
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from db import create_or_get_session
@@ -719,28 +720,38 @@ class MetadataManager:
             print("Failed to purge removed files.", file=sys.stderr)
             sys.exit(1)
 
+    def _list_files(self, status_filter: List[FileStatus]) -> List[FileORM]:
+        status_filter_condition = or_(
+            *[FileORM.status == status for status in status_filter]
+        )
+
+        return self.session.query(FileORM).where(status_filter_condition).all()
+
     def list_files(
-        self, path: Path, status_filter: Optional[FileStatus] = None
+        self,
+        path: Path,
+        status_filter: List[FileStatus] = [FileStatus.ACTIVE],
+        abs_paths: bool = False,
+        no_header: bool = False,
     ) -> None:
         """
-        TODO:
-        List files:
-            - by default list files in current directory
-            - by default list only active files
-            - --all can be used to list all files using relative paths to md repository root
-            - --abs-path list files using their absolute paths
-            - --untracked can be used to list untracked files
-            - --removed can be used to list removed files
-            - TODO: add option to search based on custom attributes and values
-                    once the custom file attributes are implemented
+        List files based on given condition
         """
         assert path.is_absolute(), f"Expected absolute path. Got {path}"
 
-        if status_filter:
-            files = self.session.query(FileORM).filter_by(status=status_filter).all()
-            for file in files:
-                print(Path(file.filepath).relative_to(Path.cwd()))
-        else:
-            files = self.session.query(FileORM).all()
-            for file in files:
-                print(Path(file.filepath).relative_to(self.repository_root))
+        repository_record = self.session.query(RespositoryORM).first()
+        assert repository_record, "Expected repository record to exist."
+
+        if not no_header:
+            print(f"Repository id:\t\t{repository_record.id}")
+            print(f"Repository path:\t{repository_record.repository_filepath}")
+            print()
+            print(
+                f"listing files with status: [{', '.join([status.to_str() for status in status_filter])}]\n"
+            )
+
+        for file_record in self._list_files(status_filter=status_filter):
+            if abs_paths:
+                print(Path(file_record.filepath).absolute())
+            else:
+                print(Path(file_record.filepath).relative_to(Path.cwd()))

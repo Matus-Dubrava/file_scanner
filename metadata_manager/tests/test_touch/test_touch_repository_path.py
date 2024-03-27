@@ -10,7 +10,7 @@ from md_models import FileORM
 @pytest.mark.f5b0fba262
 @pytest.mark.cli
 @pytest.mark.touch
-@pytest.mark.source_repository
+@pytest.mark.repository_path
 @pytest.mark.sanity
 def test_touch_works_when_cwd_matches_target_repository(
     working_dir, mdm_config, monkeypatch, touch_cmd
@@ -36,7 +36,7 @@ def test_touch_works_when_cwd_matches_target_repository(
 @pytest.mark.f286cc57d6
 @pytest.mark.cli
 @pytest.mark.touch
-@pytest.mark.source_repository
+@pytest.mark.repository_path
 @pytest.mark.sanity
 def test_touch_is_blocked_when_cwd_doesnt_match_target_repository(
     working_dir, mdm_config, monkeypatch, touch_cmd
@@ -75,9 +75,9 @@ def test_touch_is_blocked_when_cwd_doesnt_match_target_repository(
 @pytest.mark.cf84e357a9
 @pytest.mark.cli
 @pytest.mark.touch
-@pytest.mark.source_repository
+@pytest.mark.repository_path
 @pytest.mark.sanity
-def test_source_repository_option_overrides_cwd_and_unblocks_touch(
+def test_repository_path_option_overrides_cwd_and_unblocks_touch(
     working_dir, mdm_config, touch_cmd
 ):
     subrepo1_path = working_dir.joinpath("dir1")
@@ -124,7 +124,7 @@ def test_source_repository_option_overrides_cwd_and_unblocks_touch(
 @pytest.mark.baac804ddf
 @pytest.mark.cli
 @pytest.mark.touch
-@pytest.mark.source_repository
+@pytest.mark.repository_path
 @pytest.mark.sanity
 def test_touch_fails_when_source_prepository_is_not_mdm_repository(
     working_dir, mdm_config, touch_cmd
@@ -146,7 +146,7 @@ def test_touch_fails_when_source_prepository_is_not_mdm_repository(
 @pytest.mark.af53a8b744
 @pytest.mark.cli
 @pytest.mark.touch
-@pytest.mark.source_repository
+@pytest.mark.repository_path
 @pytest.mark.sanity
 def test_touch_works_outside_of_mdm_repository_when_repository_path_is_provided(
     working_dir, mdm_config, touch_cmd

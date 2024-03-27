@@ -76,7 +76,7 @@ def purge_cmd(md_cmd):
 
 @pytest.fixture(scope="module")
 def list_cmd(md_cmd):
-    return [*md_cmd, "list"]
+    return [*md_cmd, "ls"]
 
 
 @pytest.fixture(scope="function")
