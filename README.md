@@ -147,6 +147,8 @@
     -   refactor common hardcoded exit codes >=100 (magic ints) into constants
     -   refactor catching `SystemExit` to `CalledProcessError` in test cases
     -   look for options how to parallelize the test cases that run many subprocesses, ex `test_touch/test_source_repository`
+    -   add `--name` option to `mdm init` that can be used to provide a repository name which will be stored in `repository` table
+    -   add `mdm get global <key>` and `mdm set global <key> <value>` to get and set repository level metadata
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
