@@ -1,1 +1,4 @@
 DELETED_PREFIX = "###__md_deleted__###"
+
+# ERROR CODES
+AMBIGUOUS_REPOSITORY = 103

@@ -26,7 +26,7 @@ def cli(ctx):
 @click.pass_context
 def init(ctx, target, debug, load_from_parent_repository, recreate):
     mdm = MetadataManager.new(
-        md_config=ctx.obj, path=Path(target).absolute(), recreate=recreate
+        md_config=ctx.obj, path=Path(target).resolve(), recreate=recreate
     )
 
     if load_from_parent_repository:
@@ -35,15 +35,29 @@ def init(ctx, target, debug, load_from_parent_repository, recreate):
 
 @cli.command()
 @click.argument("target")
+@click.option("--repository-path", required=False)
 @click.pass_context
-def touch(ctx, target):
+def touch(ctx, target, repository_path):
     mdm_config = ctx.obj
+    source_path = (
+        Path(target).resolve()
+        if not repository_path
+        else Path(repository_path).resolve()
+    )
+
+    # TODO: this probably doesn't work well with --repository-path
+    # check & fix
     cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
 
-    mdm = MetadataManager.from_repository(
-        md_config=ctx.obj, path=Path(target).absolute()
-    )
-    mdm.touch(Path(target).absolute())
+    if not repository_path:
+        cli_utils.validate_cwd_and_target_repository_match(
+            config=mdm_config,
+            target_path=Path(target).resolve(),
+            source_path=source_path,
+        )
+
+    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=source_path)
+    mdm.touch(Path(target).resolve())
 
 
 @cli.command()
@@ -52,7 +66,7 @@ def list(ctx):
     mdm_config = ctx.obj
     cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
 
-    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd().absolute())
+    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd())
     mdm.list_files(Path.cwd())
 
 
@@ -64,9 +78,9 @@ def untrack(ctx, target):
     cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
 
     mdm = MetadataManager.from_repository(
-        md_config=ctx.obj, path=Path(target).absolute()
+        md_config=ctx.obj, path=Path(target).resolve()
     )
-    mdm.untrack(Path(target).absolute())
+    mdm.untrack(Path(target).resolve())
 
 
 @cli.command()
@@ -75,8 +89,8 @@ def purge(ctx):
     mdm_config = ctx.obj
     cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
 
-    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd().absolute())
-    mdm.purge_removed_files(Path.cwd().absolute())
+    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd())
+    mdm.purge_removed_files(Path.cwd())
 
 
 @cli.command()
@@ -90,10 +104,10 @@ def rm(ctx, file, debug, purge, force):
     cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
 
     mdm = MetadataManager.from_repository(
-        md_config=mdm_config, path=Path(file).absolute()
+        md_config=mdm_config, path=Path(file).resolve()
     )
     mdm.remove_file(
-        filepath=Path(file).absolute(),
+        filepath=Path(file).resolve(),
         purge=purge,
         debug=debug,
         force=force,

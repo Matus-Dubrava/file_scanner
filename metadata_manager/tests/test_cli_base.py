@@ -6,7 +6,7 @@ from md_models import FileORM
 from md_enums import FileStatus
 
 #######################################################################
-# Mdm commands can't be used outside of Mdm repository.               #
+# Mdm commands can't be run outside of Mdm repository.                #
 #######################################################################
 
 
