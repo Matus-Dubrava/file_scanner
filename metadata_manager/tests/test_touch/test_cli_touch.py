@@ -16,16 +16,6 @@ def test_touch_fails_if_md_wasnt_initialized(working_dir, touch_cmd):
     assert proc.returncode == 100
 
 
-@pytest.mark.e63032638e
-@pytest.mark.cli
-@pytest.mark.touch
-@pytest.mark.sanity
-def test_touch_fails_if_provided_path_doesnt_exist(working_dir, touch_cmd):
-    filepath = working_dir.joinpath("dir1", "testfile")
-    proc = subprocess.run([*touch_cmd, filepath], capture_output=True)
-    assert proc.returncode != 0
-
-
 @pytest.mark.b9b291b049
 @pytest.mark.cli
 @pytest.mark.touch

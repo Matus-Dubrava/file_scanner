@@ -471,15 +471,27 @@ class MetadataManager:
 
         return None
 
-    def touch(self, filepath: Path, debug: bool = False) -> None:
+    def touch(self, filepath: Path, debug: bool = False, parents: bool = False) -> None:
         """
         ...
         """
         assert filepath.is_absolute(), f"Expected absolute filepath. Got {filepath}"
 
+        # Validate parent directory exists and create all parent directories as needed if
+        # 'parent=True', otherwise exit.
         if not filepath.parent.exists():
-            print(f"Directory {filepath.parent} doesn't exist. Abort.")
-            sys.exit(1)
+            if parents:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                print(
+                    f"Fatal: Directory {filepath.parent} doesn't exist. Abort.",
+                    file=sys.stderr,
+                )
+                print(
+                    "\nprovide -p/--parents flag to create parent directories as needed.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
         branch_name = self.get_current_git_branch(filepath.parent)
 

@@ -38,8 +38,15 @@ def init(ctx, target, debug, load_from_parent_repository, recreate):
 @cli.command()
 @click.argument("target")
 @click.option("--repository-path", required=False)
+@click.option(
+    "-p",
+    "--parents",
+    is_flag=True,
+    default=False,
+    help="Create parent directories as needed. No error when parent directories exist.",
+)
 @click.pass_context
-def touch(ctx, target, repository_path) -> None:
+def touch(ctx, target, repository_path, parents) -> None:
     mdm_config = ctx.obj
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
 
@@ -52,7 +59,7 @@ def touch(ctx, target, repository_path) -> None:
         )
 
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=source_path)
-    mdm.touch(Path(target).resolve())
+    mdm.touch(filepath=Path(target).resolve(), parents=parents)
 
 
 @cli.command()
