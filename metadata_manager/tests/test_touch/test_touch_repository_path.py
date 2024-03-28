@@ -99,8 +99,7 @@ def test_repository_path_option_overrides_cwd_and_unblocks_touch(
         assert proc.returncode == 0
         assert filepath.exists()
         assert mdm.session.query(FileORM).filter_by(filepath=filepath.resolve()).first()
-        filepath.unlink()
-        mdm.remove_file(filepath=filepath)
+        mdm.remove_file(filepath=filepath.resolve())
 
     _test_task(filepath=testfile1, repository_path=working_dir, mdm=working_dir_mdm)
     _test_task(filepath=testfile1, repository_path=subrepo1_path, mdm=subrepo1_mdm)

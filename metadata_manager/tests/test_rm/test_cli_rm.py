@@ -57,24 +57,19 @@ def test_file_is_removed_from_both_fs_and_mdm(working_dir, mdm, rel_filepath, rm
 @pytest.mark.cli
 @pytest.mark.rm
 @pytest.mark.sanity
-@pytest.mark.parametrize(
-    "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
-)
-def test_file_is_removed_from_fs_when_not_in_mdm(working_dir, mdm, rel_filepath):
-    filepath = working_dir.joinpath(rel_filepath)
+def test_rm_fails_when_file_is_not_in_repository(working_dir, mdm, rm_cmd):
+    filepath = working_dir.joinpath("testfile")
     filepath.parent.mkdir(parents=True, exist_ok=True)
     filepath.touch()
     assert filepath.exists()
 
-    # subprocess.check_output([*rm_cmd, filepath])
-    mdm.remove_file(filepath)
-
-    assert not filepath.exists()
-    assert not mdm.session.query(FileORM).all()
-    assert not mdm.session.query(HistoryORM).all()
+    proc = subprocess.run([*rm_cmd, filepath], capture_output=True)
+    assert proc.returncode == 3
+    assert not proc.stdout
+    assert "fatal:" in proc.stderr.decode().lower()
 
 
-@pytest.mark.edb25df6cb
+@pytest.mark.f5d566f944
 @pytest.mark.cli
 @pytest.mark.rm
 @pytest.mark.sanity
@@ -107,16 +102,6 @@ def test_file_is_removed_from_mdm_when_not_in_fs(
     )
 
     assert not mdm.get_path_to_hash_file(filepath).exists()
-
-
-@pytest.mark.a946122a8d
-@pytest.mark.cli
-@pytest.mark.rm
-@pytest.mark.sanity
-@pytest.mark.init_md(True)
-def test_remove_file_not_in_fs_nor_mdm(working_dir, rm_cmd, mdm):
-    filepath = working_dir.joinpath("testfile")
-    subprocess.check_output([*rm_cmd, filepath])
 
 
 @pytest.mark.cc524908f2

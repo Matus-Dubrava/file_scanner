@@ -655,20 +655,19 @@ class MetadataManager:
         debug: bool = False,
     ) -> None:
         """
-        Marks file in Mdm as REMOVED and removes the file from file system if the file exits.
+        Sets file status to REMOVED and removes it from file system. Works even if the file was
+        already removed from file system.
 
-        * If file doesn't exist in Mdm, it only removes the file from file system.
-        * If file doesn't exist in file system, it marks it in Mdm as REMOVED if it has record in Mdm.
-        * If file exists in file system but can't be removed by Mdm, the correspoding Mdm
-          record won't be marked as REMOVED. -f/--force bypasses this check.
+        If file exists in file system but can't be removed, the correspoding
+        record won't be marked as REMOVED if 'force' is set to False.
 
         Arguments
         filepath:   Filepath to the file.
         purge:      Removes all records associated with the file completely.
-        force:      Removes Mdm records associated with the file even if Mdm is unable to remove
+        force:      Removes records associated with the file even if Mdm is unable to remove
                     the file from file system. This only applies if the file exists. If file
                     doesn't exits then Mdm record will be removed automatically.
-        debug:      Print error tracebacks to stderr together.
+        debug:      Print error tracebacks to stderr together with custom error messages.
 
         Exit codes
         1           Failed to remove the file from file system. If file exists in file system but
@@ -677,22 +676,7 @@ class MetadataManager:
         """
         stdout_messages: List[str] = []
 
-        # Handle removing file from file system.
-        if filepath.exists():
-            try:
-                filepath.unlink()
-            except Exception:
-                if not force:
-                    if debug:
-                        print(f"{traceback.format_exc()}\n", file=sys.stderr)
-
-                    print(
-                        f"Failed to delete {filepath}.\nUse --force to remove Mdm record anyway.",
-                        file=sys.stderr,
-                    )
-                    sys.exit(1)
-
-        # Handle removing file from Mdm database and hash file.
+        # Handle removing file from internal database and hash file.
         try:
             file_record = (
                 self.session.query(FileORM).filter_by(filepath=filepath).first()
@@ -701,7 +685,27 @@ class MetadataManager:
                 self.session.query(HistoryORM).filter_by(filepath=filepath).all()
             )
 
+            # Can't remove files that are not within internal database.
+            if not file_record:
+                print(f"Fatal: {filepath} is not tracked. Abort.", file=sys.stderr)
+                sys.exit(3)
+
             if file_record:
+                # Handle removing file from file system.
+                if filepath.exists():
+                    try:
+                        filepath.unlink()
+                    except Exception:
+                        if not force:
+                            if debug:
+                                print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+                            print(
+                                f"Failed to delete {filepath}.\nUse --force to remove mdm record record anyway.",
+                                file=sys.stderr,
+                            )
+                            sys.exit(1)
+
                 if purge:
                     self.session.delete(file_record)
                     for h_record in history_records:
