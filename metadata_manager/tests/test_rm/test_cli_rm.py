@@ -3,6 +3,7 @@ import subprocess
 
 from md_models import FileORM, HistoryORM
 from md_enums import FileStatus
+from manager import MetadataManager
 
 
 # test rm fails when called outside of mdm repository
@@ -120,43 +121,99 @@ def test_remove_file_with_purge_option(working_dir, rm_cmd, mdm):
     assert not len(mdm.session.query(HistoryORM).all())
 
 
+# Test removing multiple files at once.
+
+
+@pytest.mark.b5b55d43fe
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.sanity
+def test_rm_handle_multiple_files(working_dir, rm_cmd, mdm):
+    subdir = working_dir.joinpath("subdir")
+    subdir.mkdir()
+
+    testfile1 = working_dir.joinpath("testfile1")
+    testfile2 = subdir.joinpath("testfile2")
+
+    mdm.touch(testfile1)
+    mdm.touch(testfile2)
+
+    subprocess.check_output([*rm_cmd, testfile1, testfile2])
+    assert not testfile1.exists()
+    assert not testfile2.exists()
+
+
 @pytest.mark.c168cc10cb
 @pytest.mark.cli
 @pytest.mark.rm
 @pytest.mark.sanity
-def test_force_and_debug_flags(working_dir, rm_cmd, mdm):
-    filepath = working_dir.joinpath("testfile")
-    mdm.touch(filepath)
+def test_rm_doesnt_remove_any_file_if_not_all_are_tracked(working_dir, rm_cmd, mdm):
+    subdir = working_dir.joinpath("subdir")
+    subdir.mkdir()
 
-    # delete the file manualy and then instead of it create
-    # a directory with the same name, that way Mdm won't be
-    # able to delete it
-    filepath.unlink()
-    filepath.mkdir()
+    testfile1 = working_dir.joinpath("testfile1")
+    testfile2 = subdir.joinpath("testfile2")
 
-    # execute without flags
-    proc = subprocess.run([*rm_cmd, filepath], capture_output=True)
-    assert proc.returncode == 1
+    mdm.touch(testfile1)  # track testfile 1
+    testfile2.touch()  # don't track testfile2
+
+    proc = subprocess.run([*rm_cmd, testfile1, testfile2], capture_output=True)
+    assert proc.returncode == 3
     assert not proc.stdout
-    assert proc.stderr and "traceback" not in proc.stderr.decode().lower()
-    # check that hint for user to use --force is present in stderr
-    assert proc.stderr and "--force" in proc.stderr.decode().lower()
+    assert "fatal:" in proc.stderr.decode().lower()
 
-    # execute with --debug flag, expect to see traceback
-    proc = subprocess.run([*rm_cmd, filepath, "--debug"], capture_output=True)
-    assert proc.returncode == 1
+    assert testfile1.exists()
+    assert testfile2.exists()
+
+    assert mdm.session.query(FileORM).filter_by(filepath=testfile1).first()
+
+
+@pytest.mark.f429482c8b
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.sanity
+def test_rm_fails_if_not_all_provided_files_belong_to_the_same_repository(
+    working_dir, rm_cmd, mdm_config
+):
+    subdir = working_dir.joinpath("subdir")
+    subdir.mkdir()
+
+    testfile1 = working_dir.joinpath("testfile1")
+    testfile2 = subdir.joinpath("testfile2")
+
+    mdm1 = MetadataManager.new(md_config=mdm_config, path=working_dir)
+    mdm2 = MetadataManager.new(md_config=mdm_config, path=subdir)
+
+    mdm1.touch(testfile1)
+    mdm2.touch(testfile2)
+
+    # without specifing repository path
+    proc = subprocess.run([*rm_cmd, testfile1, testfile2], capture_output=True)
+    assert proc.returncode != 0
     assert not proc.stdout
-    assert proc.stderr and "traceback" in proc.stderr.decode().lower()
-    # check that hint for user to use --force is present in stderr
-    assert proc.stderr and "--force" in proc.stderr.decode().lower()
+    assert "fatal:" in proc.stderr.decode().lower()
 
-    # execute with --force, expect the operation to succeed
-    subprocess.check_output([*rm_cmd, filepath, "--force"])
+    assert testfile1.exists()
+    assert testfile2.exists()
 
-    assert mdm.session.query(FileORM).filter_by(status=FileStatus.REMOVED).first()
+    assert mdm1.session.query(FileORM).filter_by(filepath=testfile1).first()
+    assert mdm2.session.query(FileORM).filter_by(filepath=testfile2).first()
 
+    # with repository path
+    proc = subprocess.run(
+        [*rm_cmd, testfile1, testfile2, "--repository-path", working_dir],
+        capture_output=True,
+    )
+    assert proc.returncode != 0
+    assert not proc.stdout
+    assert "fatal:" in proc.stderr.decode().lower()
 
-# test rming multiple files at once
+    assert testfile1.exists()
+    assert testfile2.exists()
+
+    assert mdm1.session.query(FileORM).filter_by(filepath=testfile1).first()
+    assert mdm2.session.query(FileORM).filter_by(filepath=testfile2).first()
+
 
 # test rming dir, required -r/--recrursive flag
 

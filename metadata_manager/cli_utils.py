@@ -8,29 +8,29 @@ import md_constants
 from manager import MetadataManager
 
 
-def validate_cwd_is_in_mdm_repository(config: Config) -> None:
+def validate_cwd_is_within_repository_dir(config: Config) -> None:
     get_mdm_root_or_exit(path=Path.cwd(), config=config)
 
 
-def validate_cwd_and_target_repository_match(
+def validate_cwd_and_target_repository_dirs_match(
     config: Config, target_path: Path, source_path: Path = Path.cwd()
 ) -> None:
     """
     Block command when it is unclear which repository the command should be attributed to.
     This situation can happen when there are subrepositories and there is a mismatch
-    between the Mdm repository where the command was run from and the Mdm repository
+    between the repository where the command was run from and the repository
     where the target path points to.
 
-    This applies to commands such as 'mdm touch'.
+    This applies to commands such as 'touch', 'rm' etc.
 
     ex:
     (repository 1) /dir1
     (repository 2) /dir1/dir2
 
     command is run from /dir1
-        - mdm touch /dir1/dir2/somefile
+        - touch /dir1/dir2/somefile
 
-    Sourve repository is repository 1, while the path provided to 'mdm touch' points to repository 2.
+    Source repository is repository 1, while the path provided to 'touch' points to repository 2.
     In such situation, it is unclear which repository the command should operate on.
     """
     target_mdm_root = get_mdm_root(path=target_path.parent, config=config)
@@ -51,7 +51,7 @@ def validate_cwd_and_target_repository_match(
         sys.exit(md_constants.AMBIGUOUS_REPOSITORY)
 
 
-def validate_path_is_within_repository(
+def validate_path_is_within_repository_dir(
     mdm: MetadataManager, path: Path, debug: bool = False
 ) -> None:
     try:

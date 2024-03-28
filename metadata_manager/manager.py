@@ -655,24 +655,18 @@ class MetadataManager:
         debug: bool = False,
     ) -> None:
         """
-        Sets file status to REMOVED and removes it from file system. Works even if the file was
-        already removed from file system.
+        Sets file status of the provided file to REMOVED and removes it from file system if the file exists.
 
         If file exists in file system but can't be removed, the correspoding
-        record won't be marked as REMOVED if 'force' is set to False.
+        record won't be marked as REMOVED if 'force' isn't set to True.
 
         Arguments
-        filepath:   Filepath to the file.
+        filepath:   File to be removed.
         purge:      Removes all records associated with the file completely.
         force:      Removes records associated with the file even if Mdm is unable to remove
                     the file from file system. This only applies if the file exists. If file
                     doesn't exits then Mdm record will be removed automatically.
         debug:      Print error tracebacks to stderr together with custom error messages.
-
-        Exit codes
-        1           Failed to remove the file from file system. If file exists in file system but
-                    can't be removed by Mdm, the correspoding Mdm record won't be marked as REMOVED.
-        2           Failed to remove records from Mdm database.
         """
         # Handle removing file from internal database and hash file.
         try:
@@ -693,6 +687,7 @@ class MetadataManager:
 
             else:
                 # Handle removing file from file system.
+                # Continue to remove file from repository if file doesn't exits.
                 if filepath.exists():
                     try:
                         filepath.unlink()
@@ -745,6 +740,51 @@ class MetadataManager:
 
             print(f"fatal: failed to remove {filepath}", file=sys.stderr)
             sys.exit(2)
+
+    def remove_files(
+        self,
+        filepaths: List[Path],
+        purge: bool = False,
+        force: bool = False,
+        debug: bool = False,
+    ) -> None:
+        """
+        Sets file status of provided files to REMOVED and removes them from file system if they exist.
+        All provided files must be present in repository, otherwise this function exits without removing
+        any file.
+
+        If file exists in file system but can't be removed, the correspoding
+        record won't be marked as REMOVED if 'force' isn't set to True.
+
+        Arguments
+        filepaths:  Files to be removed.
+        purge:      Removes all records associated with the file completely.
+        force:      Removes records associated with the file even if Mdm is unable to remove
+                    the file from file system. This only applies if the file exists. If file
+                    doesn't exits then Mdm record will be removed automatically.
+        debug:      Print error tracebacks to stderr together with custom error messages.
+        """
+        for filepath in filepaths:
+            filepath = filepath.resolve()
+
+            # Confirm that all provded paths are files if they exist.
+            if filepath.exists() and not filepath.is_file():
+                print(f"fatal: path {filepath} is not a file.", file=sys.stderr)
+                sys.exit(4)
+
+            # Confirm all provided files are present in repository. Exit as soon as
+            # one of them is missing.
+            if not self.session.query(FileORM).filter_by(filepath=filepath).first():
+                print(
+                    f"fatal: path {filepath} did not match any tracked file",
+                    file=sys.stderr,
+                )
+                sys.exit(3)
+
+        # Remove all files. Intentially in a separate loop so that no files are removed
+        # if previous checks fail for any file.
+        for filepath in filepaths:
+            self.remove_file(filepath=filepath, purge=purge, force=force, debug=debug)
 
     def purge_removed_files(self, path: Path, debug: bool = False) -> None:
         """

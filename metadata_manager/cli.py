@@ -72,8 +72,8 @@ def touch(ctx, target, repository_path, parents, debug) -> None:
     target_path = Path(target).resolve()
 
     if not repository_path:
-        cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
-        cli_utils.validate_cwd_and_target_repository_match(
+        cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
+        cli_utils.validate_cwd_and_target_repository_dirs_match(
             config=mdm_config,
             target_path=target_path,
             source_path=source_path,
@@ -81,7 +81,7 @@ def touch(ctx, target, repository_path, parents, debug) -> None:
 
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=source_path)
     if repository_path:
-        cli_utils.validate_path_is_within_repository(
+        cli_utils.validate_path_is_within_repository_dir(
             mdm=mdm, path=target_path, debug=debug
         )
 
@@ -170,7 +170,7 @@ def ls(
     mdm_config = ctx.obj
 
     if not repository_path:
-        cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
+        cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(
         md_config=ctx.obj,
@@ -192,7 +192,7 @@ def ls(
 @click.pass_context
 def untrack(ctx, target) -> None:
     mdm_config = ctx.obj
-    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
+    cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(
         md_config=ctx.obj, path=Path(target).resolve()
@@ -204,14 +204,14 @@ def untrack(ctx, target) -> None:
 @click.pass_context
 def purge(ctx) -> None:
     mdm_config = ctx.obj
-    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
+    cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd())
     mdm.purge_removed_files(Path.cwd())
 
 
 @cli.command()
-@click.argument("target", nargs=1, required=True)
+@click.argument("path", nargs=-1, required=True)
 @click.option("--debug", is_flag=True, show_default=True, default=False)
 @click.option("--purge", is_flag=True, show_default=True, default=False)
 @click.option("--force", is_flag=True, show_default=True, default=False)
@@ -224,31 +224,29 @@ def purge(ctx) -> None:
     ),
 )
 @click.pass_context
-def rm(ctx, target, debug, purge, force, repository_path) -> None:
+def rm(ctx, path, debug, purge, force, repository_path) -> None:
     mdm_config = ctx.obj
 
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
-    target_path = Path(target).resolve()
+    target_paths = [Path(p).resolve() for p in path]
+    mdm = MetadataManager.from_repository(md_config=mdm_config, path=source_path)
 
     if not repository_path:
-        cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
-        cli_utils.validate_cwd_and_target_repository_match(
-            config=mdm_config,
-            target_path=target_path,
-            source_path=source_path,
-        )
-    mdm = MetadataManager.from_repository(md_config=mdm_config, path=source_path)
-    if repository_path:
-        cli_utils.validate_path_is_within_repository(
-            mdm=mdm, path=target_path, debug=debug
-        )
+        cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
+        for path in target_paths:
+            cli_utils.validate_cwd_and_target_repository_dirs_match(
+                config=mdm_config,
+                target_path=path,
+                source_path=source_path,
+            )
 
-    mdm.remove_file(
-        filepath=target_path,
-        purge=purge,
-        debug=debug,
-        force=force,
-    )
+    if repository_path:
+        for path in target_paths:
+            cli_utils.validate_path_is_within_repository_dir(
+                mdm=mdm, path=path, debug=debug
+            )
+
+    mdm.remove_files(filepaths=target_paths, purge=purge, debug=debug, force=force)
 
 
 if __name__ == "__main__":
