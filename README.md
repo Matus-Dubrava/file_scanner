@@ -154,6 +154,13 @@
     -   add `--force/-f` flag to `mdm ls json-dump` to create parent directories if they don't exist
     -   add test case for `mdm ls json-dump` testing `--debug` flag
 
+    -   rename project to `file tracker`
+    -   add functionality to package the `ft` repository including active/untracked file into a zip file, preserving the internal structure for backup purposes
+        -   it should support encrypting the package with AES256 encryption
+        -   it should support HTTP upload, zipped file should be splitted into chunks which can be uploaded in parallel
+        -   set up docker HTTP server that can receive and reconstruct the package
+        -   `ft` should have its own separate database that would track all all of the repositories and can package all of them automatically and perform backup
+
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
     -   add version tracking into app & into store it in db, create new table during,
