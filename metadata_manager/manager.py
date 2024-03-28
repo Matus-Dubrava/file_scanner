@@ -674,8 +674,6 @@ class MetadataManager:
                     can't be removed by Mdm, the correspoding Mdm record won't be marked as REMOVED.
         2           Failed to remove records from Mdm database.
         """
-        stdout_messages: List[str] = []
-
         # Handle removing file from internal database and hash file.
         try:
             file_record = (
@@ -687,10 +685,13 @@ class MetadataManager:
 
             # Can't remove files that are not within internal database.
             if not file_record:
-                print(f"Fatal: {filepath} is not tracked. Abort.", file=sys.stderr)
+                print(
+                    f"fatal: path {filepath} did not match any tracked file",
+                    file=sys.stderr,
+                )
                 sys.exit(3)
 
-            if file_record:
+            else:
                 # Handle removing file from file system.
                 if filepath.exists():
                     try:
@@ -701,18 +702,22 @@ class MetadataManager:
                                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
                             print(
-                                f"Failed to delete {filepath}.\nUse --force to remove mdm record record anyway.",
+                                f"fatal: failed to delete {filepath} from file system.\n\nuse --force to remove record anyway",
                                 file=sys.stderr,
                             )
                             sys.exit(1)
 
+                stdout_message = ""
                 if purge:
+                    # Delete records associated with the file from database completely.
                     self.session.delete(file_record)
                     for h_record in history_records:
                         self.session.delete(h_record)
                     # TODO: remove custom metadata records here
-                    stdout_messages.append(f"'rm --purge'{filepath}")
+                    stdout_message = f"'rm --purge'{filepath}"
                 else:
+                    # Set the file status to REMOVED, mangle its filepath and update existing records assicated
+                    # with the file to reflect this filepath change.
                     updated_filename, updated_filepath = (
                         md_utils.get_filepath_with_delete_prefix(filepath=filepath)
                     )
@@ -723,7 +728,7 @@ class MetadataManager:
                     for h_record in history_records:
                         h_record.filepath = updated_filepath
                     # TODO: update custom metadata records
-                    stdout_messages.append(f"'rm' {filepath}")
+                    stdout_message = f"'rm' {filepath}"
 
                 hash_filepath_or_err = self.get_path_to_hash_file(filepath=filepath)
                 if isinstance(hash_filepath_or_err, Exception):
@@ -731,14 +736,14 @@ class MetadataManager:
 
                 hash_filepath_or_err.unlink(missing_ok=True)
 
-            self.session.commit()
-            for message in stdout_messages:
-                print(message)
+                self.session.commit()
+                if stdout_message:
+                    print(stdout_message)
         except Exception:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
-            print(f"\nFailed to remove {filepath} from Mdm.", file=sys.stderr)
+            print(f"fatal: failed to remove {filepath}", file=sys.stderr)
             sys.exit(2)
 
     def purge_removed_files(self, path: Path, debug: bool = False) -> None:
