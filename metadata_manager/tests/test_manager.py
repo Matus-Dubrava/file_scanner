@@ -35,11 +35,11 @@ def test_cleanup(working_dir, mdm):
 @pytest.mark.manager
 @pytest.mark.sanity
 @pytest.mark.get_md_root
-def test_get_mdm_root_exits_with_100_when_no_root_is_found(working_dir, mdm):
+def test_get_repository_root_exits_with_100_when_no_root_is_found(working_dir, mdm):
     mdm.cleanup(working_dir)
 
     with pytest.raises(SystemExit) as exit:
-        not md_utils.get_mdm_root_or_exit(path=working_dir, config=mdm.md_config)
+        not md_utils.get_repository_root_or_exit(path=working_dir, config=mdm.md_config)
 
     assert exit.value.code == 100
 
@@ -49,7 +49,9 @@ def test_get_mdm_root_exits_with_100_when_no_root_is_found(working_dir, mdm):
 @pytest.mark.sanity
 @pytest.mark.get_md_root
 def test_get_md_root_finds_md_repository_in_the_same_directory(working_dir, mdm):
-    mdm_root = md_utils.get_mdm_root_or_exit(path=working_dir, config=mdm.md_config)
+    mdm_root = md_utils.get_repository_root_or_exit(
+        path=working_dir, config=mdm.md_config
+    )
     assert str(mdm_root) == str(working_dir)
 
 
@@ -60,7 +62,7 @@ def test_get_md_root_finds_md_repository_in_the_same_directory(working_dir, mdm)
 def test_get_md_root_finds_md_repository_in_parent_dir(working_dir, mdm):
     subdir = working_dir.joinpath("dir1", "dir2")
     subdir.mkdir(parents=True)
-    maybe_md_root = md_utils.get_mdm_root_or_exit(
+    maybe_md_root = md_utils.get_repository_root_or_exit(
         path=working_dir, config=mdm.md_config
     )
     assert maybe_md_root == working_dir

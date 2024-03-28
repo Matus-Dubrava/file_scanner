@@ -2,14 +2,14 @@ from pathlib import Path
 import traceback
 import sys
 
-from md_utils import get_mdm_root_or_exit, get_mdm_root
+from md_utils import get_repository_root_or_exit
 from md_models import Config
 import md_constants
 from manager import MetadataManager
 
 
 def validate_cwd_is_within_repository_dir(config: Config) -> None:
-    get_mdm_root_or_exit(path=Path.cwd(), config=config)
+    get_repository_root_or_exit(path=Path.cwd(), config=config)
 
 
 def validate_cwd_and_target_repository_dirs_match(
@@ -33,19 +33,21 @@ def validate_cwd_and_target_repository_dirs_match(
     Source repository is repository 1, while the path provided to 'touch' points to repository 2.
     In such situation, it is unclear which repository the command should operate on.
     """
-    target_mdm_root = get_mdm_root(path=target_path.parent, config=config)
-    cwd_mdm_root = get_mdm_root(path=source_path, config=config)
+    target_repository_root = get_repository_root_or_exit(
+        path=target_path.parent, config=config
+    )
+    cwd_mdm_root = get_repository_root_or_exit(path=source_path, config=config)
 
-    if str(target_mdm_root) != str(cwd_mdm_root):
+    if str(target_repository_root) != str(cwd_mdm_root):
         print("Fatal: ambiguous repository.", file=sys.stderr)
         print(
-            "\nCurrent Mdm repository doesn't match target Mdm repository.",
+            "\nCurrent repository doesn't match target repository.",
             file=sys.stderr,
         )
         print(f"\tcurrent repository: {cwd_mdm_root}", file=sys.stderr)
         print(f"\ttarget repository: {target_path.parent}", file=sys.stderr)
         print(
-            "\nTo resolve this issue, run the command from target Mdm repository\nor provide --repository-path option",
+            "\nTo resolve this issue, run the command from target repository\nor provide --repository-path option",
             file=sys.stderr,
         )
         sys.exit(md_constants.AMBIGUOUS_REPOSITORY)

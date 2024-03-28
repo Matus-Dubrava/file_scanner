@@ -132,7 +132,9 @@ class MetadataManager:
     def from_repository(md_config: Config, path: Path, debug: bool = False):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
-        maybe_md_root = md_utils.get_mdm_root_or_exit(path=path, config=md_config)
+        maybe_md_root = md_utils.get_repository_root_or_exit(
+            path=path, config=md_config
+        )
 
         md_path = maybe_md_root.joinpath(md_config.md_dir_name)
         md_db_path = md_path.joinpath(md_config.md_db_name)
@@ -170,7 +172,7 @@ class MetadataManager:
         * History records are moved over to target Mdm.
         * Custom Metadata is moved over to target Mdm.
         """
-        maybe_parent_mdm_root = md_utils.get_mdm_root(
+        maybe_parent_mdm_root = md_utils.get_repository_root(
             path=self.repository_root.parent, config=self.md_config
         )
         try:
