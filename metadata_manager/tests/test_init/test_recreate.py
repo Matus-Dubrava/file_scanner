@@ -1,5 +1,4 @@
 import pytest
-import shutil
 import subprocess
 from subprocess import CalledProcessError
 
