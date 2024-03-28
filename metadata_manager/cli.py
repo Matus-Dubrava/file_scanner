@@ -37,7 +37,14 @@ def init(ctx, target, debug, load_from_parent_repository, recreate):
 
 @cli.command()
 @click.argument("target")
-@click.option("--repository-path", required=False)
+@click.option(
+    "--repository-path",
+    required=False,
+    help=(
+        "Path to repository. If path doesn't point to repository root the nearest parent repository is used. "
+        "Fails if no parent repository is found."
+    ),
+)
 @click.option(
     "-p",
     "--parents",

@@ -319,8 +319,12 @@ class MetadataManager:
         branch_name: Optional[str] = None,
     ) -> Optional[Exception]:
         try:
+            # Track if file was created for the purposes of cleanup.
+            file_was_created = False
+
             if not file_exists:
                 filepath.touch()
+                file_was_created = True
 
             file_stat = FileStat.new()
 
@@ -371,7 +375,8 @@ class MetadataManager:
             session.add(history_record)
             session.commit()
         except Exception as err:
-            filepath.unlink()
+            if file_was_created:
+                filepath.unlink()
 
             if isinstance(hash_filepath_or_err, Path):
                 hash_filepath_or_err.unlink()
