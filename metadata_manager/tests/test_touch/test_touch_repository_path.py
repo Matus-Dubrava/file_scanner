@@ -157,3 +157,73 @@ def test_touch_works_outside_of_mdm_repository_when_repository_path_is_provided(
 
     MetadataManager.new(md_config=mdm_config, path=subdir)
     subprocess.check_output([*touch_cmd, filepath, "--repository-path", subdir])
+
+
+@pytest.mark.f98507bc2e
+@pytest.mark.cli
+@pytest.mark.touch
+@pytest.mark.repository_path
+@pytest.mark.sanity
+def test_touch_fails_if_provided_filepath_is_not_within_repositor_path(
+    working_dir, mdm_config, touch_cmd
+):
+    """
+    Testing scenarion when --repository-path is provided but the target filepath
+    that we are trying to create is not within repository where the --repository-path
+    points to.
+    """
+
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = working_dir.joinpath("dir2")
+    subdir1.mkdir()
+    subdir2.mkdir()
+
+    testfile = subdir1.joinpath("testfile")
+
+    MetadataManager.new(md_config=mdm_config, path=subdir1)
+    MetadataManager.new(md_config=mdm_config, path=subdir2)
+
+    proc = subprocess.run(
+        [*touch_cmd, testfile, "--repository-path", subdir2], capture_output=True
+    )
+    assert proc.returncode == md_constants.PATH_NOT_WITHIN_REPOSITORY
+    assert not proc.stdout
+    assert "fatal:" in proc.stderr.decode().lower()
+    assert "traceback" not in proc.stderr.decode().lower()
+
+
+@pytest.mark.e2bd474795
+@pytest.mark.cli
+@pytest.mark.touch
+@pytest.mark.repository_path
+@pytest.mark.debug
+@pytest.mark.sanity
+def test_touch_fails_if_provided_filepath_is_not_within_repositor_path__with_debug(
+    working_dir, mdm_config, touch_cmd
+):
+    """
+    Testing scenarion when --repository-path is provided but the target filepath
+    that we are trying to create is not within repository where the --repository-path
+    points to.
+
+    With --debug option.
+    """
+
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = working_dir.joinpath("dir2")
+    subdir1.mkdir()
+    subdir2.mkdir()
+
+    testfile = subdir1.joinpath("testfile")
+
+    MetadataManager.new(md_config=mdm_config, path=subdir1)
+    MetadataManager.new(md_config=mdm_config, path=subdir2)
+
+    proc = subprocess.run(
+        [*touch_cmd, testfile, "--repository-path", subdir2, "--debug"],
+        capture_output=True,
+    )
+    assert proc.returncode == md_constants.PATH_NOT_WITHIN_REPOSITORY
+    assert not proc.stdout
+    assert "fatal:" in proc.stderr.decode().lower()
+    assert "traceback" in proc.stderr.decode().lower()

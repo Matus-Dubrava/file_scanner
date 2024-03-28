@@ -58,21 +58,34 @@ def init(ctx, target, debug, load_from_parent_repository, recreate):
     default=False,
     help="Create parent directories as needed. No error when parent directories exist.",
 )
+@click.option(
+    "--debug",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Print debug information.",
+)
 @click.pass_context
-def touch(ctx, target, repository_path, parents) -> None:
+def touch(ctx, target, repository_path, parents, debug) -> None:
     mdm_config = ctx.obj
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
+    target_path = Path(target).resolve()
 
     if not repository_path:
         cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
         cli_utils.validate_cwd_and_target_repository_match(
             config=mdm_config,
-            target_path=Path(target).resolve(),
+            target_path=target_path,
             source_path=source_path,
         )
 
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=source_path)
-    mdm.touch(filepath=Path(target).resolve(), parents=parents)
+    if repository_path:
+        cli_utils.validate_path_is_within_repository(
+            mdm=mdm, path=target_path, debug=debug
+        )
+
+    mdm.touch(filepath=target_path, parents=parents)
 
 
 @cli.command()

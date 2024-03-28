@@ -1,18 +1,20 @@
 from pathlib import Path
+import traceback
 import sys
 
 from md_utils import get_mdm_root_or_exit, get_mdm_root
 from md_models import Config
 import md_constants
+from manager import MetadataManager
 
 
-def validate_cwd_is_in_mdm_repository(config: Config):
+def validate_cwd_is_in_mdm_repository(config: Config) -> None:
     get_mdm_root_or_exit(path=Path.cwd(), config=config)
 
 
 def validate_cwd_and_target_repository_match(
     config: Config, target_path: Path, source_path: Path = Path.cwd()
-):
+) -> None:
     """
     Block command when it is unclear which repository the command should be attributed to.
     This situation can happen when there are subrepositories and there is a mismatch
@@ -47,3 +49,21 @@ def validate_cwd_and_target_repository_match(
             file=sys.stderr,
         )
         sys.exit(md_constants.AMBIGUOUS_REPOSITORY)
+
+
+def validate_path_is_within_repository(
+    mdm: MetadataManager, path: Path, debug: bool = False
+) -> None:
+    try:
+        path.relative_to(mdm.repository_root)
+    except Exception:
+        if debug:
+            print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+        print(
+            "Fatal: provided path is in not within repository.\n",
+            f"provided path:\t\t{path}\n",
+            f"repository_path:\t{mdm.repository_root}",
+            file=sys.stderr,
+        )
+        sys.exit(md_constants.PATH_NOT_WITHIN_REPOSITORY)
