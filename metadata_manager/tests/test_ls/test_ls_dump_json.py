@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import FileListing, RespositoryORM
+from md_models import FileListing, RepositoryORM
 from md_enums import FileStatus
 
 
@@ -23,7 +23,7 @@ def test_ls_dumps_json_data_to_file(working_dir, mdm, list_cmd):
     mdm.remove_file(testfile2)
     mdm.untrack(testfile3)
 
-    repository_record = mdm.session.query(RespositoryORM).first()
+    repository_record = mdm.session.query(RepositoryORM).first()
     assert repository_record
 
     status_filter = [FileStatus.ACTIVE.to_str(), FileStatus.UNTRACKED.to_str()]

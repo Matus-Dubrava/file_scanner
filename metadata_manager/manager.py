@@ -19,7 +19,7 @@ from md_models import (
     HistoryORM,
     VersionInfo,
     VersionInfoORM,
-    RespositoryORM,
+    RepositoryORM,
     FileListing,
 )
 import md_utils
@@ -68,7 +68,7 @@ class MetadataManager:
         md_path.joinpath("deleted").mkdir()
         md_path.joinpath("hashes").mkdir()
 
-        repository = RespositoryORM(
+        repository = RepositoryORM(
             id=str(uuid.uuid4()),
             repository_filepath=path,
         )
@@ -145,10 +145,10 @@ class MetadataManager:
                     md_config=self.md_config, path=maybe_parent_mdm_root
                 )
                 parent_repository_record = parent_repository_mdm.session.query(
-                    RespositoryORM
+                    RepositoryORM
                 ).first()
 
-                current_repository_record = self.session.query(RespositoryORM).first()
+                current_repository_record = self.session.query(RepositoryORM).first()
                 assert (
                     current_repository_record
                 ), "Expected respoitory record for current repository to exist."
@@ -743,7 +743,7 @@ class MetadataManager:
         """
         assert path.is_absolute(), f"Expected absolute path. Got {path}"
 
-        repository_record = self.session.query(RespositoryORM).first()
+        repository_record = self.session.query(RepositoryORM).first()
         assert repository_record, "Expected repository record to exist."
 
         file_records = self._list_files(status_filter=status_filter)

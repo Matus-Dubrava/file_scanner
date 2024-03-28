@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import RespositoryORM
+from md_models import RepositoryORM
 
 
 @pytest.mark.ea86bfd10c
@@ -10,7 +10,7 @@ from md_models import RespositoryORM
 @pytest.mark.no_header
 @pytest.mark.sanity
 def test_ls_prints_header_information_by_default(mdm, list_cmd):
-    repository_record = mdm.session.query(RespositoryORM).first()
+    repository_record = mdm.session.query(RepositoryORM).first()
     assert repository_record
 
     result = subprocess.check_output([*list_cmd])
@@ -32,7 +32,7 @@ def test_ls_prints_only_file_info_when_no_header_flag_is_set(
     mdm.touch(filepath1)
     mdm.touch(filepath2)
 
-    repository_record = mdm.session.query(RespositoryORM).first()
+    repository_record = mdm.session.query(RepositoryORM).first()
     assert repository_record
 
     result = subprocess.check_output([*list_cmd, "--no-header"])

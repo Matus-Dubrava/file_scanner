@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import tests.utils as utils
 from build import write_build_info
 from md_enums import BuildType
-from md_models import VersionInfoORM, RespositoryORM
+from md_models import VersionInfoORM, RepositoryORM
 from db import create_or_get_session
 from manager import MetadataManager
 
@@ -125,7 +125,7 @@ def test_init_creates_repository_table_without_parent_repo_info(
     subprocess.check_output([*init_cmd, working_dir])
     mdm = MetadataManager.from_repository(path=working_dir, md_config=mdm_config)
 
-    repository_record = mdm.session.query(RespositoryORM).first()
+    repository_record = mdm.session.query(RepositoryORM).first()
     assert str(repository_record.repository_filepath) == str(working_dir)
     assert not repository_record.parent_repository_id
     assert not repository_record.parent_repository_filepath
@@ -144,7 +144,7 @@ def test_init_creates_repository_table_with_parent_repo_info(
 
     subprocess.check_output([*init_cmd, working_dir])
     mdm = MetadataManager.from_repository(path=working_dir, md_config=mdm_config)
-    parent_repository_record = mdm.session.query(RespositoryORM).first()
+    parent_repository_record = mdm.session.query(RepositoryORM).first()
     assert parent_repository_record
 
     child_repo_dir = working_dir.joinpath("child_dir")
@@ -161,7 +161,7 @@ def test_init_creates_repository_table_with_parent_repo_info(
         path=child_repo_dir, md_config=mdm_config
     )
 
-    child_repository_record = child_mdm.session.query(RespositoryORM).first()
+    child_repository_record = child_mdm.session.query(RepositoryORM).first()
     assert str(child_repository_record.repository_filepath) == str(child_repo_dir)
     assert str(child_repository_record.parent_repository_filepath) == str(working_dir)
     assert child_repository_record.parent_repository_id == parent_repository_record.id

@@ -127,7 +127,7 @@ class VersionInfoORM(Base):
     build_date: Mapped[datetime] = Column(DateTime, nullable=False)
 
 
-class RespositoryORM(Base):
+class RepositoryORM(Base):
     __tablename__ = "repository"
 
     id: Mapped[str] = Column(String, primary_key=True)
