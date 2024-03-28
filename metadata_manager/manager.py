@@ -23,6 +23,7 @@ from md_models import (
     FileListing,
 )
 import md_utils
+import md_constants
 
 
 class MetadataManager:
@@ -41,32 +42,50 @@ class MetadataManager:
         self.session = session
 
     @staticmethod
-    def new(md_config: Config, path: Path, recreate: bool = False):
+    def new(md_config: Config, path: Path, recreate: bool = False, debug: bool = False):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
         md_path = path.joinpath(md_config.md_dir_name)
         md_db_path = md_path.joinpath(md_config.md_db_name)
 
-        # If recreate flag is set, delete the existing repository
+        # If recreate flag is set, delete existing repository.
         if recreate and md_path.exists():
-            shutil.rmtree(path.joinpath(md_config.md_dir_name))
+            try:
+                shutil.rmtree(path.joinpath(md_config.md_dir_name))
+            except Exception:
+                if debug:
+                    print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+                print(f"Fatal: failed to recreate repository {path}.", file=sys.stderr)
+                sys.exit(3)
 
         # Check if repository has been already initiazlied in target directory.
         if path.joinpath(md_config.md_dir_name).exists():
-            print(f"Mdm repository already exists in {path}")
+            print(f"Fatal: repository already exists in {path}", file=sys.stderr)
             print(
-                "\nuse (mdm init --recreate) to recreate repository, this will delete the old repository and all data will be lost"
+                (
+                    "\nuse (mdm init --recreate) to recreate repository, ",
+                    "this will delete the old repository and all data will be lost",
+                ),
+                file=sys.stderr,
             )
             sys.exit(2)
 
-        # If specified directory doesn't exist. Create one.
-        if not path.exists():
-            path.mkdir(parents=True)
+        try:
+            # If specified directory doesn't exist. Create one.
+            if not path.exists():
+                path.mkdir(parents=True)
 
-        # Create Mdm directories.
-        md_path.mkdir()
-        md_path.joinpath("deleted").mkdir()
-        md_path.joinpath("hashes").mkdir()
+            # Create internal directories.
+            md_path.mkdir()
+            md_path.joinpath("deleted").mkdir()
+            md_path.joinpath("hashes").mkdir()
+        except Exception:
+            if debug:
+                print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+            print(f"Fatal: failed to initialize repository {path}", file=sys.stderr)
+            sys.exit(1)
 
         repository = RepositoryORM(
             id=str(uuid.uuid4()),
@@ -75,9 +94,15 @@ class MetadataManager:
 
         session_or_err = create_or_get_session(md_db_path)
         if isinstance(session_or_err, Exception):
-            print(f"{session_or_err}\n", file=sys.stderr)
-            print("Failed to connect to Mdm database.", file=sys.stderr)
-            sys.exit(101)
+            if debug:
+                print(
+                    f"{traceback.format_exception(session_or_err)}\n", file=sys.stderr
+                )
+            print(
+                "Fatal: failed to establish connection to internal database.",
+                file=sys.stderr,
+            )
+            sys.exit(md_constants.CANT_CREATE_SQLITE_SESSION)
 
         mdm = MetadataManager(
             md_config=md_config,
@@ -93,31 +118,40 @@ class MetadataManager:
         maybe_err = mdm.write_version_info_to_db()
         if maybe_err:
             mdm.cleanup(path)
-            print(maybe_err)
-            print("Failed to initialize .md repository.", file=sys.stderr)
-            print("Abort.", file=sys.stderr)
+
+            if debug:
+                print(f"{traceback.format_exception(maybe_err)}\n", file=sys.stderr)
+
+            print("Failed to initialize repository. Abort.", file=sys.stderr)
             sys.exit(1)
 
-        print(f"Intialized empty .md repository in {path}")
+        print(f"Intialized empty repository in {path}")
         return mdm
 
     @staticmethod
-    def from_repository(md_config: Config, path: Path):
+    def from_repository(md_config: Config, path: Path, debug: bool = False):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
         maybe_md_root = md_utils.get_mdm_root_or_exit(path=path, config=md_config)
 
         md_path = maybe_md_root.joinpath(md_config.md_dir_name)
         md_db_path = md_path.joinpath(md_config.md_db_name)
-        # TODO: handle this more gracefully
-        assert md_path.exists()
+
+        assert md_path.exists(), f"Expected repository {path} to exist."
 
         # if path contains .md repo, load all necessary data from there
         session_or_err = create_or_get_session(md_db_path)
         if isinstance(session_or_err, Exception):
-            print(f"{session_or_err}\n", file=sys.stderr)
-            print("Failed to connect to Mdm database.", file=sys.stderr)
-            sys.exit(101)
+            if debug:
+                print(
+                    f"{traceback.format_exception(session_or_err)}\n", file=sys.stderr
+                )
+
+            print(
+                "Fatal: failed to establish connection to internal database.",
+                file=sys.stderr,
+            )
+            sys.exit(md_constants.CANT_CREATE_SQLITE_SESSION)
 
         return MetadataManager(
             md_config=md_config,

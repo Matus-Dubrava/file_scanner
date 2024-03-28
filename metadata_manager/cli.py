@@ -20,7 +20,13 @@ def cli(ctx):
 
 @cli.command()
 @click.argument("target", default=Path.cwd())
-@click.option("--debug", is_flag=True, show_default=True, default=False)
+@click.option(
+    "--debug",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Print debug information.",
+)
 @click.option(
     "--load-from-parent-repository", is_flag=True, show_default=True, default=False
 )
@@ -28,7 +34,7 @@ def cli(ctx):
 @click.pass_context
 def init(ctx, target, debug, load_from_parent_repository, recreate):
     mdm = MetadataManager.new(
-        md_config=ctx.obj, path=Path(target).resolve(), recreate=recreate
+        md_config=ctx.obj, path=Path(target).resolve(), recreate=recreate, debug=debug
     )
 
     if load_from_parent_repository:
