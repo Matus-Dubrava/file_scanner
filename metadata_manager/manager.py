@@ -44,8 +44,11 @@ class MetadataManager:
     def new(md_config: Config, path: Path, recreate: bool = False):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
+        md_path = path.joinpath(md_config.md_dir_name)
+        md_db_path = md_path.joinpath(md_config.md_db_name)
+
         # If recreate flag is set, delete the existing repository
-        if recreate:
+        if recreate and md_path.exists():
             shutil.rmtree(path.joinpath(md_config.md_dir_name))
 
         # Check if repository has been already initiazlied in target directory.
@@ -61,9 +64,6 @@ class MetadataManager:
             path.mkdir(parents=True)
 
         # Create Mdm directories.
-        md_path = path.joinpath(md_config.md_dir_name)
-        md_db_path = md_path.joinpath(md_config.md_db_name)
-
         md_path.mkdir()
         md_path.joinpath("deleted").mkdir()
         md_path.joinpath("hashes").mkdir()

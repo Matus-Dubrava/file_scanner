@@ -148,7 +148,6 @@
     -   look for options how to parallelize the test cases that run many subprocesses, ex `test_touch/test_source_repository`
     -   add `--name` option to `mdm init` that can be used to provide a repository name which will be stored in `repository` table
     -   add `mdm get global <key>` and `mdm set global <key> <value>` to get and set repository level metadata
-    -   fix bug in `mdm init` when `--recreate` is used in a directory which is not `mdm` root
     -   change `repository_filepath` to `repository_path` in `RepositoryORM` model definition
 
     -   rename project to `file tracker`
@@ -183,3 +182,4 @@
     -   add `--force/-f` flag to `mdm ls json-dump` to create parent directories if they don't exist
     -   add test case for `mdm ls json-dump` testing `--debug` flag
     -   fix typo in `RepositoryORM` name
+    -   fix bug in `mdm init` when `--recreate` is used in a directory which is not `mdm` root
