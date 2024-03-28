@@ -76,6 +76,8 @@ def test_errors_while_recreating_repos_are_handled_no_debug(
     assert proc.returncode == 3
     assert not proc.stdout
     assert "fatal" in proc.stderr.decode().lower()
+
+    # don't expect traceback without --debug flag
     assert "traceback" not in proc.stderr.decode().lower()
 
 
@@ -83,6 +85,7 @@ def test_errors_while_recreating_repos_are_handled_no_debug(
 @pytest.mark.init
 @pytest.mark.init_recreate
 @pytest.mark.cli
+@pytest.mark.debug
 @pytest.mark.sanity
 def test_errors_while_recreating_repos_are_handled_with_debug(
     working_dir, mdm_config, init_cmd
