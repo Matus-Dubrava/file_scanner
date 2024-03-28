@@ -125,7 +125,7 @@ def test_repository_path_option_overrides_cwd_and_unblocks_touch(
 @pytest.mark.touch
 @pytest.mark.repository_path
 @pytest.mark.sanity
-def test_touch_fails_when_source_prepository_is_not_mdm_repository(
+def test_touch_fails_when_source_repository_is_not_mdm_repository(
     working_dir, mdm_config, touch_cmd
 ):
     subdir = working_dir.joinpath("dir1")
@@ -163,7 +163,7 @@ def test_touch_works_outside_of_mdm_repository_when_repository_path_is_provided(
 @pytest.mark.touch
 @pytest.mark.repository_path
 @pytest.mark.sanity
-def test_touch_fails_if_provided_filepath_is_not_within_repositor_path(
+def test_touch_fails_if_provided_filepath_is_not_within_repository_path(
     working_dir, mdm_config, touch_cmd
 ):
     """
@@ -197,7 +197,7 @@ def test_touch_fails_if_provided_filepath_is_not_within_repositor_path(
 @pytest.mark.repository_path
 @pytest.mark.debug
 @pytest.mark.sanity
-def test_touch_fails_if_provided_filepath_is_not_within_repositor_path__with_debug(
+def test_touch_fails_if_provided_filepath_is_not_within_repositor_path_with_debug(
     working_dir, mdm_config, touch_cmd
 ):
     """

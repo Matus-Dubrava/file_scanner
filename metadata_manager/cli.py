@@ -211,20 +211,40 @@ def purge(ctx) -> None:
 
 
 @cli.command()
-@click.argument("file", nargs=1, required=True)
+@click.argument("target", nargs=1, required=True)
 @click.option("--debug", is_flag=True, show_default=True, default=False)
 @click.option("--purge", is_flag=True, show_default=True, default=False)
 @click.option("--force", is_flag=True, show_default=True, default=False)
+@click.option(
+    "--repository-path",
+    required=False,
+    help=(
+        "Path to repository. If path doesn't point to repository root the nearest parent repository is used. "
+        "Fails if no parent repository is found."
+    ),
+)
 @click.pass_context
-def rm(ctx, file, debug, purge, force) -> None:
+def rm(ctx, target, debug, purge, force, repository_path) -> None:
     mdm_config = ctx.obj
-    cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
 
-    mdm = MetadataManager.from_repository(
-        md_config=mdm_config, path=Path(file).resolve()
-    )
+    source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
+    target_path = Path(target).resolve()
+
+    if not repository_path:
+        cli_utils.validate_cwd_is_in_mdm_repository(config=mdm_config)
+        cli_utils.validate_cwd_and_target_repository_match(
+            config=mdm_config,
+            target_path=target_path,
+            source_path=source_path,
+        )
+    mdm = MetadataManager.from_repository(md_config=mdm_config, path=source_path)
+    if repository_path:
+        cli_utils.validate_path_is_within_repository(
+            mdm=mdm, path=target_path, debug=debug
+        )
+
     mdm.remove_file(
-        filepath=Path(file).resolve(),
+        filepath=target_path,
         purge=purge,
         debug=debug,
         force=force,
