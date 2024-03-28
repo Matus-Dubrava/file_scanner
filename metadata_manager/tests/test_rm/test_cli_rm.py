@@ -213,8 +213,3 @@ def test_rm_fails_if_not_all_provided_files_belong_to_the_same_repository(
 
     assert mdm1.session.query(FileORM).filter_by(filepath=testfile1).first()
     assert mdm2.session.query(FileORM).filter_by(filepath=testfile2).first()
-
-
-# test rming dir, required -r/--recrursive flag
-
-# test rming glob pattern

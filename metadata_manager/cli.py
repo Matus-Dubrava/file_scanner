@@ -7,6 +7,7 @@ import click
 from manager import MetadataManager
 from md_models import Config
 from md_enums import FileStatus
+import md_constants
 import cli_utils
 
 CONFIG_PATH = Path(__file__).parent / "config" / ".mdconfig"
@@ -223,8 +224,16 @@ def purge(ctx) -> None:
         "Fails if no parent repository is found."
     ),
 )
+@click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Required if any of the provided paths is directory.",
+)
 @click.pass_context
-def rm(ctx, path, debug, purge, force, repository_path) -> None:
+def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
     mdm_config = ctx.obj
 
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
@@ -246,6 +255,16 @@ def rm(ctx, path, debug, purge, force, repository_path) -> None:
                 mdm=mdm, path=path, debug=debug
             )
 
+    # if any of the provided paths is directory, exit if --recursive flag is not set
+    if not recursive:
+        for path in target_paths:
+            if path.is_dir():
+                print(
+                    f"fatal: can't remove directory {path} without -r/--recursive flag",
+                    file=sys.stderr,
+                )
+                sys.exit(105)
+
     mdm.remove_files(filepaths=target_paths, purge=purge, debug=debug, force=force)
 
 
@@ -253,6 +272,6 @@ if __name__ == "__main__":
     mdm_config = Config.from_file(CONFIG_PATH)
     if isinstance(mdm_config, Exception):
         print("Failed to load configuration. Abort.", file=sys.stderr)
-        sys.exit(101)
+        sys.exit(md_constants.CANT_LOAD_CONFIGURATION)
 
     cli(obj=mdm_config)
