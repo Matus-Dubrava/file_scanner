@@ -78,11 +78,23 @@ def touch(ctx, target, repository_path) -> None:
 @click.option(
     "--dump-json",
     required=False,
-    help="Dump the result into provided filepath in json format. Filters can still be applied.",
+    help=(
+        "Dump the result into provided filepath in JSON format. "
+        "Filters can still be applied. This operation fails if parent directory doesn't exist. "
+        "Use --force/-f flag to create parent directories."
+    ),
 )
 @click.option("--repository-path", required=False)
 @click.option(
     "--debug", is_flag=True, show_default=True, default=False, help="Print debug info."
+)
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Use together with --dump-json option to create parent directories if missing.",
 )
 @click.pass_context
 def ls(
@@ -97,6 +109,7 @@ def ls(
     no_header,
     dump_json,
     debug,
+    force,
 ) -> None:
     status_filters: List[FileStatus] = []
 
@@ -135,8 +148,9 @@ def ls(
         status_filter=status_filters,
         abs_paths=abs_paths,
         no_header=no_header,
-        dump_json_path=dump_json,
+        dump_json_path=Path(dump_json).resolve() if dump_json else None,
         debug=debug,
+        force=force,
     )
 
 

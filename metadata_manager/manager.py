@@ -736,6 +736,7 @@ class MetadataManager:
         no_header: bool = False,
         dump_json_path: Optional[Path] = None,
         debug: bool = False,
+        force: bool = False,
     ) -> None:
         """
         List files in tracked in repository.
@@ -756,6 +757,10 @@ class MetadataManager:
             )
 
             try:
+                # Try to create parent directories.
+                if force:
+                    dump_json_path.parent.mkdir(parents=True, exist_ok=True)
+
                 with open(dump_json_path, "w") as f:
                     f.write(file_listing.model_dump_json())
             except Exception:

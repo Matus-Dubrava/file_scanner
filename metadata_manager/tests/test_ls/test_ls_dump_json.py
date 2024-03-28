@@ -73,5 +73,52 @@ def test_ls_fails_to_dump_json_if_parent_directory_doesnt_exist(
 
     proc = subprocess.run([*list_cmd, "--dump-json", json_path], capture_output=True)
     assert proc.returncode == 1
+
+    assert "fatal" in proc.stderr.decode().lower()
     assert str(json_path) in proc.stderr.decode()
     assert not proc.stdout
+
+    assert "traceback" not in proc.stderr.decode().lower()
+
+
+@pytest.mark.ae448a920f
+@pytest.mark.cli
+@pytest.mark.ls
+@pytest.mark.dump_json
+@pytest.mark.sanity
+def test_debug_option_prints_traceback_when_dumping_to_json_fails(
+    working_dir, mdm, list_cmd
+):
+    testfile1 = working_dir.joinpath("testfile1")
+    mdm.touch(testfile1)
+
+    json_path = working_dir.joinpath("dir1", "result.json")
+
+    proc = subprocess.run(
+        [*list_cmd, "--dump-json", json_path, "--debug"], capture_output=True
+    )
+    assert proc.returncode == 1
+    assert str(json_path) in proc.stderr.decode()
+    assert not proc.stdout
+
+    assert "traceback" in proc.stderr.decode().lower()
+
+
+@pytest.mark.ebdc1092de
+@pytest.mark.cli
+@pytest.mark.ls
+@pytest.mark.dump_json
+@pytest.mark.sanity
+@pytest.mark.parametrize("force_flag", ["-f", "--force"])
+def test_force_flag_creates_parent_directories_when_dumping_to_json(
+    working_dir, mdm, list_cmd, force_flag
+):
+    testfile1 = working_dir.joinpath("testfile1")
+    mdm.touch(testfile1)
+
+    json_path = working_dir.joinpath("dir1", "dir2", "result.json")
+
+    subprocess.check_output([*list_cmd, "--dump-json", json_path, force_flag])
+
+    assert json_path.exists()
+    FileListing.model_validate_json(json_path.read_text())
