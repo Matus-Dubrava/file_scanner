@@ -1,7 +1,7 @@
 import sys
 import traceback
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Set, Tuple
 import subprocess
 import shutil
 from datetime import datetime
@@ -648,6 +648,50 @@ class MetadataManager:
         self.session.commit()
         self.session.close()
         print(f"'untrack' {filepath.relative_to(Path.cwd())}")
+
+    def collect_tracked_files_and_subdirectories(
+        self, path: Path
+    ) -> Tuple[List[Path], Set[str]]:
+        """
+        Recursively traverse directory. Return list of all tracked files and a set of
+        directories and subdirectories where there were at least one tracked file.
+
+        Subdirectories that contain any tracked files or other subdirectories that contain
+        any tracked files are marked as tracked.
+
+        ex:
+
+        a/b/c/file
+        if 'file' is tracked then all 'a', 'b' and 'c' subdirectories are marked as tracked.
+
+        a/b/c/
+        if there is no tracked file (including scenarion when there is no file at all),
+        none of these subdirectories are marked as tracked
+        """
+
+        assert path.exists() and path.is_dir(), f"Expected directory. Got {path}"
+
+        tracked_files: List[Path] = []
+        tracked_dirs: Set[str] = set()
+
+        def _traverse(path: Path):
+            is_tracked = False
+            for child in path.iterdir():
+                if (
+                    child.is_file()
+                    and self.session.query(FileORM).filter_by(filepath=child).first()
+                ):
+                    is_tracked = True
+                    tracked_files.append(child)
+                elif child.is_dir():
+                    is_tracked = _traverse(child)
+
+                if is_tracked:
+                    tracked_dirs.add(str(path))
+            return is_tracked
+
+        _traverse(path)
+        return tracked_files, tracked_dirs
 
     def remove_file(
         self,

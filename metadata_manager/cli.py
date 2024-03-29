@@ -1,6 +1,6 @@
 from pathlib import Path
 import sys
-from typing import List
+from typing import List, Set
 
 import click
 
@@ -255,17 +255,39 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
                 mdm=mdm, path=path, debug=debug
             )
 
+    target_filepaths: List[Path] = []
+    tracked_dirs: Set[str] = set()
     # if any of the provided paths is directory, exit if --recursive flag is not set
-    if not recursive:
-        for path in target_paths:
-            if path.is_dir():
+    # otherwise pull the all tracked paths and add to target paths for deletion
+    for path in target_paths:
+        if path.is_dir():
+            if not recursive:
                 print(
                     f"fatal: can't remove directory {path} without -r/--recursive flag",
                     file=sys.stderr,
                 )
-                sys.exit(105)
+                sys.exit(md_constants.MISSING_RECURSIVE_FLAG)
+            else:
+                files, dirs = mdm.collect_tracked_files_and_subdirectories(path)
+                target_filepaths.extend(files)
+                tracked_dirs = tracked_dirs.union(dirs)
+        else:
+            target_filepaths.append(path)
 
-    mdm.remove_files(filepaths=target_paths, purge=purge, debug=debug, force=force)
+    mdm.remove_files(filepaths=target_filepaths, purge=purge, debug=debug, force=force)
+
+    # Clean up empty directories.
+    # Traverse tracked dirs from the leaves to the root, removing each empty
+    # dir along the way.
+    # Note that only dirs that were tracked are removed. Empty dirs that did not
+    # contain any tracked files are kept in place.
+    for dir_ in sorted(
+        [Path(path) for path in tracked_dirs],
+        key=lambda path: len(Path(path).parts),
+        reverse=True,
+    ):
+        if not list(dir_.iterdir()):
+            dir_.rmdir()
 
 
 if __name__ == "__main__":

@@ -53,3 +53,22 @@ def test_rm_doesnt_remove_any_file_if_recursive_flag_is_missing_and_dir_was_prov
     assert testfile2.exists()
     assert mdm.session.query(FileORM).filter_by(filepath=testfile1).first()
     assert mdm.session.query(FileORM).filter_by(filepath=testfile1).first()
+
+
+@pytest.mark.c4d99ee032
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.recursive
+@pytest.mark.sanity
+@pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
+def test_rm_removes_directory(working_dir, mdm, rm_cmd, recursive_flag):
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = working_dir.joinpath("dir1", "dir2")
+    subdir2.mkdir(parents=True)
+    testfile = subdir2.joinpath("testfile")
+
+    mdm.touch(testfile)
+
+    subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
+
+    assert not subdir1.exists()
