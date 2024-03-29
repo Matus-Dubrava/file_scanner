@@ -257,8 +257,9 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
 
     target_filepaths: List[Path] = []
     tracked_dirs: Set[str] = set()
-    # if any of the provided paths is directory, exit if --recursive flag is not set
-    # otherwise pull the all tracked paths and add to target paths for deletion
+    # Exit if any of provided paths is directory and --recursive flag is not set,
+    # otherwise collect all tracked paths and subdirectories, including the 'root' directory
+    # so that those can be deleted.
     for path in target_paths:
         if path.is_dir():
             if not recursive:
@@ -276,10 +277,10 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
 
     mdm.remove_files(filepaths=target_filepaths, purge=purge, debug=debug, force=force)
 
-    # Clean up empty directories.
-    # Traverse tracked dirs from the leaves to the root, removing each empty
-    # dir along the way.
-    # Note that only dirs that were tracked are removed. Empty dirs that did not
+    # Remove empty directories.
+    # Traverse tracked directories from leaves to the root, removing each empty
+    # directory along the way.
+    # Note that only dirs that were tracked are removed. Empty directories that did not
     # contain any tracked files are kept in place.
     for dir_ in sorted(
         [Path(path) for path in tracked_dirs],
