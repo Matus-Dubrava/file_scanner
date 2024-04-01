@@ -161,6 +161,7 @@
         -   we don't need special command for setting file to inactive mode, use `rm --incativate` instead
     -   add more test cases regading `collect_tracked_files_and_subdirectories` function.
         -   cover cases such as removing empty dir, presering non-empty tracked dirs, etc.
+    -   add `fatal` message when provided directory doesn't contain any tracked file, which means that there is nothing to remove
     -   refactor `file scanner` into subcommand
     -   create centralized database that will store pointer to every repository
         -   whenever new repository is instantiated, add entry to this database
