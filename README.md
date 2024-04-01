@@ -161,6 +161,10 @@
         -   we don't need special command for setting file to inactive mode, use `rm --incativate` instead
     -   add more test cases regading `collect_tracked_files_and_subdirectories` function.
         -   cover cases such as removing empty dir, presering non-empty tracked dirs, etc.
+    -   refactor `file scanner` into subcommand
+    -   create centralized database that will store pointer to every repository
+        -   whenever new repository is instantiated, add entry to this database
+        -   add option to list all repositories, their location and some other stats
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
