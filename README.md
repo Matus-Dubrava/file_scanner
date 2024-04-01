@@ -166,6 +166,8 @@
     -   create centralized database that will store pointer to every repository
         -   whenever new repository is instantiated, add entry to this database
         -   add option to list all repositories, their location and some other stats
+    -   add option to `touch` multiple files
+    -   remove the logic that compares changed lines based on hashes and instead store the previous version of a file in plaintext, that way we can restore the file if necessary
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
