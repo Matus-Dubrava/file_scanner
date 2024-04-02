@@ -261,7 +261,11 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
     # otherwise collect all tracked paths and subdirectories, including the 'root' directory
     # so that those can be deleted.
     for path in target_paths:
-        if path.is_dir():
+        # In case specified path doesn't exists, find all files that might be associated with this
+        # path in the database and add them for removal.
+        if not path.exists():
+            target_filepaths.extend(mdm.find_tracked_files_in_database(path))
+        elif path.is_dir():
             if not recursive:
                 print(
                     f"fatal: can't remove directory {path} without -r/--recursive flag",

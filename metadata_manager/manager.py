@@ -693,6 +693,19 @@ class MetadataManager:
         _traverse(path)
         return tracked_files, tracked_dirs
 
+    def find_tracked_files_in_database(self, path: Path) -> List[Path]:
+        """
+        Searches database for all 'ACTIVE' files associated with specified path. Handles
+        both scenarios where path corresponds to a file as well as directory.
+        """
+        file_records = (
+            self.session.query(FileORM)
+            .filter_by(status=FileStatus.ACTIVE)
+            .filter(FileORM.filepath.like(f"{path}%"))
+            .all()
+        )
+        return [Path(record.filepath) for record in file_records]
+
     def remove_file(
         self,
         filepath: Path,

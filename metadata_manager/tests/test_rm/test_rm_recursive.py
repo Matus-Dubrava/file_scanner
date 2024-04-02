@@ -1,4 +1,5 @@
 import pytest
+import shutil
 import subprocess
 
 import md_constants
@@ -199,3 +200,29 @@ def test_rm_skips_dirs_no_containing_any_tracked_files_while_deleting_other_file
 
     assert "rm:" in output.decode().lower()
     assert not testfile.exists()
+
+
+@pytest.mark.ed9d21ceb5
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.recursive
+@pytest.mark.sanity
+@pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
+def test_rm_removes_directory_that_is_tracked_but_doesnt_exists(
+    working_dir, mdm, rm_cmd, recursive_flag
+):
+    """
+    Testing scenario: directory is tracked but has been removed in the meantime (ex: using rmdir/rm -rf).
+    Expecting such directory to be removed from repository.
+    """
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = working_dir.joinpath("dir1", "dir2")
+    subdir2.mkdir(parents=True)
+
+    testfile = subdir2.joinpath("testfile")
+    mdm.touch(testfile)
+
+    shutil.rmtree(subdir1)
+    subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
+
+    assert not mdm.session.query(FileORM).filter_by(filepath=testfile).first()
