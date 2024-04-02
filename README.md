@@ -159,9 +159,6 @@
     -   remove `untrack` command and change `UNTRACKED` status to `INACTIVE`, this way it is more clear what the purpose is,
         -   this will need codebase refactor as there are many places where `UNTRACKED` is used
         -   we don't need special command for setting file to inactive mode, use `rm --incativate` instead
-    -   add more test cases regading `collect_tracked_files_and_subdirectories` function.
-        -   cover cases such as removing empty dir, presering non-empty tracked dirs, etc.
-    -   add `fatal` message when provided directory doesn't contain any tracked file, which means that there is nothing to remove
     -   refactor `file scanner` into subcommand
     -   create centralized database that will store pointer to every repository
         -   whenever new repository is instantiated, add entry to this database
@@ -195,3 +192,6 @@
     -   add test case for `mdm ls json-dump` testing `--debug` flag
     -   fix typo in `RepositoryORM` name
     -   fix bug in `mdm init` when `--recreate` is used in a directory which is not `mdm` root
+    -   add more test cases regading `collect_tracked_files_and_subdirectories` function.
+        -   cover cases such as removing empty dir, presering non-empty tracked dirs, etc.
+    -   add `skip` message when provided directory doesn't contain any tracked file, which means that there is nothing to remove
