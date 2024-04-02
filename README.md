@@ -165,6 +165,7 @@
         -   add option to list all repositories, their location and some other stats
     -   add option to `touch` multiple files
     -   remove the logic that compares changed lines based on hashes and instead store the previous version of a file in plaintext, that way we can restore the file if necessary
+    -   refactor session object so that each method that needs it creates its own session object instead of reusing the one associated with the instance (remove that one), reusing the same session all over the place leads to bugs and potential race conditions
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
