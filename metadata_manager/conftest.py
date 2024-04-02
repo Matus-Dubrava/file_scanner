@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 import os
 
+from sqlalchemy import text
 
 from manager import MetadataManager
 from md_models import Config
@@ -88,4 +89,18 @@ def mdm_config():
 
 @pytest.fixture(scope="function")
 def mdm(working_dir, mdm_config):
-    return MetadataManager.new(md_config=mdm_config, path=working_dir)
+    mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+
+    # NOTE: There seems to be an issue when using 'DELETE' journal mode while running tests.
+    # It seems like some race condition - sometimes something is not cleaned up properly
+    # which leads to the following error:
+    #
+    #   (sqlite3.OperationalError) disk I/O error
+    #
+    # This happens even when this fixture's scope is function and each test case that is using
+    # it should be working in clean 'working_dir' and have its own session.
+    mdm.session.execute(text("PRAGMA journal_mode=OFF"))
+    print(
+        f"SQLITE jounal mode: {mdm.session.execute(text('PRAGMA journal_mode')).fetchall()}"
+    )
+    return mdm

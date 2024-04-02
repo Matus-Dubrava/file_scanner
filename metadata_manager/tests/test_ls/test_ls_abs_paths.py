@@ -26,12 +26,12 @@ def test_ls_prints_filepaths_relative_to_repository_root_by_default(
     assert str(testfile2) not in result.decode()
 
 
-@pytest.mark.b1652266cc
+@pytest.mark.fe1a15f5ed
 @pytest.mark.cli
 @pytest.mark.ls
 @pytest.mark.abs_paths
 @pytest.mark.sanity
-def test_ls_prints_absolute_paths_when_abs_pahts_flag_is_set(
+def test_ls_prints_absolute_paths_when_abs_paths_flag_is_set(
     working_dir, mdm, list_cmd
 ):
     subdir = working_dir.joinpath("dir1")

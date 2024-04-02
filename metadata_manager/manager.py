@@ -613,6 +613,9 @@ class MetadataManager:
         errors = [err for err in maybe_errors if err is not None]
         if len(errors):
             for err in errors:
+                if debug:
+                    print(f"{traceback.format_exception(err)}\n", file=sys.stderr)
+
                 print(err, file=sys.stderr)
                 sys.exit(1)
 

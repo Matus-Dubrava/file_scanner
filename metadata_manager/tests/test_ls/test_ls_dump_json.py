@@ -17,9 +17,9 @@ def test_ls_dumps_json_data_to_file(working_dir, mdm, list_cmd):
     testfile2 = working_dir.joinpath("testfile2")
     testfile3 = subdir.joinpath("testfile3")
 
-    mdm.touch(testfile1)
-    mdm.touch(testfile2)
-    mdm.touch(testfile3)
+    mdm.touch(testfile1, debug=True)
+    mdm.touch(testfile2, debug=True)
+    mdm.touch(testfile3, debug=True)
     mdm.remove_file(testfile2)
     mdm.untrack(testfile3)
 
