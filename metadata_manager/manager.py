@@ -769,7 +769,7 @@ class MetadataManager:
                     for h_record in history_records:
                         h_record.filepath = updated_filepath
                     # TODO: update custom metadata records
-                    stdout_message = f"'rm' {filepath}"
+                    stdout_message = f"rm: {filepath}"
 
                 hash_filepath_or_err = self.get_path_to_hash_file(filepath=filepath)
                 if isinstance(hash_filepath_or_err, Exception):

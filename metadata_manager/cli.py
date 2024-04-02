@@ -270,8 +270,14 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
                 sys.exit(md_constants.MISSING_RECURSIVE_FLAG)
             else:
                 files, dirs = mdm.collect_tracked_files_and_subdirectories(path)
-                target_filepaths.extend(files)
-                tracked_dirs = tracked_dirs.union(dirs)
+                # If there are no files to be removed from a provided directory, inform
+                # user about this fact to avoid confusion when the 'rm' operation is successful
+                # but has no effect.
+                if not files:
+                    print(f"skip: {path}, no tracked files found")
+                else:
+                    target_filepaths.extend(files)
+                    tracked_dirs = tracked_dirs.union(dirs)
         else:
             target_filepaths.append(path)
 

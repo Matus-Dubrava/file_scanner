@@ -72,3 +72,130 @@ def test_rm_removes_directory(working_dir, mdm, rm_cmd, recursive_flag):
     subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
 
     assert not subdir1.exists()
+
+
+@pytest.mark.cbe3f3346d
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.recursive
+@pytest.mark.sanity
+@pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
+def test_rm_doesnt_remove_dir_containing_nontracked_files(
+    working_dir, mdm, rm_cmd, recursive_flag
+):
+    """
+    Scenario:
+        dir1/dir2/testfile1 (tracked)
+        dir1/dir2/testfile2 (not-tracked)
+
+    Expecting 'testfile1' to be removed but 'dir1/dir2' to be preserved since
+    it contains non-tracked file.
+    """
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = working_dir.joinpath("dir1", "dir2")
+    subdir2.mkdir(parents=True)
+    testfile1 = subdir2.joinpath("testfile1")
+    testfile2 = subdir2.joinpath("testfile2")
+
+    mdm.touch(testfile1)
+    testfile2.touch()
+
+    subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
+    assert not testfile1.exists()
+    assert testfile2.exists()
+
+
+@pytest.mark.e550aff5ee
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.recursive
+@pytest.mark.sanity
+@pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
+def test_rm_doesnt_remove_dir_containing_nontracked_files_2(
+    working_dir, mdm, rm_cmd, recursive_flag
+):
+    """
+    Scenario:
+        dir1/dir2/testfile1 (tracked)
+        dir1/testfile2 (not-tracked)
+
+    Expecting 'testfile1' to be removed together with 'dir2' but
+    'testfile2' and 'dir1' should still be present.
+    """
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = working_dir.joinpath("dir1", "dir2")
+    subdir2.mkdir(parents=True)
+    testfile1 = subdir2.joinpath("testfile1")
+    testfile2 = subdir1.joinpath("testfile2")
+
+    mdm.touch(testfile1)
+    testfile2.touch()
+
+    subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
+    assert not testfile1.exists()
+    assert not subdir2.exists()
+
+    assert testfile2.exists()
+
+
+@pytest.mark.c4fffd06fc
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.recursive
+@pytest.mark.sanity
+@pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
+def test_rm_skips_dirs_no_containing_any_tracked_files(
+    working_dir, mdm, rm_cmd, recursive_flag
+):
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = working_dir.joinpath("dir1", "dir2")
+    subdir2.mkdir(parents=True)
+
+    output = subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
+    assert (
+        "skip:" in output.decode().lower()
+        and f"{subdir1.name}" in output.decode().lower()
+    )
+    assert subdir1.exists() and subdir2.exists()
+
+    output = subprocess.check_output([*rm_cmd, subdir2, recursive_flag])
+    assert (
+        "skip:" in output.decode().lower()
+        and f"{subdir2.name}" in output.decode().lower()
+    )
+    assert subdir1.exists() and subdir2.exists()
+
+
+@pytest.mark.a3bbd4792d
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.recursive
+@pytest.mark.sanity
+@pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
+def test_rm_skips_dirs_no_containing_any_tracked_files_while_deleting_other_files(
+    working_dir, mdm, rm_cmd, recursive_flag
+):
+    """
+    Testing scenario:
+        rm testfile testdir
+
+    where 'testdir' should be skipped but 'testfile' should be removed.
+    Expecting successful deletion of the 'testfile' as well as message stating
+    that 'testdir' was skipped.
+    """
+    subdir1 = working_dir.joinpath("dir1")
+    subdir2 = working_dir.joinpath("dir1", "dir2")
+    subdir2.mkdir(parents=True)
+
+    testfile = working_dir.joinpath("testfile")
+    mdm.touch(testfile)
+
+    output = subprocess.check_output([*rm_cmd, subdir1, testfile, recursive_flag])
+    assert (
+        "skip:" in output.decode().lower()
+        and f"{subdir1.name}" in output.decode().lower()
+    )
+    assert subdir1.exists() and subdir2.exists()
+
+    assert "rm:" in output.decode().lower()
+    assert not testfile.exists()
