@@ -101,7 +101,7 @@ def test_remove_hash_file_removes_the_hash_file(
 
     hashes_path_or_err = mdm.get_path_to_hash_file(filepath)
 
-    maybe_err = mdm.remove_hash_file(filepath)
+    maybe_err = mdm.remove_hash_file_or_dir(filepath)
     assert maybe_err is None
     assert not hashes_path_or_err.exists()
     # parent directory is expected to be kept
@@ -120,7 +120,7 @@ def test_remove_hash_file_handles_missing_hash_file(working_dir, mdm, session):
     hashes_path_or_err.unlink()
     assert not hashes_path_or_err.exists()
 
-    maybe_err = mdm.remove_hash_file(filepath)
+    maybe_err = mdm.remove_hash_file_or_dir(filepath)
     assert maybe_err is None
 
 

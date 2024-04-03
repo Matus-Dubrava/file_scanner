@@ -235,18 +235,21 @@ class MetadataManager:
             # Added it here just to be sure.
             return err
 
-    def remove_hash_file(self, filepath: Path) -> Optional[Exception]:
+    def remove_hash_file_or_dir(self, path: Path) -> Optional[Exception]:
         """
         Removes hash file from .md repository. Expect .md repository have
         been initilized. Path to hash file is computed.
 
-        filepath:   path to the original file, not the hash file
+        path:   path to the original file, not the hash file
         """
-        hashes_path_or_err = self.get_path_to_hash_file(filepath=filepath)
-        if isinstance(hashes_path_or_err, Exception):
-            return hashes_path_or_err
+        hash_path_or_err = self.get_path_to_hash_file(filepath=path)
+        if isinstance(hash_path_or_err, Exception):
+            return hash_path_or_err
 
-        hashes_path_or_err.unlink(missing_ok=True)
+        if hash_path_or_err.is_dir():
+            shutil.rmtree(hash_path_or_err)
+        else:
+            hash_path_or_err.unlink(missing_ok=True)
         return None
 
     def read_line_hashes_from_hash_file(self, filepath: Path) -> List[str] | Exception:
@@ -466,7 +469,7 @@ class MetadataManager:
             session.commit()
         except Exception as err:
             errors: List[Optional[Exception]] = [err]
-            maybe_err = self.remove_hash_file(filepath=filepath)
+            maybe_err = self.remove_hash_file_or_dir(path=filepath)
             if maybe_err:
                 errors.append(err)
             return errors
@@ -535,6 +538,15 @@ class MetadataManager:
 
         # File doesn't exist it fs nor in the .md database.
         if not filepath.exists() and not old_file_record:
+            # Remove hash directory if it exists. This should ideally not be necessary
+            # if all removal are handled via manager 'rm'. But in case they are removed via other
+            # means, there will be dangling objects.
+            # This specifically handles the case when originally there was a directory
+            # with the same name as the file that is currently being created and it
+            # was removed from fs.
+            maybe_err = self.remove_hash_file_or_dir(path=filepath)
+            maybe_errors.append(maybe_err)
+
             maybe_err = self.create_new_file_record(
                 session=session,
                 filepath=filepath,
@@ -575,9 +587,10 @@ class MetadataManager:
             for history_record in history_records:
                 history_record.filepath = updated_filepath
 
-            # Remove hash file if it exists.
-            maybe_err = self.remove_hash_file(filepath=filepath)
-            # TODO: handle directory removal as well
+            # Remove hash file if it exists. This should ideally not be necessary
+            # if all removal are handled via manager 'rm'. But in case they are removed via other
+            # means, there will be dangling objects.
+            maybe_err = self.remove_hash_file_or_dir(path=filepath)
             maybe_errors.append(maybe_err)
 
             # Create new file and new .md record.

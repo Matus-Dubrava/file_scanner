@@ -226,3 +226,34 @@ def test_rm_removes_directory_that_is_tracked_but_doesnt_exists(
     subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
 
     assert not session.query(FileORM).filter_by(filepath=testfile).first()
+
+
+@pytest.mark.eee0f42a62
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.recursive
+@pytest.mark.sanity
+@pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
+def test_rm_removes_empty_hashes_dirs(
+    working_dir, mdm, rm_cmd, recursive_flag, session
+):
+    """
+    Empty hash directories are deleted as well when deleting empty directories in repository.
+
+    ex:
+    (tracked) /dir/testfile
+    md rm dir -r
+
+    deletes both
+    /dir
+    /.md/hashes/dir
+    """
+    subdir = working_dir.joinpath("dir1")
+    subdir.mkdir()
+    testfile = subdir.joinpath("testfile")
+    mdm.touch(session=session, filepath=testfile)
+
+    subprocess.check_output([*rm_cmd, subdir, recursive_flag])
+
+    assert not subdir.exists()
+    assert not mdm.get_path_to_hash_file(filepath=subdir).exists()

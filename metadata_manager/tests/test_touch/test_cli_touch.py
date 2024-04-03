@@ -1,4 +1,5 @@
 import pytest
+import shutil
 import subprocess
 
 from md_models import FileORM, HistoryORM
@@ -380,3 +381,35 @@ def test_init_updates_branch_name(working_dir, touch_cmd, mdm, session):
     assert session.query(HistoryORM).count() == 3
     assert history_record.version_control_branch == new_branch_name
     assert file_record.version_control_branch == new_branch_name
+
+
+@pytest.mark.aa43a2ae32
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.recursive
+@pytest.mark.sanity
+def test_touch_removes_empty_hashes_dir_when_corresponding_dir_doesnt_exist(
+    working_dir, mdm, touch_cmd, session
+):
+    """
+    Handles scenario when directories that is being tracked are removed from fs
+    via other means and there is a dangling directory in hashes directory. In such case,
+    if file with the same name as the dangling directory is touched, it should remove
+    the dangling directory and create hash file instead.
+
+    ex:
+    (tracked) /dir/testfile
+    rm -rf dir (this will lead to dangling hash dir entry)
+
+    md touch dir (this will create new tracked file named 'dir' and remove the 'dir' directory from hashes file)
+    """
+    subdir = working_dir.joinpath("dir")
+    subdir.mkdir()
+    testfile = subdir.joinpath("testfile")
+    mdm.touch(session=session, filepath=testfile)
+    subprocess.check_output([*touch_cmd, testfile])
+
+    shutil.rmtree(subdir)
+
+    new_file = working_dir.joinpath("dir")
+    subprocess.check_output([*touch_cmd, new_file])

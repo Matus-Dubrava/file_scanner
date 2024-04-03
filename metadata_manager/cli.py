@@ -317,7 +317,7 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
     # Remove empty directories.
     # Traverse tracked directories from leaves to the root, removing each empty
     # directory along the way.
-    # Note that only dirs that were tracked are removed. Empty directories that did not
+    # Note that only directories that were tracked are removed. Empty directories that did not
     # contain any tracked files are kept in place.
     for dir_ in sorted(
         [Path(path) for path in tracked_dirs],
@@ -326,6 +326,8 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
     ):
         if not list(dir_.iterdir()):
             dir_.rmdir()
+            # Remove corresponding hash directories as well.
+            mdm.remove_hash_file_or_dir(path=dir_)
 
 
 if __name__ == "__main__":
