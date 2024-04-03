@@ -12,13 +12,13 @@ from md_models import FileORM
 @pytest.mark.recursive
 @pytest.mark.sanity
 def test_block_rm_if_directory_path_is_provided_and_recursive_flag_is_missing(
-    working_dir, mdm, rm_cmd
+    working_dir, mdm, rm_cmd, session
 ):
     subdir = working_dir.joinpath("dir")
     subdir.mkdir()
     testfile = subdir.joinpath("testfile")
 
-    mdm.touch(testfile)
+    mdm.touch(session=session, filepath=testfile)
 
     proc = subprocess.run([*rm_cmd, subdir], capture_output=True)
     assert proc.returncode == md_constants.MISSING_RECURSIVE_FLAG
@@ -26,7 +26,7 @@ def test_block_rm_if_directory_path_is_provided_and_recursive_flag_is_missing(
     assert "fatal:" in proc.stderr.decode().lower()
 
     assert testfile.exists()
-    assert mdm.session.query(FileORM).filter_by(filepath=testfile).first()
+    assert session.query(FileORM).filter_by(filepath=testfile).first()
 
 
 @pytest.mark.d63411612c
@@ -35,15 +35,15 @@ def test_block_rm_if_directory_path_is_provided_and_recursive_flag_is_missing(
 @pytest.mark.recursive
 @pytest.mark.sanity
 def test_rm_doesnt_remove_any_file_if_recursive_flag_is_missing_and_dir_was_provided(
-    working_dir, mdm, rm_cmd
+    working_dir, mdm, rm_cmd, session
 ):
     subdir = working_dir.joinpath("dir")
     subdir.mkdir()
     testfile1 = subdir.joinpath("testfile1")
     testfile2 = working_dir.joinpath("testfile2")
 
-    mdm.touch(testfile1)
-    mdm.touch(testfile2)
+    mdm.touch(session=session, filepath=testfile1)
+    mdm.touch(session=session, filepath=testfile2)
 
     proc = subprocess.run([*rm_cmd, testfile1, subdir], capture_output=True)
     assert proc.returncode == md_constants.MISSING_RECURSIVE_FLAG
@@ -52,8 +52,8 @@ def test_rm_doesnt_remove_any_file_if_recursive_flag_is_missing_and_dir_was_prov
 
     assert testfile1.exists()
     assert testfile2.exists()
-    assert mdm.session.query(FileORM).filter_by(filepath=testfile1).first()
-    assert mdm.session.query(FileORM).filter_by(filepath=testfile1).first()
+    assert session.query(FileORM).filter_by(filepath=testfile1).first()
+    assert session.query(FileORM).filter_by(filepath=testfile1).first()
 
 
 @pytest.mark.c4d99ee032
@@ -62,13 +62,13 @@ def test_rm_doesnt_remove_any_file_if_recursive_flag_is_missing_and_dir_was_prov
 @pytest.mark.recursive
 @pytest.mark.sanity
 @pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
-def test_rm_removes_directory(working_dir, mdm, rm_cmd, recursive_flag):
+def test_rm_removes_directory(working_dir, mdm, rm_cmd, recursive_flag, session):
     subdir1 = working_dir.joinpath("dir1")
     subdir2 = working_dir.joinpath("dir1", "dir2")
     subdir2.mkdir(parents=True)
     testfile = subdir2.joinpath("testfile")
 
-    mdm.touch(testfile)
+    mdm.touch(session=session, filepath=testfile)
 
     subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
 
@@ -82,7 +82,7 @@ def test_rm_removes_directory(working_dir, mdm, rm_cmd, recursive_flag):
 @pytest.mark.sanity
 @pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
 def test_rm_doesnt_remove_dir_containing_nontracked_files(
-    working_dir, mdm, rm_cmd, recursive_flag
+    working_dir, mdm, rm_cmd, recursive_flag, session
 ):
     """
     Scenario:
@@ -98,7 +98,7 @@ def test_rm_doesnt_remove_dir_containing_nontracked_files(
     testfile1 = subdir2.joinpath("testfile1")
     testfile2 = subdir2.joinpath("testfile2")
 
-    mdm.touch(testfile1)
+    mdm.touch(session=session, filepath=testfile1)
     testfile2.touch()
 
     subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
@@ -113,7 +113,7 @@ def test_rm_doesnt_remove_dir_containing_nontracked_files(
 @pytest.mark.sanity
 @pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
 def test_rm_doesnt_remove_dir_containing_nontracked_files_2(
-    working_dir, mdm, rm_cmd, recursive_flag
+    working_dir, mdm, rm_cmd, recursive_flag, session
 ):
     """
     Scenario:
@@ -129,7 +129,7 @@ def test_rm_doesnt_remove_dir_containing_nontracked_files_2(
     testfile1 = subdir2.joinpath("testfile1")
     testfile2 = subdir1.joinpath("testfile2")
 
-    mdm.touch(testfile1)
+    mdm.touch(session=session, filepath=testfile1)
     testfile2.touch()
 
     subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
@@ -174,7 +174,7 @@ def test_rm_skips_dirs_no_containing_any_tracked_files(
 @pytest.mark.sanity
 @pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
 def test_rm_skips_dirs_no_containing_any_tracked_files_while_deleting_other_files(
-    working_dir, mdm, rm_cmd, recursive_flag
+    working_dir, mdm, rm_cmd, recursive_flag, session
 ):
     """
     Testing scenario:
@@ -189,7 +189,7 @@ def test_rm_skips_dirs_no_containing_any_tracked_files_while_deleting_other_file
     subdir2.mkdir(parents=True)
 
     testfile = working_dir.joinpath("testfile")
-    mdm.touch(testfile)
+    mdm.touch(session=session, filepath=testfile)
 
     output = subprocess.check_output([*rm_cmd, subdir1, testfile, recursive_flag])
     assert (
@@ -209,7 +209,7 @@ def test_rm_skips_dirs_no_containing_any_tracked_files_while_deleting_other_file
 @pytest.mark.sanity
 @pytest.mark.parametrize("recursive_flag", ["-r", "--recursive"])
 def test_rm_removes_directory_that_is_tracked_but_doesnt_exists(
-    working_dir, mdm, rm_cmd, recursive_flag
+    working_dir, mdm, rm_cmd, recursive_flag, session
 ):
     """
     Testing scenario: directory is tracked but has been removed in the meantime (ex: using rmdir/rm -rf).
@@ -220,9 +220,9 @@ def test_rm_removes_directory_that_is_tracked_but_doesnt_exists(
     subdir2.mkdir(parents=True)
 
     testfile = subdir2.joinpath("testfile")
-    mdm.touch(testfile)
+    mdm.touch(session=session, filepath=testfile)
 
     shutil.rmtree(subdir1)
     subprocess.check_output([*rm_cmd, subdir1, recursive_flag])
 
-    assert not mdm.session.query(FileORM).filter_by(filepath=testfile).first()
+    assert not session.query(FileORM).filter_by(filepath=testfile).first()

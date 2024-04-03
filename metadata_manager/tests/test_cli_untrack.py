@@ -30,13 +30,15 @@ def test_untrack_fails_if_file_is_not_in_mdm_database(working_dir, untrack_cmd, 
 @pytest.mark.cli
 @pytest.mark.untrack
 @pytest.mark.sanity
-def test_untrack_fails_if_file_is_in_removed_state(working_dir, untrack_cmd, mdm):
+def test_untrack_fails_if_file_is_in_removed_state(
+    working_dir, untrack_cmd, mdm, session
+):
     filepath = working_dir.joinpath("testfile")
-    mdm.touch(filepath)
+    mdm.touch(session=session, filepath=filepath)
 
-    file_record = mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     file_record.status = md_enums.FileStatus.REMOVED
-    mdm.session.commit()
+    session.commit()
 
     proc = subprocess.run([*untrack_cmd, filepath])
     assert proc.returncode == 3
@@ -46,17 +48,19 @@ def test_untrack_fails_if_file_is_in_removed_state(working_dir, untrack_cmd, mdm
 @pytest.mark.cli
 @pytest.mark.untrack
 @pytest.mark.sanity
-def test_untrack_changes_file_status_to_untracked(working_dir, untrack_cmd, mdm):
+def test_untrack_changes_file_status_to_untracked(
+    working_dir, untrack_cmd, mdm, session
+):
     filepath = working_dir.joinpath("testfile")
-    mdm.touch(filepath)
+    mdm.touch(session=session, filepath=filepath)
 
-    file_record = mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     assert file_record.status == md_enums.FileStatus.ACTIVE
 
     subprocess.check_output([*untrack_cmd, filepath])
 
-    mdm.session.expire(file_record)
-    file_record = mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    session.expire(file_record)
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     assert file_record.status == md_enums.FileStatus.UNTRACKED
 
 
@@ -64,21 +68,23 @@ def test_untrack_changes_file_status_to_untracked(working_dir, untrack_cmd, mdm)
 @pytest.mark.cli
 @pytest.mark.untrack
 @pytest.mark.sanity
-def test_untrack_succeeds_if_file_is_already_untracked(working_dir, untrack_cmd, mdm):
+def test_untrack_succeeds_if_file_is_already_untracked(
+    working_dir, untrack_cmd, mdm, session
+):
     filepath = working_dir.joinpath("testfile")
-    mdm.touch(filepath)
+    mdm.touch(session=session, filepath=filepath)
 
-    file_record = mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     assert file_record.status == md_enums.FileStatus.ACTIVE
 
     subprocess.check_output([*untrack_cmd, filepath])
 
-    mdm.session.expire(file_record)
-    file_record = mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    session.expire(file_record)
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     assert file_record.status == md_enums.FileStatus.UNTRACKED
 
     subprocess.check_output([*untrack_cmd, filepath])
 
-    mdm.session.expire(file_record)
-    file_record = mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    session.expire(file_record)
+    file_record = session.query(FileORM).filter_by(filepath=filepath).first()
     assert file_record.status == md_enums.FileStatus.UNTRACKED

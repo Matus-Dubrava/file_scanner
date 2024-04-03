@@ -1,7 +1,7 @@
 import sys
 import traceback
 from pathlib import Path
-from typing import Optional, List, Union, Set, Tuple
+from typing import Optional, List, Union
 import subprocess
 import shutil
 from datetime import datetime
@@ -10,7 +10,7 @@ import uuid
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from db import create_or_get_session
+from db import get_session_or_exit
 from md_models import (
     Config,
     FileORM,
@@ -23,7 +23,6 @@ from md_models import (
     FileListing,
 )
 import md_utils
-import md_constants
 
 
 class MetadataManager:
@@ -32,21 +31,19 @@ class MetadataManager:
         md_config: Config,
         repository_root: Path,
         md_path: Path,
-        md_db_path: Path,
-        session: Session,
+        db_path: Path,
     ):
         self.md_config = md_config
         self.repository_root = repository_root
         self.md_path = md_path
-        self.md_db_path = md_db_path
-        self.session = session
+        self.db_path = db_path
 
     @staticmethod
     def new(md_config: Config, path: Path, recreate: bool = False, debug: bool = False):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
         md_path = path.joinpath(md_config.md_dir_name)
-        md_db_path = md_path.joinpath(md_config.md_db_name)
+        db_path = md_path.joinpath(md_config.md_db_name)
 
         # If recreate flag is set, delete existing repository.
         if recreate and md_path.exists():
@@ -92,38 +89,29 @@ class MetadataManager:
             repository_filepath=path,
         )
 
-        session_or_err = create_or_get_session(md_db_path)
-        if isinstance(session_or_err, Exception):
-            if debug:
-                print(
-                    f"{traceback.format_exception(session_or_err)}\n", file=sys.stderr
-                )
-            print(
-                "Fatal: failed to establish connection to internal database.",
-                file=sys.stderr,
-            )
-            sys.exit(md_constants.CANT_CREATE_SQLITE_SESSION)
-
         mdm = MetadataManager(
             md_config=md_config,
             repository_root=path,
             md_path=md_path,
-            md_db_path=md_db_path,
-            session=session_or_err,
+            db_path=db_path,
         )
 
-        session_or_err.add(repository)
-        session_or_err.commit()
+        session = get_session_or_exit(db_path=db_path)
+        session.add(repository)
 
-        maybe_err = mdm.write_version_info_to_db()
+        maybe_err = mdm.write_version_info_to_db(session=session, commit=False)
         if maybe_err:
             mdm.cleanup(path)
+            session.close()
 
             if debug:
                 print(f"{traceback.format_exception(maybe_err)}\n", file=sys.stderr)
 
             print("Failed to initialize repository. Abort.", file=sys.stderr)
             sys.exit(1)
+
+        session.commit()
+        session.close()
 
         print(f"Intialized empty repository in {path}")
         return mdm
@@ -137,30 +125,16 @@ class MetadataManager:
         )
 
         md_path = maybe_md_root.joinpath(md_config.md_dir_name)
-        md_db_path = md_path.joinpath(md_config.md_db_name)
+        db_path = md_path.joinpath(md_config.md_db_name)
 
         assert md_path.exists(), f"Expected repository {path} to exist."
 
         # if path contains .md repo, load all necessary data from there
-        session_or_err = create_or_get_session(md_db_path)
-        if isinstance(session_or_err, Exception):
-            if debug:
-                print(
-                    f"{traceback.format_exception(session_or_err)}\n", file=sys.stderr
-                )
-
-            print(
-                "Fatal: failed to establish connection to internal database.",
-                file=sys.stderr,
-            )
-            sys.exit(md_constants.CANT_CREATE_SQLITE_SESSION)
-
         return MetadataManager(
             md_config=md_config,
             repository_root=maybe_md_root,
             md_path=md_path,
-            md_db_path=md_db_path,
-            session=session_or_err,
+            db_path=db_path,
         )
 
     def load_data_from_parent_repository(self, debug: bool = False) -> None:
@@ -172,37 +146,42 @@ class MetadataManager:
         * History records are moved over to target Mdm.
         * Custom Metadata is moved over to target Mdm.
         """
-        maybe_parent_mdm_root = md_utils.get_repository_root(
+        maybe_source_root = md_utils.get_repository_root(
             path=self.repository_root.parent, config=self.md_config
         )
         try:
-            if maybe_parent_mdm_root:
-                parent_repository_mdm = MetadataManager.from_repository(
-                    md_config=self.md_config, path=maybe_parent_mdm_root
+            if maybe_source_root:
+                source_mdm = MetadataManager.from_repository(
+                    md_config=self.md_config, path=maybe_source_root
                 )
-                parent_repository_record = parent_repository_mdm.session.query(
-                    RepositoryORM
-                ).first()
 
-                current_repository_record = self.session.query(RepositoryORM).first()
+                source_session = get_session_or_exit(db_path=source_mdm.db_path)
+                dest_session = get_session_or_exit(db_path=self.db_path)
+
+                source_repo_record = source_session.query(RepositoryORM).first()
+                dest_repo_record = dest_session.query(RepositoryORM).first()
                 assert (
-                    current_repository_record
-                ), "Expected respoitory record for current repository to exist."
+                    source_repo_record and dest_repo_record
+                ), "Expected repository records to exist."
 
-                current_repository_record.parent_repository_filepath = (
-                    parent_repository_record.repository_filepath
+                dest_repo_record.parent_repository_filepath = (
+                    source_repo_record.repository_filepath
                 )
-                current_repository_record.parent_repository_id = (
-                    parent_repository_record.id
-                )
+                dest_repo_record.parent_repository_id = source_repo_record.id
 
                 maybe_err = md_utils.move_mdm_data(
-                    source_mdm=parent_repository_mdm, dest_mdm=self
+                    source_session=source_session,
+                    dest_session=dest_session,
+                    source_mdm=source_mdm,
+                    dest_mdm=self,
                 )
                 if maybe_err:
                     raise maybe_err
 
-                self.session.commit()
+                dest_session.commit()
+                source_session.commit()
+                dest_session.close()
+                source_session.close()
 
                 print("Succesfully loaded data from parent repository.")
             else:
@@ -211,6 +190,8 @@ class MetadataManager:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
+            source_session.close()
+            dest_session.close()
             print("Failed to load data from parent repository. Abort.", file=sys.stderr)
             sys.exit(2)
 
@@ -492,7 +473,9 @@ class MetadataManager:
 
         return []
 
-    def write_version_info_to_db(self) -> Optional[Exception]:
+    def write_version_info_to_db(
+        self, session: Session, commit: bool = True
+    ) -> Optional[Exception]:
         version_info_or_err = VersionInfo.get_info()
         if isinstance(version_info_or_err, Exception):
             return version_info_or_err
@@ -505,14 +488,21 @@ class MetadataManager:
                 build_date=version_info_or_err.build_date,
             )
 
-            self.session.add(version_info_record)
-            self.session.commit()
+            session.add(version_info_record)
+            if commit:
+                session.commit()
         except Exception as err:
             return err
 
         return None
 
-    def touch(self, filepath: Path, debug: bool = False, parents: bool = False) -> None:
+    def touch(
+        self,
+        session: Session,
+        filepath: Path,
+        debug: bool = False,
+        parents: bool = False,
+    ) -> None:
         """
         ...
         """
@@ -524,6 +514,7 @@ class MetadataManager:
             if parents:
                 filepath.parent.mkdir(parents=True, exist_ok=True)
             else:
+                session.close()
                 print(
                     f"Fatal: Directory {filepath.parent} doesn't exist. Abort.",
                     file=sys.stderr,
@@ -537,7 +528,7 @@ class MetadataManager:
         branch_name = self.get_current_git_branch(filepath.parent)
 
         old_file_record = (
-            self.session.query(FileORM).filter_by(filepath=str(filepath)).first()
+            session.query(FileORM).filter_by(filepath=str(filepath)).first()
         )
 
         maybe_errors: List[Optional[Exception]] = []
@@ -545,7 +536,7 @@ class MetadataManager:
         # File doesn't exist it fs nor in the .md database.
         if not filepath.exists() and not old_file_record:
             maybe_err = self.create_new_file_record(
-                session=self.session,
+                session=session,
                 filepath=filepath,
                 branch_name=branch_name,
                 file_exists=False,
@@ -555,7 +546,7 @@ class MetadataManager:
         # file doesn't exist in md but exits in fs (i.e file wasnt created using md touch or due to branch switch)
         elif filepath.exists() and not old_file_record:
             maybe_err = self.create_new_file_record(
-                session=self.session,
+                session=session,
                 filepath=filepath,
                 branch_name=branch_name,
                 file_exists=True,
@@ -565,7 +556,7 @@ class MetadataManager:
         # file exists in md but not in fs (file was removed)
         elif not filepath.exists() and old_file_record:
             history_records = (
-                self.session.query(HistoryORM)
+                session.query(HistoryORM)
                 .filter_by(filepath=old_file_record.filepath)
                 .all()
             )
@@ -586,6 +577,7 @@ class MetadataManager:
 
             # Remove hash file if it exists.
             maybe_err = self.remove_hash_file(filepath=filepath)
+            # TODO: handle directory removal as well
             maybe_errors.append(maybe_err)
 
             # Create new file and new .md record.
@@ -593,7 +585,7 @@ class MetadataManager:
             # so that it can perform cleanup if necessary. This also commits
             # the above staged changes.
             maybe_err = self.create_new_file_record(
-                session=self.session,
+                session=session,
                 filepath=filepath,
                 branch_name=branch_name,
                 file_exists=False,
@@ -603,12 +595,10 @@ class MetadataManager:
         # file exists in both md and fs.
         elif filepath.exists() and old_file_record:
             maybe_errors = self.add_file_to_md(
-                session=self.session,
+                session=session,
                 filepath=filepath,
                 branch_name=branch_name,
             )
-
-        self.session.close()
 
         errors = [err for err in maybe_errors if err is not None]
         if len(errors):
@@ -617,20 +607,24 @@ class MetadataManager:
                     print(f"{traceback.format_exception(err)}\n", file=sys.stderr)
 
                 print(err, file=sys.stderr)
-                sys.exit(1)
 
-    def untrack(self, filepath: Path) -> None:
+            session.close()
+            sys.exit(1)
+
+    def untrack(self, session: Session, filepath: Path) -> None:
         """
         Set file status to "UNTRACKED" if file is in "ACTIVE" state. Do nothing
         if file is already in "UNTRACKED" state. Otherwise fail.
         """
 
         if not filepath.exists():
+            session.close()
             print(f"File {filepath.relative_to(Path.cwd())} doesn't exist. Abort.")
             sys.exit(1)
 
-        file_record = self.session.query(FileORM).filter_by(filepath=filepath).first()
+        file_record = session.query(FileORM).filter_by(filepath=filepath).first()
         if not file_record:
+            session.close()
             print(
                 f"File {filepath.relative_to(Path.cwd())} is not in md database.",
                 file=sys.stderr,
@@ -648,69 +642,12 @@ class MetadataManager:
             sys.exit(3)
 
         file_record.status = FileStatus.UNTRACKED
-        self.session.commit()
-        self.session.close()
+        session.commit()
         print(f"'untrack' {filepath.relative_to(Path.cwd())}")
-
-    def collect_tracked_files_and_subdirectories(
-        self, path: Path
-    ) -> Tuple[List[Path], Set[str]]:
-        """
-        Recursively traverse directory. Return list of all tracked files and a set of
-        directories and subdirectories where there were at least one tracked file.
-
-        Subdirectories that contain any tracked files or other subdirectories that contain
-        any tracked files are marked as tracked.
-
-        ex:
-
-        a/b/c/file
-        if 'file' is tracked then all 'a', 'b' and 'c' subdirectories are marked as tracked.
-
-        a/b/c/
-        if there is no tracked file (including scenarion when there is no file at all),
-        none of these subdirectories are marked as tracked
-        """
-
-        assert path.exists() and path.is_dir(), f"Expected directory. Got {path}"
-
-        tracked_files: List[Path] = []
-        tracked_dirs: Set[str] = set()
-
-        def _traverse(path: Path):
-            is_tracked = False
-            for child in path.iterdir():
-                if (
-                    child.is_file()
-                    and self.session.query(FileORM).filter_by(filepath=child).first()
-                ):
-                    is_tracked = True
-                    tracked_files.append(child)
-                elif child.is_dir():
-                    is_tracked = _traverse(child)
-
-                if is_tracked:
-                    tracked_dirs.add(str(path))
-            return is_tracked
-
-        _traverse(path)
-        return tracked_files, tracked_dirs
-
-    def find_tracked_files_in_database(self, path: Path) -> List[Path]:
-        """
-        Searches database for all 'ACTIVE' files associated with specified path. Handles
-        both scenarios where path corresponds to a file as well as directory.
-        """
-        file_records = (
-            self.session.query(FileORM)
-            .filter_by(status=FileStatus.ACTIVE)
-            .filter(FileORM.filepath.like(f"{path}%"))
-            .all()
-        )
-        return [Path(record.filepath) for record in file_records]
 
     def remove_file(
         self,
+        session: Session,
         filepath: Path,
         purge: bool = False,
         force: bool = False,
@@ -732,15 +669,14 @@ class MetadataManager:
         """
         # Handle removing file from internal database and hash file.
         try:
-            file_record = (
-                self.session.query(FileORM).filter_by(filepath=filepath).first()
-            )
+            file_record = session.query(FileORM).filter_by(filepath=filepath).first()
             history_records = (
-                self.session.query(HistoryORM).filter_by(filepath=filepath).all()
+                session.query(HistoryORM).filter_by(filepath=filepath).all()
             )
 
             # Can't remove files that are not within internal database.
             if not file_record:
+                session.close()
                 print(
                     f"fatal: path {filepath} did not match any tracked file",
                     file=sys.stderr,
@@ -767,9 +703,9 @@ class MetadataManager:
                 stdout_message = ""
                 if purge:
                     # Delete records associated with the file from database completely.
-                    self.session.delete(file_record)
+                    session.delete(file_record)
                     for h_record in history_records:
-                        self.session.delete(h_record)
+                        session.delete(h_record)
                     # TODO: remove custom metadata records here
                     stdout_message = f"'rm --purge'{filepath}"
                 else:
@@ -793,18 +729,20 @@ class MetadataManager:
 
                 hash_filepath_or_err.unlink(missing_ok=True)
 
-                self.session.commit()
+                session.commit()
                 if stdout_message:
                     print(stdout_message)
         except Exception:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
+            session.close()
             print(f"fatal: failed to remove {filepath}", file=sys.stderr)
             sys.exit(2)
 
     def remove_files(
         self,
+        session: Session,
         filepaths: List[Path],
         purge: bool = False,
         force: bool = False,
@@ -836,7 +774,7 @@ class MetadataManager:
 
             # Confirm all provided files are present in repository. Exit as soon as
             # one of them is missing.
-            if not self.session.query(FileORM).filter_by(filepath=filepath).first():
+            if not session.query(FileORM).filter_by(filepath=filepath).first():
                 print(
                     f"fatal: path {filepath} did not match any tracked file",
                     file=sys.stderr,
@@ -846,9 +784,17 @@ class MetadataManager:
         # Remove all files. Intentially in a separate loop so that no files are removed
         # if previous checks fail for any file.
         for filepath in filepaths:
-            self.remove_file(filepath=filepath, purge=purge, force=force, debug=debug)
+            self.remove_file(
+                session=session,
+                filepath=filepath,
+                purge=purge,
+                force=force,
+                debug=debug,
+            )
 
-    def purge_removed_files(self, path: Path, debug: bool = False) -> None:
+    def purge_removed_files(
+        self, session: Session, path: Path, debug: bool = False
+    ) -> None:
         """
         Purges files in 'removed' state from Mdm database.
 
@@ -861,37 +807,41 @@ class MetadataManager:
 
         try:
             deleted_file_records = (
-                self.session.query(FileORM).filter_by(status=FileStatus.REMOVED).all()
+                session.query(FileORM).filter_by(status=FileStatus.REMOVED).all()
             )
 
             for file_record in deleted_file_records:
                 # TODO: purge custom file metadata once implemented
                 history_records = (
-                    self.session.query(HistoryORM)
+                    session.query(HistoryORM)
                     .filter_by(filepath=file_record.filepath)
                     .all()
                 )
-                self.session.delete(file_record)
+                session.delete(file_record)
                 for history_record in history_records:
-                    self.session.delete(history_record)
+                    session.delete(history_record)
 
-            self.session.commit()
+            session.commit()
         except Exception:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
+            session.close()
             print("Failed to purge removed files.", file=sys.stderr)
             sys.exit(1)
 
-    def _list_files(self, status_filter: List[FileStatus]) -> List[FileORM]:
+    def _list_files(
+        self, session: Session, status_filter: List[FileStatus]
+    ) -> List[FileORM]:
         status_filter_condition = or_(
             *[FileORM.status == status for status in status_filter]
         )
 
-        return self.session.query(FileORM).where(status_filter_condition).all()
+        return session.query(FileORM).where(status_filter_condition).all()
 
     def list_files(
         self,
+        session: Session,
         path: Path,
         status_filter: List[FileStatus] = [FileStatus.ACTIVE],
         abs_paths: bool = False,
@@ -905,10 +855,10 @@ class MetadataManager:
         """
         assert path.is_absolute(), f"Expected absolute path. Got {path}"
 
-        repository_record = self.session.query(RepositoryORM).first()
+        repository_record = session.query(RepositoryORM).first()
         assert repository_record, "Expected repository record to exist."
 
-        file_records = self._list_files(status_filter=status_filter)
+        file_records = self._list_files(session=session, status_filter=status_filter)
 
         if dump_json_path:
             file_listing = FileListing(
@@ -929,6 +879,7 @@ class MetadataManager:
                 if debug:
                     print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
+                session.close()
                 print(
                     f"Fatal: failed to write result to {dump_json_path}",
                     file=sys.stderr,

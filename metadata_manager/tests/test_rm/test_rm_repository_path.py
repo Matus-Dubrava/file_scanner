@@ -2,8 +2,11 @@ import pytest
 import subprocess
 from pathlib import Path
 
+from sqlalchemy.orm import Session
+
 from manager import MetadataManager
 import md_constants
+from db import get_session_or_exit
 
 
 @pytest.mark.d08c44ad12
@@ -22,15 +25,27 @@ def test_rm_works_when_cwd_matches_target_repository(
 
     mdm1 = MetadataManager.new(md_config=mdm_config, path=working_dir)
     mdm2 = MetadataManager.new(md_config=mdm_config, path=subrepo1_path)
+    session1 = get_session_or_exit(db_path=mdm1.db_path)
+    session2 = get_session_or_exit(db_path=mdm2.db_path)
 
-    def _test_task(mdm: MetadataManager, cwd: Path, filepath: Path) -> None:
+    def _test_task(
+        mdm: MetadataManager, session: Session, cwd: Path, filepath: Path
+    ) -> None:
         monkeypatch.chdir(cwd)
-        mdm.touch(filepath.resolve())
+        mdm.touch(session=session, filepath=filepath.resolve())
         subprocess.check_output([*rm_cmd, filepath])
 
-    _test_task(mdm1, cwd=working_dir, filepath=testfile1)
-    _test_task(mdm2, cwd=subrepo1_path, filepath=testfile2)
-    _test_task(mdm1, cwd=working_dir, filepath=subrepo1_path.joinpath("..", "testfile"))
+    _test_task(mdm1, session1, cwd=working_dir, filepath=testfile1)
+    _test_task(mdm2, session2, cwd=subrepo1_path, filepath=testfile2)
+    _test_task(
+        mdm1,
+        session1,
+        cwd=working_dir,
+        filepath=subrepo1_path.joinpath("..", "testfile"),
+    )
+
+    session1.close()
+    session2.close()
 
 
 @pytest.mark.b6aa5d0e0c
@@ -49,7 +64,9 @@ def test_rm_is_blocked_when_cwd_doesnt_match_target_repository(
     MetadataManager.new(md_config=mdm_config, path=working_dir)
     subrepo_mdm = MetadataManager.new(md_config=mdm_config, path=subrepo)
 
-    subrepo_mdm.touch(testfile)
+    session = get_session_or_exit(db_path=subrepo_mdm.db_path)
+    subrepo_mdm.touch(session=session, filepath=testfile)
+    session.close()
 
     with pytest.raises(subprocess.CalledProcessError) as err:
         monkeypatch.chdir(working_dir)
@@ -75,7 +92,9 @@ def test_repository_path_option_overrides_cwd_and_unblocks_rm(
     MetadataManager.new(md_config=mdm_config, path=working_dir)
     subrepo_mdm = MetadataManager.new(md_config=mdm_config, path=subrepo)
 
-    subrepo_mdm.touch(testfile)
+    session = get_session_or_exit(db_path=subrepo_mdm.db_path)
+    subrepo_mdm.touch(session=session, filepath=testfile)
+    session.close()
 
     subprocess.check_output([*rm_cmd, testfile, "--repository-path", testfile.parent])
     assert not testfile.exists()
@@ -94,7 +113,10 @@ def test_rm_works_outside_of_mdm_repository_when_repository_path_is_provided(
     filepath = subdir.joinpath("testfile")
 
     mdm = MetadataManager.new(md_config=mdm_config, path=subdir)
-    mdm.touch(filepath)
+
+    session = get_session_or_exit(db_path=mdm.db_path)
+    mdm.touch(session=session, filepath=filepath)
+    session.close()
 
     subprocess.check_output([*rm_cmd, filepath, "--repository-path", subdir])
 
@@ -121,7 +143,10 @@ def test_rm_fails_if_provided_filepath_is_not_within_repository_path(
     testfile = subdir1.joinpath("testfile")
 
     mdm = MetadataManager.new(md_config=mdm_config, path=subdir1)
-    mdm.touch(testfile)
+    session = get_session_or_exit(db_path=mdm.db_path)
+    mdm.touch(session=session, filepath=testfile)
+    session.close()
+
     MetadataManager.new(md_config=mdm_config, path=subdir2)
 
     proc = subprocess.run(
@@ -158,7 +183,10 @@ def test_touch_fails_if_provided_filepath_is_not_within_repositor_path_with_debu
     testfile = subdir1.joinpath("testfile")
 
     mdm = MetadataManager.new(md_config=mdm_config, path=subdir1)
-    mdm.touch(testfile)
+    session = get_session_or_exit(db_path=mdm.db_path)
+    mdm.touch(session=session, filepath=testfile)
+    session.close()
+
     MetadataManager.new(md_config=mdm_config, path=subdir2)
 
     proc = subprocess.run(

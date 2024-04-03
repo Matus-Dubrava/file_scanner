@@ -26,10 +26,10 @@ def test_touch_fails_if_provided_path_doesnt_exist(working_dir, touch_cmd, mdm):
 @pytest.mark.sanity
 @pytest.mark.parametrize("parents_flag", ["-p", "--parents"])
 def test_touch_create_parent_directories_when_parents_flag_is_provided(
-    working_dir, touch_cmd, parents_flag, mdm
+    working_dir, touch_cmd, parents_flag, mdm, session
 ):
     filepath = working_dir.joinpath("dir1", "testfile")
     subprocess.check_output([*touch_cmd, filepath, parents_flag])
     assert filepath.exists()
 
-    assert mdm.session.query(FileORM).filter_by(filepath=filepath).first()
+    assert session.query(FileORM).filter_by(filepath=filepath).first()

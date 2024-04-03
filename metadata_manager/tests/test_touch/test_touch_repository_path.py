@@ -2,9 +2,12 @@ import pytest
 import subprocess
 from pathlib import Path
 
+from sqlalchemy.orm import Session
+
 from manager import MetadataManager
 import md_constants
 from md_models import FileORM
+from db import get_session_or_exit
 
 
 @pytest.mark.f5b0fba262
@@ -92,32 +95,69 @@ def test_repository_path_option_overrides_cwd_and_unblocks_touch(
     subrepo1_mdm = MetadataManager.new(md_config=mdm_config, path=subrepo1_path)
     subrepo2_mdm = MetadataManager.new(md_config=mdm_config, path=subrepo2_path)
 
-    def _test_task(filepath: Path, repository_path: Path, mdm: MetadataManager) -> None:
+    session1 = get_session_or_exit(db_path=working_dir_mdm.db_path)
+    session2 = get_session_or_exit(db_path=subrepo1_mdm.db_path)
+    session3 = get_session_or_exit(db_path=subrepo2_mdm.db_path)
+
+    def _test_task(
+        filepath: Path, repository_path: Path, mdm: MetadataManager, session: Session
+    ) -> None:
         proc = subprocess.run(
             [*touch_cmd, filepath, "--repository-path", repository_path]
         )
         assert proc.returncode == 0
         assert filepath.exists()
-        assert mdm.session.query(FileORM).filter_by(filepath=filepath.resolve()).first()
-        mdm.remove_file(filepath=filepath.resolve())
+        assert session.query(FileORM).filter_by(filepath=filepath.resolve()).first()
+        mdm.remove_file(session=session, filepath=filepath.resolve())
 
-    _test_task(filepath=testfile1, repository_path=working_dir, mdm=working_dir_mdm)
-    _test_task(filepath=testfile1, repository_path=subrepo1_path, mdm=subrepo1_mdm)
+    _test_task(
+        filepath=testfile1,
+        repository_path=working_dir,
+        mdm=working_dir_mdm,
+        session=session1,
+    )
+    _test_task(
+        filepath=testfile1,
+        repository_path=subrepo1_path,
+        mdm=subrepo1_mdm,
+        session=session2,
+    )
 
-    _test_task(filepath=testfile2, repository_path=working_dir, mdm=working_dir_mdm)
-    _test_task(filepath=testfile2, repository_path=subrepo1_path, mdm=subrepo1_mdm)
-    _test_task(filepath=testfile2, repository_path=subrepo2_path, mdm=subrepo2_mdm)
+    _test_task(
+        filepath=testfile2,
+        repository_path=working_dir,
+        mdm=working_dir_mdm,
+        session=session1,
+    )
+    _test_task(
+        filepath=testfile2,
+        repository_path=subrepo1_path,
+        mdm=subrepo1_mdm,
+        session=session2,
+    )
+    _test_task(
+        filepath=testfile2,
+        repository_path=subrepo2_path,
+        mdm=subrepo2_mdm,
+        session=session3,
+    )
 
     _test_task(
         filepath=subrepo2_path.joinpath("..", "testfile"),
         repository_path=subrepo1_path,
         mdm=subrepo1_mdm,
+        session=session2,
     )
     _test_task(
         filepath=subrepo2_path.joinpath("..", "..", "testfile"),
         repository_path=working_dir,
         mdm=working_dir_mdm,
+        session=session1,
     )
+
+    session1.close()
+    session2.close()
+    session3.close()
 
 
 @pytest.mark.baac804ddf

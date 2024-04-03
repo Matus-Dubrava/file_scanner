@@ -8,15 +8,15 @@ import subprocess
 @pytest.mark.abs_paths
 @pytest.mark.sanity
 def test_ls_prints_filepaths_relative_to_repository_root_by_default(
-    working_dir, mdm, list_cmd
+    working_dir, mdm, list_cmd, session
 ):
     subdir = working_dir.joinpath("dir1")
     subdir.mkdir()
     testfile1 = working_dir.joinpath("testfile1")
     testfile2 = subdir.joinpath("testfile2")
 
-    mdm.touch(testfile1)
-    mdm.touch(testfile2)
+    mdm.touch(session=session, filepath=testfile1)
+    mdm.touch(session=session, filepath=testfile2)
 
     result = subprocess.check_output([*list_cmd])
 
@@ -32,15 +32,15 @@ def test_ls_prints_filepaths_relative_to_repository_root_by_default(
 @pytest.mark.abs_paths
 @pytest.mark.sanity
 def test_ls_prints_absolute_paths_when_abs_paths_flag_is_set(
-    working_dir, mdm, list_cmd
+    working_dir, mdm, list_cmd, session
 ):
     subdir = working_dir.joinpath("dir1")
     subdir.mkdir()
     testfile1 = working_dir.joinpath("testfile1")
     testfile2 = subdir.joinpath("testfile2")
 
-    mdm.touch(testfile1)
-    mdm.touch(testfile2)
+    mdm.touch(session=session, filepath=testfile1)
+    mdm.touch(session=session, filepath=testfile2)
 
     result = subprocess.check_output([*list_cmd, "--abs-paths"])
 

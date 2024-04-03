@@ -9,8 +9,8 @@ from md_models import RepositoryORM
 @pytest.mark.ls
 @pytest.mark.no_header
 @pytest.mark.sanity
-def test_ls_prints_header_information_by_default(mdm, list_cmd):
-    repository_record = mdm.session.query(RepositoryORM).first()
+def test_ls_prints_header_information_by_default(list_cmd, session):
+    repository_record = session.query(RepositoryORM).first()
     assert repository_record
 
     result = subprocess.check_output([*list_cmd])
@@ -24,15 +24,15 @@ def test_ls_prints_header_information_by_default(mdm, list_cmd):
 @pytest.mark.no_header
 @pytest.mark.sanity
 def test_ls_prints_only_file_info_when_no_header_flag_is_set(
-    working_dir, mdm, list_cmd
+    working_dir, mdm, list_cmd, session
 ):
     filepath1 = working_dir.joinpath("testfile1")
     filepath2 = working_dir.joinpath("testfile2")
 
-    mdm.touch(filepath1)
-    mdm.touch(filepath2)
+    mdm.touch(session=session, filepath=filepath1)
+    mdm.touch(session=session, filepath=filepath2)
 
-    repository_record = mdm.session.query(RepositoryORM).first()
+    repository_record = session.query(RepositoryORM).first()
     assert repository_record
 
     result = subprocess.check_output([*list_cmd, "--no-header"])

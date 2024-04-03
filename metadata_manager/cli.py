@@ -9,6 +9,8 @@ from md_models import Config
 from md_enums import FileStatus
 import md_constants
 import cli_utils
+from db import get_session_or_exit
+import md_utils
 
 CONFIG_PATH = Path(__file__).parent / "config" / ".mdconfig"
 
@@ -86,7 +88,9 @@ def touch(ctx, target, repository_path, parents, debug) -> None:
             mdm=mdm, path=target_path, debug=debug
         )
 
-    mdm.touch(filepath=target_path, parents=parents)
+    session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
+    mdm.touch(session=session, filepath=target_path, parents=parents)
+    session.close()
 
 
 @cli.command()
@@ -177,7 +181,10 @@ def ls(
         md_config=ctx.obj,
         path=Path.cwd() if not repository_path else Path(repository_path).resolve(),
     )
+
+    session = get_session_or_exit(db_path=mdm.db_path)
     mdm.list_files(
+        session=session,
         path=Path.cwd(),
         status_filter=status_filters,
         abs_paths=abs_paths,
@@ -186,6 +193,7 @@ def ls(
         debug=debug,
         force=force,
     )
+    session.close()
 
 
 @cli.command()
@@ -198,17 +206,24 @@ def untrack(ctx, target) -> None:
     mdm = MetadataManager.from_repository(
         md_config=ctx.obj, path=Path(target).resolve()
     )
-    mdm.untrack(Path(target).resolve())
+    session = get_session_or_exit(mdm.db_path)
+
+    mdm.untrack(session=session, filepath=Path(target).resolve())
+    session.close()
 
 
 @cli.command()
 @click.pass_context
-def purge(ctx) -> None:
+@click.option("--debug", is_flag=True, show_default=True, default=False)
+def purge(ctx, debug) -> None:
     mdm_config = ctx.obj
     cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd())
-    mdm.purge_removed_files(Path.cwd())
+    session = get_session_or_exit(db_path=mdm.db_path)
+
+    mdm.purge_removed_files(session=session, path=Path.cwd(), debug=debug)
+    session.close()
 
 
 @cli.command()
@@ -255,6 +270,7 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
                 mdm=mdm, path=path, debug=debug
             )
 
+    session = get_session_or_exit(db_path=mdm.db_path)
     target_filepaths: List[Path] = []
     tracked_dirs: Set[str] = set()
     # Exit if any of provided paths is directory and --recursive flag is not set,
@@ -264,7 +280,9 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
         # In case specified path doesn't exists, find all files that might be associated with this
         # path in the database and add them for removal.
         if not path.exists():
-            target_filepaths.extend(mdm.find_tracked_files_in_database(path))
+            target_filepaths.extend(
+                md_utils.find_tracked_files_in_database(session=session, path=path)
+            )
         elif path.is_dir():
             if not recursive:
                 print(
@@ -273,7 +291,9 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
                 )
                 sys.exit(md_constants.MISSING_RECURSIVE_FLAG)
             else:
-                files, dirs = mdm.collect_tracked_files_and_subdirectories(path)
+                files, dirs = md_utils.get_tracked_files_and_subdirectories(
+                    session=session, path=path
+                )
                 # If there are no files to be removed from a provided directory, inform
                 # user about this fact to avoid confusion when the 'rm' operation is successful
                 # but has no effect.
@@ -285,7 +305,14 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
         else:
             target_filepaths.append(path)
 
-    mdm.remove_files(filepaths=target_filepaths, purge=purge, debug=debug, force=force)
+    mdm.remove_files(
+        session=session,
+        filepaths=target_filepaths,
+        purge=purge,
+        debug=debug,
+        force=force,
+    )
+    session.close()
 
     # Remove empty directories.
     # Traverse tracked directories from leaves to the root, removing each empty

@@ -3,10 +3,9 @@ from pathlib import Path
 import shutil
 import os
 
-from sqlalchemy import text
-
 from manager import MetadataManager
 from md_models import Config
+from db import get_session_or_exit
 
 
 def pytest_runtest_setup(item):
@@ -89,9 +88,12 @@ def mdm_config():
 
 @pytest.fixture(scope="function")
 def mdm(working_dir, mdm_config):
-    mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
-
-    # NOTE: There seems to be an issue when using 'DELETE' journal mode while running tests.
+    # NOTE UPDATE: the below issue has been fixed by not reusing session object extensively
+    # throughout the manager instance. Most likely cause was closing the same session multiple
+    # times and adding/commiting to closed session. Interestingly enough, this seemed to be an
+    # issue only while running tests.
+    #
+    # NOTE ORIGINAL: There seems to be an issue when using 'DELETE' journal mode while running tests.
     # It seems like some race condition - sometimes something is not cleaned up properly
     # which leads to the following error:
     #
@@ -99,8 +101,16 @@ def mdm(working_dir, mdm_config):
     #
     # This happens even when this fixture's scope is function and each test case that is using
     # it should be working in clean 'working_dir' and have its own session.
-    mdm.session.execute(text("PRAGMA journal_mode=OFF"))
-    print(
-        f"SQLITE jounal mode: {mdm.session.execute(text('PRAGMA journal_mode')).fetchall()}"
-    )
-    return mdm
+    # mdm.session.execute(text("PRAGMA journal_mode=OFF"))
+    # print(
+    #     f"SQLITE jounal mode: {mdm.session.execute(text('PRAGMA journal_mode')).fetchall()}"
+    # )
+    return MetadataManager.new(md_config=mdm_config, path=working_dir)
+
+
+@pytest.fixture(scope="function")
+def session(mdm):
+    session_ = get_session_or_exit(db_path=mdm.db_path)
+    print(f"[{__name__}] session established, database: {mdm.db_path}")
+    yield session_
+    session_.close()

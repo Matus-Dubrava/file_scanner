@@ -75,10 +75,10 @@ def test_get_md_root_finds_md_repository_in_parent_dir(working_dir, mdm):
 @pytest.mark.parametrize(
     "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
 )
-def test_get_path_to_hash_file(working_dir, mdm, rel_filepath):
+def test_get_path_to_hash_file(working_dir, mdm, rel_filepath, session):
     filepath = working_dir.joinpath(rel_filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    mdm.touch(filepath)
+    mdm.touch(session=session, filepath=filepath)
 
     expected_hash_filepath = working_dir.joinpath(mdm.md_path, "hashes", rel_filepath)
     hashes_path_or_err = mdm.get_path_to_hash_file(filepath)
@@ -92,10 +92,12 @@ def test_get_path_to_hash_file(working_dir, mdm, rel_filepath):
 @pytest.mark.parametrize(
     "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
 )
-def test_remove_hash_file_removes_the_hash_file(working_dir, mdm, rel_filepath):
+def test_remove_hash_file_removes_the_hash_file(
+    working_dir, mdm, rel_filepath, session
+):
     filepath = working_dir.joinpath(rel_filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    mdm.touch(filepath)
+    mdm.touch(session=session, filepath=filepath)
 
     hashes_path_or_err = mdm.get_path_to_hash_file(filepath)
 
@@ -110,9 +112,9 @@ def test_remove_hash_file_removes_the_hash_file(working_dir, mdm, rel_filepath):
 @pytest.mark.manager
 @pytest.mark.sanity
 @pytest.mark.remove_hash_file
-def test_remove_hash_file_handles_missing_hash_file(working_dir, mdm):
+def test_remove_hash_file_handles_missing_hash_file(working_dir, mdm, session):
     filepath = working_dir.joinpath("testfile")
-    mdm.touch(filepath)
+    mdm.touch(session=session, filepath=filepath)
 
     hashes_path_or_err = mdm.get_path_to_hash_file(filepath)
     hashes_path_or_err.unlink()
@@ -129,7 +131,7 @@ def test_remove_hash_file_handles_missing_hash_file(working_dir, mdm):
 @pytest.mark.parametrize(
     "rel_filepath", ["testfile", "dir1/testfile", "dir1/dir2/testfile"]
 )
-def test_write_line_hashes_to_hash_file(working_dir, mdm, rel_filepath):
+def test_write_line_hashes_to_hash_file(working_dir, mdm, rel_filepath, session):
     expected_hashes = [
         "634b027b1b69e1242d40d53e312b3b4ac7710f55be81f289b549446ef6778bee"
         "7d6fd7774f0d87624da6dcf16d0d3d104c3191e771fbe2f39c86aed4b2bf1a0f"
@@ -139,7 +141,7 @@ def test_write_line_hashes_to_hash_file(working_dir, mdm, rel_filepath):
 
     filepath = working_dir.joinpath(rel_filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    mdm.touch(filepath)
+    mdm.touch(session=session, filepath=filepath)
 
     # It is expected that new hash file is created if one doesn't exist yet.
     mdm.write_line_hashes_to_hash_file(filepath, expected_hashes[:2])

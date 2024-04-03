@@ -3,13 +3,11 @@ import pytest
 from pathlib import Path
 import shutil
 
-from sqlalchemy.orm import Session
-
 import tests.utils as utils
 from build import write_build_info
 from md_enums import BuildType
 from md_models import VersionInfoORM, RepositoryORM
-from db import create_or_get_session
+from db import get_session_or_exit
 from manager import MetadataManager
 
 
@@ -19,7 +17,7 @@ from manager import MetadataManager
 @pytest.mark.sanity
 def test_init_creates_md_repository_in_cwd(working_dir, mdm):
     utils.assert_md_structure_exists(mdm.md_config, working_dir)
-    utils.assert_database_structure(mdm.md_db_path)
+    utils.assert_database_structure(mdm.db_path)
 
 
 @pytest.mark.ed68aa1433
@@ -99,16 +97,16 @@ def test_init_creates_version_info_record(
 
     subprocess.check_output([*init_cmd, working_dir])
 
-    session_or_err = create_or_get_session(
+    session = get_session_or_exit(
         db_path=working_dir.joinpath(mdm_config.md_dir_name, mdm_config.md_db_name)
     )
-    assert isinstance(session_or_err, Session)
 
-    version_info = session_or_err.query(VersionInfoORM).first()
-
+    version_info = session.query(VersionInfoORM).first()
     assert version_info.version == expected_version
     assert version_info.commit_id == expected_commit_id
     assert version_info.build_type.value == expected_build_type.value
+
+    session.close()
 
 
 @pytest.mark.f65ee82ab6
@@ -124,11 +122,14 @@ def test_init_creates_repository_table_without_parent_repo_info(
 
     subprocess.check_output([*init_cmd, working_dir])
     mdm = MetadataManager.from_repository(path=working_dir, md_config=mdm_config)
+    session = get_session_or_exit(db_path=mdm.db_path)
 
-    repository_record = mdm.session.query(RepositoryORM).first()
+    repository_record = session.query(RepositoryORM).first()
     assert str(repository_record.repository_filepath) == str(working_dir)
     assert not repository_record.parent_repository_id
     assert not repository_record.parent_repository_filepath
+
+    session.close()
 
 
 @pytest.mark.d1d2d4cee1
@@ -144,7 +145,9 @@ def test_init_creates_repository_table_with_parent_repo_info(
 
     subprocess.check_output([*init_cmd, working_dir])
     mdm = MetadataManager.from_repository(path=working_dir, md_config=mdm_config)
-    parent_repository_record = mdm.session.query(RepositoryORM).first()
+    session = get_session_or_exit(db_path=mdm.db_path)
+
+    parent_repository_record = session.query(RepositoryORM).first()
     assert parent_repository_record
 
     child_repo_dir = working_dir.joinpath("child_dir")
@@ -154,14 +157,17 @@ def test_init_creates_repository_table_with_parent_repo_info(
         [*init_cmd, child_repo_dir, "--load-from-parent-repository", "--debug"],
         capture_output=True,
     )
-    print(proc)
     assert proc.returncode == 0
 
     child_mdm = MetadataManager.from_repository(
         path=child_repo_dir, md_config=mdm_config
     )
+    child_session = get_session_or_exit(db_path=child_mdm.db_path)
 
-    child_repository_record = child_mdm.session.query(RepositoryORM).first()
+    child_repository_record = child_session.query(RepositoryORM).first()
     assert str(child_repository_record.repository_filepath) == str(child_repo_dir)
     assert str(child_repository_record.parent_repository_filepath) == str(working_dir)
     assert child_repository_record.parent_repository_id == parent_repository_record.id
+
+    session.close()
+    child_session.close()

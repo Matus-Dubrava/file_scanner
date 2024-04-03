@@ -4,6 +4,7 @@ import subprocess
 from manager import MetadataManager
 from md_models import FileORM
 from md_enums import FileStatus
+from db import get_session_or_exit
 
 #######################################################################
 # Mdm commands can't be run outside of Mdm repository.                #
@@ -25,7 +26,8 @@ def test_untrack_cant_be_used_outside_of_mdm_repository(
 
     # Initialize Mdm outside outside of cwd.
     mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    mdm.touch(filepath)
+    session = get_session_or_exit(db_path=mdm.db_path)
+    mdm.touch(session=session, filepath=filepath)
 
     proc = subprocess.run([*untrack_cmd, filepath], capture_output=True)
     assert proc.returncode == 100
@@ -33,7 +35,9 @@ def test_untrack_cant_be_used_outside_of_mdm_repository(
     monkeypatch.chdir(repository_root)
     subprocess.check_output([*untrack_cmd, filepath])
 
-    assert mdm.session.query(FileORM).filter_by(status=FileStatus.UNTRACKED).first()
+    assert session.query(FileORM).filter_by(status=FileStatus.UNTRACKED).first()
+
+    session.close()
 
 
 @pytest.mark.c5c9342acb
@@ -51,7 +55,9 @@ def test_purge_cant_be_used_outside_of_mdm_repository(
 
     # Initialize Mdm outside outside of cwd.
     mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    mdm.touch(filepath)
+    session = get_session_or_exit(db_path=mdm.db_path)
+    mdm.touch(session=session, filepath=filepath)
+    session.close()
 
     proc = subprocess.run([*purge_cmd])
     assert proc.returncode == 100
@@ -75,7 +81,9 @@ def test_list_cant_be_used_outside_of_mdm_repository(
 
     # Initialize Mdm outside outside of cwd.
     mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    mdm.touch(filepath)
+    session = get_session_or_exit(db_path=mdm.db_path)
+    mdm.touch(session=session, filepath=filepath)
+    session.close()
 
     proc = subprocess.run([*list_cmd])
     assert proc.returncode == 100
@@ -136,8 +144,10 @@ def test_rm_cant_be_used_outside_of_mdm_repository(
     filepath2 = subdir.joinpath("testfile2")
 
     mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    mdm.touch(filepath1)
-    mdm.touch(filepath2)
+    session = get_session_or_exit(db_path=mdm.db_path)
+    mdm.touch(session=session, filepath=filepath1)
+    mdm.touch(session=session, filepath=filepath2)
+    session.close()
 
     # These operations should fail since we are switching away from mdm repository.
     proc = subprocess.run([*rm_cmd, filepath1], capture_output=True)

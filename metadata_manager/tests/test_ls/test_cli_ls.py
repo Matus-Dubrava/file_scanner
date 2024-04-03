@@ -9,7 +9,7 @@ from md_enums import FileStatus
 @pytest.mark.cli
 @pytest.mark.ls
 @pytest.mark.sanity
-def test_ls_displays_active_files_by_default(working_dir, mdm, list_cmd):
+def test_ls_displays_active_files_by_default(working_dir, mdm, list_cmd, session):
     subrepo_path = working_dir.joinpath("subdir")
     subrepo_path.mkdir()
 
@@ -20,21 +20,21 @@ def test_ls_displays_active_files_by_default(working_dir, mdm, list_cmd):
     untracked2 = working_dir.joinpath("untracked2")
     subrepo_tracked = subrepo_path.joinpath("subrepo_tracked")
 
-    mdm.touch(active1)
-    mdm.touch(active2)
-    mdm.touch(removed1)
-    mdm.touch(untracked1)
-    mdm.touch(untracked2)
-    mdm.touch(subrepo_tracked)
+    mdm.touch(session=session, filepath=active1)
+    mdm.touch(session=session, filepath=active2)
+    mdm.touch(session=session, filepath=removed1)
+    mdm.touch(session=session, filepath=untracked1)
+    mdm.touch(session=session, filepath=untracked2)
+    mdm.touch(session=session, filepath=subrepo_tracked)
 
-    mdm.remove_file(removed1)
-    mdm.untrack(untracked1)
-    mdm.untrack(untracked2)
+    mdm.remove_file(session=session, filepath=removed1)
+    mdm.untrack(session=session, filepath=untracked1)
+    mdm.untrack(session=session, filepath=untracked2)
 
-    mdm.session.query(FileORM).filter_by(filepath=subrepo_tracked).update(
+    session.query(FileORM).filter_by(filepath=subrepo_tracked).update(
         {"status": FileStatus.TRACKED_IN_SUBREPOSITORY}
     )
-    mdm.session.commit()
+    session.commit()
 
     proc = subprocess.run([*list_cmd], capture_output=True)
     assert proc.returncode == 0
@@ -51,7 +51,7 @@ def test_ls_displays_active_files_by_default(working_dir, mdm, list_cmd):
 @pytest.mark.cli
 @pytest.mark.ls
 @pytest.mark.sanity
-def test_ls_accepts_status_filter_flags(working_dir, mdm, list_cmd):
+def test_ls_accepts_status_filter_flags(working_dir, mdm, list_cmd, session):
     subrepo_path = working_dir.joinpath("subdir")
     subrepo_path.mkdir()
 
@@ -62,21 +62,21 @@ def test_ls_accepts_status_filter_flags(working_dir, mdm, list_cmd):
     untracked2 = working_dir.joinpath("untracked2")
     subrepo_tracked = subrepo_path.joinpath("subrepo_tracked")
 
-    mdm.touch(active1)
-    mdm.touch(active2)
-    mdm.touch(removed1)
-    mdm.touch(untracked1)
-    mdm.touch(untracked2)
-    mdm.touch(subrepo_tracked)
+    mdm.touch(session=session, filepath=active1)
+    mdm.touch(session=session, filepath=active2)
+    mdm.touch(session=session, filepath=removed1)
+    mdm.touch(session=session, filepath=untracked1)
+    mdm.touch(session=session, filepath=untracked2)
+    mdm.touch(session=session, filepath=subrepo_tracked)
 
-    mdm.remove_file(removed1)
-    mdm.untrack(untracked1)
-    mdm.untrack(untracked2)
+    mdm.remove_file(session=session, filepath=removed1)
+    mdm.untrack(session=session, filepath=untracked1)
+    mdm.untrack(session=session, filepath=untracked2)
 
-    mdm.session.query(FileORM).filter_by(filepath=subrepo_tracked).update(
+    session.query(FileORM).filter_by(filepath=subrepo_tracked).update(
         {"status": FileStatus.TRACKED_IN_SUBREPOSITORY}
     )
-    mdm.session.commit()
+    session.commit()
 
     proc = subprocess.run([*list_cmd, "--active"], capture_output=True)
     assert proc.returncode == 0

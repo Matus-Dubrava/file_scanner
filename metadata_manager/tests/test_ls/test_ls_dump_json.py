@@ -10,20 +10,20 @@ from md_enums import FileStatus
 @pytest.mark.ls
 @pytest.mark.dump_json
 @pytest.mark.sanity
-def test_ls_dumps_json_data_to_file(working_dir, mdm, list_cmd):
+def test_ls_dumps_json_data_to_file(working_dir, mdm, list_cmd, session):
     subdir = working_dir.joinpath("subdir")
     subdir.mkdir()
     testfile1 = working_dir.joinpath("testfile1")
     testfile2 = working_dir.joinpath("testfile2")
     testfile3 = subdir.joinpath("testfile3")
 
-    mdm.touch(testfile1, debug=True)
-    mdm.touch(testfile2, debug=True)
-    mdm.touch(testfile3, debug=True)
-    mdm.remove_file(testfile2)
-    mdm.untrack(testfile3)
+    mdm.touch(session=session, filepath=testfile1, debug=True)
+    mdm.touch(session=session, filepath=testfile2, debug=True)
+    mdm.touch(session=session, filepath=testfile3, debug=True)
+    mdm.remove_file(session=session, filepath=testfile2)
+    mdm.untrack(session=session, filepath=testfile3)
 
-    repository_record = mdm.session.query(RepositoryORM).first()
+    repository_record = session.query(RepositoryORM).first()
     assert repository_record
 
     status_filter = [FileStatus.ACTIVE.to_str(), FileStatus.UNTRACKED.to_str()]
@@ -49,9 +49,11 @@ def test_ls_dumps_json_data_to_file(working_dir, mdm, list_cmd):
 @pytest.mark.ls
 @pytest.mark.dump_json
 @pytest.mark.sanity
-def test_ls_prints_noting_to_stdout_when_dumping_to_json(working_dir, mdm, list_cmd):
+def test_ls_prints_noting_to_stdout_when_dumping_to_json(
+    working_dir, mdm, list_cmd, session
+):
     testfile1 = working_dir.joinpath("testfile1")
-    mdm.touch(testfile1)
+    mdm.touch(session=session, filepath=testfile1)
 
     json_path = working_dir.joinpath("result.json")
     res = subprocess.check_output([*list_cmd, "--dump-json", json_path])
@@ -64,10 +66,10 @@ def test_ls_prints_noting_to_stdout_when_dumping_to_json(working_dir, mdm, list_
 @pytest.mark.dump_json
 @pytest.mark.sanity
 def test_ls_fails_to_dump_json_if_parent_directory_doesnt_exist(
-    working_dir, mdm, list_cmd
+    working_dir, mdm, list_cmd, session
 ):
     testfile1 = working_dir.joinpath("testfile1")
-    mdm.touch(testfile1)
+    mdm.touch(session=session, filepath=testfile1)
 
     json_path = working_dir.joinpath("dir1", "result.json")
 
@@ -87,10 +89,10 @@ def test_ls_fails_to_dump_json_if_parent_directory_doesnt_exist(
 @pytest.mark.dump_json
 @pytest.mark.sanity
 def test_debug_option_prints_traceback_when_dumping_to_json_fails(
-    working_dir, mdm, list_cmd
+    working_dir, mdm, list_cmd, session
 ):
     testfile1 = working_dir.joinpath("testfile1")
-    mdm.touch(testfile1)
+    mdm.touch(session=session, filepath=testfile1)
 
     json_path = working_dir.joinpath("dir1", "result.json")
 
@@ -111,10 +113,10 @@ def test_debug_option_prints_traceback_when_dumping_to_json_fails(
 @pytest.mark.sanity
 @pytest.mark.parametrize("force_flag", ["-f", "--force"])
 def test_force_flag_creates_parent_directories_when_dumping_to_json(
-    working_dir, mdm, list_cmd, force_flag
+    working_dir, mdm, list_cmd, force_flag, session
 ):
     testfile1 = working_dir.joinpath("testfile1")
-    mdm.touch(testfile1)
+    mdm.touch(session=session, filepath=testfile1)
 
     json_path = working_dir.joinpath("dir1", "dir2", "result.json")
 
