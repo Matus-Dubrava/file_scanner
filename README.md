@@ -166,6 +166,7 @@
     -   remove the logic that compares changed lines based on hashes and instead store the previous version of a file in plaintext, that way we can restore the file if necessary
     -   refactor cli tests using click's `CLIrunner` instead of `subprocess` module
     -   add `touch` dir, it should recursively touch all files within that dir that are currently tracked
+    -   remove the extra check for parent files from `touch` method, we are already performing the same check in cli, therefore we should just put some assertions there instead
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
