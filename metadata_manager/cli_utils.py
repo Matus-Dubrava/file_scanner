@@ -1,6 +1,7 @@
 from pathlib import Path
 import traceback
 import sys
+from typing import List
 
 from md_utils import get_repository_root_or_exit
 from md_models import Config
@@ -12,7 +13,7 @@ def validate_cwd_is_within_repository_dir(config: Config) -> None:
     get_repository_root_or_exit(path=Path.cwd(), config=config)
 
 
-def validate_cwd_and_target_repository_dirs_match(
+def validate_source_and_target_repository_dirs_match(
     config: Config, target_path: Path, source_path: Path = Path.cwd()
 ) -> None:
     """
@@ -69,3 +70,45 @@ def validate_path_is_within_repository_dir(
             file=sys.stderr,
         )
         sys.exit(md_constants.PATH_NOT_WITHIN_REPOSITORY)
+
+
+def validate_paths(
+    with_repository_path: bool,
+    config: Config,
+    mdm: MetadataManager,
+    target_paths: List[Path],
+    debug: bool = False,
+):
+    """
+    Perform validation checks depending on whether repository path was explicitely provided or not.
+    For a path to be considered valid, it needs to be within repository. Futhermore source repository
+    must match target repository unless repository path is explictly provided.
+
+    Exit if validation fails.
+
+    with_repository_path:   Flag indicating whether repository path was explicitely provided. CWD is the
+                            default path for CLI operations.
+    config:                 Manager config.
+    mdm:                    Manager object.
+    target_paths:           List of paths to perform operations at (such as 'touch' or 'rm').
+    debug:                  Show debug information.
+    """
+
+    # Repository path wasn't directly provided, pefrom validation against CWD.
+    if not with_repository_path:
+        validate_cwd_is_within_repository_dir(config=config)
+        for path in target_paths:
+            # Check if every paths fall under the same repositry as CWD.
+            # This is necessary because CWD may not be in the same repositry
+            # as the location where the provided paths point to in which case
+            # the validation fails.
+            validate_source_and_target_repository_dirs_match(
+                config=config,
+                target_path=path,
+                source_path=Path.cwd(),
+            )
+
+    # Repository path was provided. Check if each path in 'target_paths' is within that directory.
+    if with_repository_path:
+        for path in target_paths:
+            validate_path_is_within_repository_dir(mdm=mdm, path=path, debug=debug)

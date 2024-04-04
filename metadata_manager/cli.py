@@ -45,7 +45,7 @@ def init(ctx, target, debug, load_from_parent_repository, recreate):
 
 
 @cli.command()
-@click.argument("target")
+@click.argument("path", nargs=-1, required=True)
 @click.option(
     "--repository-path",
     required=False,
@@ -69,27 +69,24 @@ def init(ctx, target, debug, load_from_parent_repository, recreate):
     help="Print debug information.",
 )
 @click.pass_context
-def touch(ctx, target, repository_path, parents, debug) -> None:
+def touch(ctx, path, repository_path, parents, debug) -> None:
     mdm_config = ctx.obj
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
-    target_path = Path(target).resolve()
-
-    if not repository_path:
-        cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
-        cli_utils.validate_cwd_and_target_repository_dirs_match(
-            config=mdm_config,
-            target_path=target_path,
-            source_path=source_path,
-        )
-
+    target_paths = [Path(p).resolve() for p in path]
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=source_path)
-    if repository_path:
-        cli_utils.validate_path_is_within_repository_dir(
-            mdm=mdm, path=target_path, debug=debug
-        )
+
+    cli_utils.validate_paths(
+        with_repository_path=repository_path,
+        config=mdm_config,
+        mdm=mdm,
+        target_paths=target_paths,
+        debug=debug,
+    )
 
     session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
-    mdm.touch(session=session, filepath=target_path, parents=parents)
+    for target_path in target_paths:
+        mdm.touch(session=session, filepath=target_path, parents=parents)
+
     session.close()
 
 
@@ -262,20 +259,13 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -
     target_paths = [Path(p).resolve() for p in path]
     mdm = MetadataManager.from_repository(md_config=mdm_config, path=source_path)
 
-    if not repository_path:
-        cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
-        for path in target_paths:
-            cli_utils.validate_cwd_and_target_repository_dirs_match(
-                config=mdm_config,
-                target_path=path,
-                source_path=source_path,
-            )
-
-    if repository_path:
-        for path in target_paths:
-            cli_utils.validate_path_is_within_repository_dir(
-                mdm=mdm, path=path, debug=debug
-            )
+    cli_utils.validate_paths(
+        with_repository_path=repository_path,
+        config=mdm_config,
+        mdm=mdm,
+        debug=debug,
+        target_paths=target_paths,
+    )
 
     session = get_session_or_exit(db_path=mdm.db_path)
     target_filepaths: List[Path] = []

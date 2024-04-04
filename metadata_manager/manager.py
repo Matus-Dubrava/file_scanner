@@ -624,6 +624,8 @@ class MetadataManager:
             session.close()
             sys.exit(1)
 
+        print(f"touch: {filepath.relative_to(self.repository_root)}")
+
     def untrack(self, session: Session, filepath: Path) -> None:
         """
         Set file status to "UNTRACKED" if file is in "ACTIVE" state. Do nothing
