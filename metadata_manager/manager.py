@@ -900,7 +900,7 @@ class MetadataManager:
 
                 session.close()
                 print(
-                    f"Fatal: failed to write result to {dump_json_path}",
+                    f"fatal: failed to write result to {dump_json_path}",
                     file=sys.stderr,
                 )
                 sys.exit(1)
