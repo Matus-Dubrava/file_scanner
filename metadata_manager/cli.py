@@ -232,6 +232,13 @@ def purge(ctx, debug) -> None:
 @click.option("--purge", is_flag=True, show_default=True, default=False)
 @click.option("--force", is_flag=True, show_default=True, default=False)
 @click.option(
+    "--keep-local",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Remove the files/directories from internal database but preserve them in file system.",
+)
+@click.option(
     "--repository-path",
     required=False,
     help=(
@@ -248,7 +255,7 @@ def purge(ctx, debug) -> None:
     help="Required if any of the provided paths is directory.",
 )
 @click.pass_context
-def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
+def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -> None:
     mdm_config = ctx.obj
 
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
@@ -311,6 +318,7 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
         purge=purge,
         debug=debug,
         force=force,
+        keep_local=keep_local,
     )
     session.close()
 
@@ -324,9 +332,12 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive) -> None:
         key=lambda path: len(Path(path).parts),
         reverse=True,
     ):
-        if not list(dir_.iterdir()):
+        # Find empty directories and remove them unless --keep local is provided.
+        if not list(dir_.iterdir()) and not keep_local:
             dir_.rmdir()
-            # Remove corresponding hash directories as well.
+
+        # Find empty hash directories and remove them.
+        if not list(mdm.get_path_to_hash_file(filepath=dir_).iterdir()):
             mdm.remove_hash_file_or_dir(path=dir_)
 
 

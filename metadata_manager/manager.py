@@ -665,6 +665,7 @@ class MetadataManager:
         purge: bool = False,
         force: bool = False,
         debug: bool = False,
+        keep_local: bool = False,
     ) -> None:
         """
         Sets file status of the provided file to REMOVED and removes it from file system if the file exists.
@@ -679,6 +680,7 @@ class MetadataManager:
                     the file from file system. This only applies if the file exists. If file
                     doesn't exits then Mdm record will be removed automatically.
         debug:      Print error tracebacks to stderr together with custom error messages.
+        keep_local: Remove database records and hash object related to the file but don't remove the file.
         """
         # Handle removing file from internal database and hash file.
         try:
@@ -699,7 +701,7 @@ class MetadataManager:
             else:
                 # Handle removing file from file system.
                 # Continue to remove file from repository if file doesn't exits.
-                if filepath.exists():
+                if filepath.exists() and not keep_local:
                     try:
                         filepath.unlink()
                     except Exception:
@@ -760,6 +762,7 @@ class MetadataManager:
         purge: bool = False,
         force: bool = False,
         debug: bool = False,
+        keep_local: bool = False,
     ) -> None:
         """
         Sets file status of provided files to REMOVED and removes them from file system if they exist.
@@ -803,6 +806,7 @@ class MetadataManager:
                 purge=purge,
                 force=force,
                 debug=debug,
+                keep_local=keep_local,
             )
 
     def purge_removed_files(
