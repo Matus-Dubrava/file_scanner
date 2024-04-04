@@ -153,7 +153,7 @@ def get_repository_root_or_exit(path: Path, config: Config) -> Path:
     maybe_mdm_root = get_repository_root(path=path, config=config)
     if not maybe_mdm_root:
         print(
-            "Not an Mdm repository (or any of the parent directories). Abort.",
+            "fatal: not an Mdm repository (or any of the parent directories)",
             file=sys.stderr,
         )
         sys.exit(md_constants.NOT_MDM_REPOSITORY)

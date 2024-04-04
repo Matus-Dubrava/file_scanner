@@ -385,8 +385,7 @@ def test_init_updates_branch_name(working_dir, touch_cmd, mdm, session):
 
 @pytest.mark.aa43a2ae32
 @pytest.mark.cli
-@pytest.mark.rm
-@pytest.mark.recursive
+@pytest.mark.touch
 @pytest.mark.sanity
 def test_touch_removes_empty_hashes_dir_when_corresponding_dir_doesnt_exist(
     working_dir, mdm, touch_cmd, session
@@ -413,3 +412,21 @@ def test_touch_removes_empty_hashes_dir_when_corresponding_dir_doesnt_exist(
 
     new_file = working_dir.joinpath("dir")
     subprocess.check_output([*touch_cmd, new_file])
+
+
+@pytest.mark.a47dc2613f
+@pytest.mark.cli
+@pytest.mark.touch
+@pytest.mark.sanity
+def test_touch_works_with_multiple_files_at_once(working_dir, touch_cmd, session):
+    testfiles = [
+        working_dir.joinpath("testfile1"),
+        working_dir.joinpath("testfile2"),
+        working_dir.joinpath("testfile3"),
+    ]
+
+    subprocess.check_output([*touch_cmd, *testfiles])
+
+    for testfile in testfiles:
+        assert testfile.exists()
+        assert session.query(FileORM).filter_by(filepath=testfile).first()

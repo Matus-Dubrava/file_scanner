@@ -83,6 +83,20 @@ def touch(ctx, path, repository_path, parents, debug) -> None:
         debug=debug,
     )
 
+    # Validate all parent directories exists if 'parents' flag wasn't provided.
+    if not parents:
+        for target_path in target_paths:
+            if not target_path.parent.exists():
+                print(
+                    f"Fatal: Directory {target_path.parent} doesn't exist. Abort.",
+                    file=sys.stderr,
+                )
+                print(
+                    "\nprovide -p/--parents flag to create parent directories as needed.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
     session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
     for target_path in target_paths:
         mdm.touch(session=session, filepath=target_path, parents=parents)
