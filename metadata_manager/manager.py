@@ -504,29 +504,20 @@ class MetadataManager:
         session: Session,
         filepath: Path,
         debug: bool = False,
-        parents: bool = False,
+        create_parents: bool = False,
     ) -> None:
         """
         ...
         """
         assert filepath.is_absolute(), f"Expected absolute filepath. Got {filepath}"
+        assert (
+            filepath.parent.exists() or create_parents
+        ), f"Expected parent directory ({filepath.parent}) to exists or 'create_parents' flag to be set."
 
         # Validate parent directory exists and create all parent directories as needed if
-        # 'parent=True', otherwise exit.
-        if not filepath.parent.exists():
-            if parents:
-                filepath.parent.mkdir(parents=True, exist_ok=True)
-            else:
-                session.close()
-                print(
-                    f"Fatal: Directory {filepath.parent} doesn't exist. Abort.",
-                    file=sys.stderr,
-                )
-                print(
-                    "\nprovide -p/--parents flag to create parent directories as needed.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
+        # 'create_parent=True'
+        if not filepath.parent.exists() and create_parents:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
 
         branch_name = self.get_current_git_branch(filepath.parent)
 

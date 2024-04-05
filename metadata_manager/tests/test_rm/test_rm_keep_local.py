@@ -39,7 +39,7 @@ def test_rm_keep_local_dir_removes_only_db_records_and_hash_object(
 ):
     dir_ = working_dir.joinpath("dir")
     testfile = dir_.joinpath("testfile")
-    mdm.touch(session=session, filepath=testfile, parents=True)
+    mdm.touch(session=session, filepath=testfile, create_parents=True)
 
     subprocess.check_output([*rm_cmd, dir_, "--keep-local", "--recursive"])
     session.expunge_all()
@@ -65,7 +65,7 @@ def test_rm_keep_local_dir_removes_only_db_records_and_hash_object_with_purge(
 ):
     dir_ = working_dir.joinpath("dir")
     testfile = dir_.joinpath("testfile")
-    mdm.touch(session=session, filepath=testfile, parents=True)
+    mdm.touch(session=session, filepath=testfile, create_parents=True)
 
     subprocess.check_output([*rm_cmd, dir_, "--keep-local", "--recursive", "--purge"])
     session.expunge_all()

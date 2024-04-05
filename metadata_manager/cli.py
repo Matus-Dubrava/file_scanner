@@ -99,7 +99,7 @@ def touch(ctx, path, repository_path, parents, debug) -> None:
 
     session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
     for target_path in target_paths:
-        mdm.touch(session=session, filepath=target_path, parents=parents)
+        mdm.touch(session=session, filepath=target_path, create_parents=parents)
 
     session.close()
 
