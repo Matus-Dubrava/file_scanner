@@ -88,7 +88,7 @@ def touch(ctx, path, repository_path, parents, debug) -> None:
         for target_path in target_paths:
             if not target_path.parent.exists():
                 print(
-                    f"Fatal: Directory {target_path.parent} doesn't exist. Abort.",
+                    f"fatal: directory {target_path.parent} doesn't exist",
                     file=sys.stderr,
                 )
                 print(

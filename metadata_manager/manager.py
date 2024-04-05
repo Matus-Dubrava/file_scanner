@@ -61,8 +61,8 @@ class MetadataManager:
             print(f"Fatal: repository already exists in {path}", file=sys.stderr)
             print(
                 (
-                    "\nuse (mdm init --recreate) to recreate repository, ",
-                    "this will delete the old repository and all data will be lost",
+                    "use (mdm init --recreate) to recreate repository, "
+                    "this will delete the old repository and all data will be lost"
                 ),
                 file=sys.stderr,
             )
@@ -81,7 +81,7 @@ class MetadataManager:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
-            print(f"Fatal: failed to initialize repository {path}", file=sys.stderr)
+            print(f"fatal: failed to initialize repository {path}", file=sys.stderr)
             sys.exit(1)
 
         repository = RepositoryORM(
@@ -107,7 +107,7 @@ class MetadataManager:
             if debug:
                 print(f"{traceback.format_exception(maybe_err)}\n", file=sys.stderr)
 
-            print("Failed to initialize repository. Abort.", file=sys.stderr)
+            print("fatal: failed to initialize repository", file=sys.stderr)
             sys.exit(1)
 
         session.commit()
