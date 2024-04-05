@@ -289,7 +289,8 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -
     # so that those can be deleted.
     for path in target_paths:
         # In case specified path doesn't exists, find all files that might be associated with this
-        # path in the database and add them for removal.
+        # path in the database and add them for removal. This ensure that dangling
+        # objects are removed.
         if not path.exists():
             target_filepaths.extend(
                 md_utils.find_tracked_files_in_database(session=session, path=path)
