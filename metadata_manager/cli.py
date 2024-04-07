@@ -97,6 +97,13 @@ def touch(ctx, path, repository_path, parents, debug) -> None:
                 )
                 sys.exit(1)
 
+    # Validate there are no directories in provided paths.
+    # Touching existing directory is not allowed.
+    for path in target_paths:
+        if path.is_dir():
+            print(f"fatal: can't touch directory {path}", file=sys.stderr)
+            sys.exit(2)
+
     session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
     for target_path in target_paths:
         mdm.touch(session=session, filepath=target_path, create_parents=parents)

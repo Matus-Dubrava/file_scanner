@@ -430,3 +430,36 @@ def test_touch_works_with_multiple_files_at_once(working_dir, touch_cmd, session
     for testfile in testfiles:
         assert testfile.exists()
         assert session.query(FileORM).filter_by(filepath=testfile).first()
+
+
+@pytest.mark.b1bbeba0e4
+@pytest.mark.cli
+@pytest.mark.touch
+@pytest.mark.sanity
+def test_touch_errors_out_when_touching_directory(working_dir, touch_cmd):
+    dir_ = working_dir.joinpath("dir_")
+    dir_.mkdir()
+
+    proc = subprocess.run([*touch_cmd, dir_], capture_output=True)
+    assert proc.returncode != 0
+    assert not proc.stdout
+    assert "fatal:" in proc.stderr.decode().lower()
+
+
+@pytest.mark.aaf27b1d42
+@pytest.mark.cli
+@pytest.mark.touch
+@pytest.mark.sanity
+def test_touch_doesnt_create_any_file_when_it_fails_due_to_dir_being_provided_instead_of_file(
+    working_dir, touch_cmd
+):
+    file_ = working_dir.joinpath("file_")
+    dir_ = working_dir.joinpath("dir_")
+    dir_.mkdir()
+
+    proc = subprocess.run([*touch_cmd, file_, dir_], capture_output=True)
+    assert proc.returncode != 0
+    assert not proc.stdout
+    assert "fatal:" in proc.stderr.decode().lower()
+
+    assert not file_.exists()
