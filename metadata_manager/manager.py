@@ -613,7 +613,7 @@ class MetadataManager:
                 branch_name=branch_name,
             )
             if maybe_errors is not None:
-                errors = maybe_errors
+                errors.extend(maybe_errors)
 
         if len(errors):
             for err in errors:
