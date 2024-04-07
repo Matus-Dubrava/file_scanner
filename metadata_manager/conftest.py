@@ -79,6 +79,11 @@ def list_cmd(md_cmd):
     return [*md_cmd, "ls"]
 
 
+@pytest.fixture(scope="module")
+def add_cmd(md_cmd):
+    return [*md_cmd, "add"]
+
+
 @pytest.fixture(scope="function")
 def mdm_config():
     with open(Path(__file__).parent / "config" / ".mdconfig_dev", "r") as f:

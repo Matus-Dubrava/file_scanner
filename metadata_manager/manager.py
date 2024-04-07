@@ -1,4 +1,5 @@
 import sys
+import os
 import traceback
 from pathlib import Path
 from typing import Optional, List, Union
@@ -410,7 +411,8 @@ class MetadataManager:
         session: Session,
         filepath: Path,
         branch_name: Optional[str] = None,
-    ) -> List[Optional[Exception]]:
+    ) -> Optional[List[Exception]]:
+        errors: List[Exception] = []
         try:
             file_stat_or_err = md_utils.compute_file_stats(filepath=filepath)
             if isinstance(file_stat_or_err, Exception):
@@ -436,7 +438,7 @@ class MetadataManager:
 
             # Get the corresponding file record and potentially update branch.
             file_record = session.query(FileORM).filter_by(filepath=filepath).first()
-            assert file_record, f"Expected file recrod for {filepath} to exist"
+            assert file_record, f"Expected file record for {filepath} to exist"
             file_record.version_control_branch = branch_name
             session.add(file_record)
 
@@ -468,13 +470,15 @@ class MetadataManager:
             session.add(history_record)
             session.commit()
         except Exception as err:
-            errors: List[Optional[Exception]] = [err]
+            errors.append(err)
+
             maybe_err = self.remove_hash_file_or_dir(path=filepath)
             if maybe_err:
                 errors.append(err)
+
             return errors
 
-        return []
+        return errors if len(errors) else None
 
     def write_version_info_to_db(
         self, session: Session, commit: bool = True
@@ -525,7 +529,7 @@ class MetadataManager:
             session.query(FileORM).filter_by(filepath=str(filepath)).first()
         )
 
-        maybe_errors: List[Optional[Exception]] = []
+        errors: List[Exception] = []
 
         # File doesn't exist it fs nor in the .md database.
         if not filepath.exists() and not old_file_record:
@@ -536,7 +540,8 @@ class MetadataManager:
             # with the same name as the file that is currently being created and it
             # was removed from fs.
             maybe_err = self.remove_hash_file_or_dir(path=filepath)
-            maybe_errors.append(maybe_err)
+            if isinstance(maybe_err, Exception):
+                errors.append(maybe_err)
 
             maybe_err = self.create_new_file_record(
                 session=session,
@@ -544,7 +549,8 @@ class MetadataManager:
                 branch_name=branch_name,
                 file_exists=False,
             )
-            maybe_errors.append(maybe_err)
+            if isinstance(maybe_err, Exception):
+                errors.append(maybe_err)
 
         # file doesn't exist in md but exits in fs (i.e file wasnt created using md touch or due to branch switch)
         elif filepath.exists() and not old_file_record:
@@ -554,7 +560,8 @@ class MetadataManager:
                 branch_name=branch_name,
                 file_exists=True,
             )
-            maybe_errors.append(maybe_err)
+            if isinstance(maybe_err, Exception):
+                errors.append(maybe_err)
 
         # file exists in md but not in fs (file was removed)
         elif not filepath.exists() and old_file_record:
@@ -582,7 +589,8 @@ class MetadataManager:
             # if all removal are handled via manager 'rm'. But in case they are removed via other
             # means, there will be dangling objects.
             maybe_err = self.remove_hash_file_or_dir(path=filepath)
-            maybe_errors.append(maybe_err)
+            if isinstance(maybe_err, Exception):
+                errors.append(maybe_err)
 
             # Create new file and new .md record.
             # Note that "create_new_file" intentionally commits the staged changes
@@ -594,7 +602,8 @@ class MetadataManager:
                 branch_name=branch_name,
                 file_exists=False,
             )
-            maybe_errors.append(maybe_err)
+            if isinstance(maybe_err, Exception):
+                errors.append(maybe_err)
 
         # file exists in both md and fs.
         elif filepath.exists() and old_file_record:
@@ -603,8 +612,9 @@ class MetadataManager:
                 filepath=filepath,
                 branch_name=branch_name,
             )
+            if maybe_errors is not None:
+                errors = maybe_errors
 
-        errors = [err for err in maybe_errors if err is not None]
         if len(errors):
             for err in errors:
                 if debug:
@@ -616,6 +626,55 @@ class MetadataManager:
             sys.exit(1)
 
         print(f"touch: {filepath.relative_to(self.repository_root)}")
+
+    def add_file(self, session: Session, filepath: Path, debug: bool = False) -> None:
+        """
+        Start tracking provided file - set its status to 'ACTIVE'.
+        If file is already being tracked, do nothing.
+        """
+
+        assert filepath.exists(), f"Expected file '{filepath}' to exist."
+        assert (
+            filepath.is_file()
+        ), f"Expected provided filepath '{filepath}' to be file."
+
+        branch_name = self.get_current_git_branch(filepath.parent)
+
+        if not session.query(FileORM).filter_by(filepath=filepath).first():
+            maybe_err = self.create_new_file_record(
+                session=session,
+                filepath=filepath,
+                branch_name=branch_name,
+                file_exists=False,
+            )
+
+            if maybe_err:
+                if debug:
+                    print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+                print(maybe_err, file=sys.stderr)
+                session.close()
+                exit(1)
+
+            print(f"tracking: {filepath}")
+
+    def add_directory(
+        self, session: Session, dirpath: Path, debug: bool = False
+    ) -> None:
+        """
+        Traverse directory together with all nested subdirectories and start tracking
+        all files that were found.
+        """
+        assert dirpath.exists(), f"Expected file '{dirpath}' to exist."
+        assert dirpath.is_dir(), f"Expected provided dirpath '{dirpath}' to be file."
+
+        for rootdir, _, filenames in os.walk(dirpath):
+            for filename in filenames:
+                self.add_file(
+                    session=session,
+                    filepath=Path(rootdir).joinpath(filename),
+                    debug=debug,
+                )
 
     def untrack(self, session: Session, filepath: Path) -> None:
         """

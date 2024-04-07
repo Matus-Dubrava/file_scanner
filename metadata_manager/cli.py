@@ -353,6 +353,53 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -
             mdm.remove_hash_file_or_dir(path=dir_)
 
 
+@cli.command()
+@click.argument("paths", nargs=-1, required=True)
+@click.option(
+    "--debug",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Show debug information.",
+)
+@click.option(
+    "--repository-path",
+    required=False,
+    help=(
+        "Path to repository. If path doesn't point to repository root the nearest parent repository is used. "
+        "Fails if no parent repository is found."
+    ),
+)
+def add(paths, debug, repository_path):
+    source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
+    target_paths = [Path(p).resolve() for p in paths]
+    mdm = MetadataManager.from_repository(md_config=mdm_config, path=source_path)
+
+    cli_utils.validate_paths(
+        with_repository_path=repository_path,
+        config=mdm_config,
+        mdm=mdm,
+        debug=debug,
+        target_paths=target_paths,
+    )
+
+    for target_path in target_paths:
+        # Can't add nonexistent files.
+        if not target_path.exists():
+            print(f"fatal: {target_path} doesn't exist", file=sys.stderr)
+            sys.exit(1)
+
+    session = get_session_or_exit(db_path=mdm.db_path)
+
+    for target_path in target_paths:
+        if target_path.is_file():
+            mdm.add_file(session=session, filepath=target_path, debug=debug)
+        elif target_path.is_dir():
+            mdm.add_directory(session=session, dirpath=target_path, debug=debug)
+
+    session.close()
+
+
 if __name__ == "__main__":
     mdm_config = Config.from_file(CONFIG_PATH)
     if isinstance(mdm_config, Exception):
