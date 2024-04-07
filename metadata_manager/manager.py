@@ -332,7 +332,7 @@ class MetadataManager:
 
         return False
 
-    def create_new_file_record(
+    def create_repository_record(
         self,
         session: Session,
         filepath: Path,
@@ -406,12 +406,16 @@ class MetadataManager:
 
         return None
 
-    def add_file_to_md(
+    def refresh_repository_record(
         self,
         session: Session,
         filepath: Path,
         branch_name: Optional[str] = None,
     ) -> Optional[List[Exception]]:
+        """
+        Refreshes exising repository file record. Adds new history record and
+        recreates hash file.
+        """
         errors: List[Exception] = []
         try:
             file_stat_or_err = md_utils.compute_file_stats(filepath=filepath)
@@ -543,7 +547,7 @@ class MetadataManager:
             if isinstance(maybe_err, Exception):
                 errors.append(maybe_err)
 
-            maybe_err = self.create_new_file_record(
+            maybe_err = self.create_repository_record(
                 session=session,
                 filepath=filepath,
                 branch_name=branch_name,
@@ -554,7 +558,7 @@ class MetadataManager:
 
         # file doesn't exist in md but exits in fs (i.e file wasnt created using md touch or due to branch switch)
         elif filepath.exists() and not old_file_record:
-            maybe_err = self.create_new_file_record(
+            maybe_err = self.create_repository_record(
                 session=session,
                 filepath=filepath,
                 branch_name=branch_name,
@@ -596,7 +600,7 @@ class MetadataManager:
             # Note that "create_new_file" intentionally commits the staged changes
             # so that it can perform cleanup if necessary. This also commits
             # the above staged changes.
-            maybe_err = self.create_new_file_record(
+            maybe_err = self.create_repository_record(
                 session=session,
                 filepath=filepath,
                 branch_name=branch_name,
@@ -607,7 +611,7 @@ class MetadataManager:
 
         # file exists in both md and fs.
         elif filepath.exists() and old_file_record:
-            maybe_errors = self.add_file_to_md(
+            maybe_errors = self.refresh_repository_record(
                 session=session,
                 filepath=filepath,
                 branch_name=branch_name,
@@ -641,7 +645,7 @@ class MetadataManager:
         branch_name = self.get_current_git_branch(filepath.parent)
 
         if not session.query(FileORM).filter_by(filepath=filepath).first():
-            maybe_err = self.create_new_file_record(
+            maybe_err = self.create_repository_record(
                 session=session,
                 filepath=filepath,
                 branch_name=branch_name,
