@@ -125,19 +125,15 @@
     -   add script for running test coverage
     -   add option to search based on custom attributes and values via `mdm list` once the custom file attributes
         are implemented
-    -   add `commit` argument to functions that perform database operations so that they can optionally
-        commit changes
     -   rename `mdm` to `mdm` (MetadataManager)
     -   add support for both global (repository-level) and file-level custom metadata and
         option to filter out records based on them
     -   add CHANGELOG.md file
-    -   add `--debug` flag to control printing of trackeback to stderr
     -   check how exceptions are passed throughout the code and make necessary changes so that traceback is not lost
     -   implement `mdm refresh` which will create new `history` record for each `ACTIVE` record in `file` table
     -   add support for `rm --recursive/-r <directory>`
         -   this will remove all files tracked by `mdm`
         -   if the directory is empty after files were removed, remove the directory as
-    -   update `rm` to not delete files that are not tracked by `mdm`
     -   add `--repository-path` option to `rm` so that it can be run from outside of `mdm` repository
     -   implement 2 Phase Commit when synchronizing parent `mdm` database with child `mdm` database
     -   add Mixins to the Sqlalchemy models implementing `__repr__` method
@@ -164,7 +160,7 @@
         -   whenever new repository is instantiated, add entry to this database
         -   add option to list all repositories, their location and some other stats
     -   remove the logic that compares changed lines based on hashes and instead store the previous version of a file in plaintext, that way we can restore the file if necessary
-    -   refactor cli tests using click's `CLIrunner` instead of `subprocess` module
+    -   add `show` command that prints information about the selected file
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
@@ -200,3 +196,7 @@
     -   add option to `touch` multiple files
     -   add `touch` dir, it should recursively touch all files within that dir that are currently tracked
     -   remove the extra check for parent files from `touch` method, we are already performing the same check in cli, therefore we should just put some assertions there instead
+    -   update `rm` to not delete files that are not tracked by `mdm`
+    -   add `commit` argument to functions that perform database operations so that they can optionally
+        commit changes
+    -   add `--debug` flag to control printing of trackeback to stderr
