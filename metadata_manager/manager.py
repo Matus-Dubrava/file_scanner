@@ -1018,3 +1018,58 @@ class MetadataManager:
                     print(Path(file_record.filepath).absolute())
                 else:
                     print(Path(file_record.filepath).relative_to(Path.cwd()))
+
+    def show_repository(self, session: Session, debug: bool = False) -> None:
+        """
+        Show repository information.
+        """
+
+        repository_record = session.query(RepositoryORM).first()
+
+        if not repository_record:
+            print("fatal: not a repository", file=sys.stderr)
+            sys.exit(1)
+
+        repository_record.pretty_print()
+
+    def show_file(
+        self,
+        session: Session,
+        filepath: Path,
+        display_history: bool = False,
+        display_n_history_records: Optional[int] = None,
+        debug: bool = False,
+    ) -> None:
+        """
+        Show file information.
+        """
+
+        file_record = session.query(FileORM).filter_by(filepath=filepath).first()
+
+        if not file_record:
+            print(
+                f"fatal: {filepath.relative_to(self.repository_root)} is not tracked",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        file_record.pretty_print(session=session)
+
+        if display_history:
+            if display_n_history_records:
+                history_records = (
+                    session.query(HistoryORM)
+                    .filter_by(filepath=filepath)
+                    .order_by(HistoryORM.timestamp_record_added.desc())
+                    .limit(display_n_history_records)
+                )
+            else:
+                history_records = (
+                    session.query(HistoryORM)
+                    .filter_by(filepath=filepath)
+                    .order_by(HistoryORM.timestamp_record_added.desc())
+                )
+
+            for record in history_records:
+                print()
+                record.pretty_print()

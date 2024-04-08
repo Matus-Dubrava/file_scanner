@@ -215,6 +215,63 @@ def ls(
 
 
 @cli.command()
+@click.argument("target", required=False)
+@click.option(
+    "--debug",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Show debug information.",
+)
+@click.option("--repository-path", required=False)
+@click.option(
+    "--history",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Show file history records. Use '-n' to limit the number of records shown.",
+)
+@click.option("-n", required=False, help="Limit the number of printed shown records.")
+@click.pass_context
+def show(ctx, target, debug, repository_path, history, n):
+    mdm_config = ctx.obj
+
+    if not repository_path:
+        cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
+
+    mdm = MetadataManager.from_repository(
+        md_config=ctx.obj,
+        path=Path.cwd() if not repository_path else Path(repository_path).resolve(),
+    )
+
+    session = get_session_or_exit(db_path=mdm.db_path)
+
+    # Validate 'n' to be number.
+    if n is not None:
+        try:
+            n = int(n)
+        except ValueError:
+            print(
+                f"fatal: invalid argument '-n {n}', value must be number",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    if not target:
+        mdm.show_repository(session=session, debug=debug)
+    else:
+        mdm.show_file(
+            session=session,
+            filepath=Path(target).resolve(),
+            debug=debug,
+            display_history=history,
+            display_n_history_records=n,
+        )
+
+    session.close()
+
+
+@cli.command()
 @click.argument("target")
 @click.pass_context
 def untrack(ctx, target) -> None:

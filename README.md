@@ -160,8 +160,6 @@
         -   whenever new repository is instantiated, add entry to this database
         -   add option to list all repositories, their location and some other stats
     -   remove the logic that compares changed lines based on hashes and instead store the previous version of a file in plaintext, that way we can restore the file if necessary
-    -   add `show` command that prints information about the selected file
-    -   add message to `purge` that shows how many file records were purged
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist
@@ -201,3 +199,5 @@
     -   add `commit` argument to functions that perform database operations so that they can optionally
         commit changes
     -   add `--debug` flag to control printing of trackeback to stderr
+    -   add `show` command that prints information about the selected file
+    -   add message to `purge` that shows how many file records were purged

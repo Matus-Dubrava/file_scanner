@@ -26,7 +26,15 @@ class PathType(TypeDecorator):
         return Path(value) if value else None
 
 
-class FileORM(Base):
+class ORMReprMixin:
+    def __repr__(self) -> str:
+        class_ = self.__class__.__name__
+        attrs = sorted((k, getattr(self, k)) for k in self.__mapper__.columns.keys())  # type: ignore
+        str_attrs = ",\n".join(f"{key}={value!r}" for key, value in attrs)
+        return f"{class_}({str_attrs})"
+
+
+class FileORM(Base, ORMReprMixin):
     __tablename__ = "file"
 
     filepath: Mapped[Path | str] = Column(
@@ -56,8 +64,24 @@ class FileORM(Base):
             status=self.status,
         )
 
+    def pretty_print(self, session: Session) -> None:
+        latest_history_record = HistoryORM.get_latest(
+            session=session, filepath=self.filepath
+        )
 
-class HistoryORM(Base):
+        assert latest_history_record is not None, "Expected history record to exist."
+
+        print(f"Path:\t\t\t{self.filepath}")
+        print(f"Date Added:\t\t{self.timestamp_added}")
+        print(f"Date Created:\t\t{self.fs_timestamp_created}")
+        print(f"Date Modified:\t\t{latest_history_record.fs_date_modified}")
+        print(f"Status:\t\t\t{self.status}")
+        print(f"Line Count:\t\t{latest_history_record.count_total_lines}")
+        print(f"Total Lines Added:\t{latest_history_record.running_added_lines}")
+        print(f"Total Lines Removed:\t{latest_history_record.count_removed_lines}")
+
+
+class HistoryORM(Base, ORMReprMixin):
     __tablename__ = "history"
 
     id: Mapped[str] = Column(String, primary_key=True)
@@ -83,12 +107,6 @@ class HistoryORM(Base):
     file_hash: Mapped[str] = Column(String, nullable=False)
 
     file: Mapped[FileORM] = relationship("FileORM", back_populates="history")
-
-    def __repr__(self) -> str:
-        class_ = self.__class__.__name__
-        attrs = sorted((k, getattr(self, k)) for k in self.__mapper__.columns.keys())
-        str_attrs = ",\n".join(f"{key}={value!r}" for key, value in attrs)
-        return f"{class_}({str_attrs})"
 
     @classmethod
     def get_latest(
@@ -118,8 +136,18 @@ class HistoryORM(Base):
             file_hash=self.file_hash,
         )
 
+    def pretty_print(self) -> None:
+        print(f"Recorded:\t\t{self.timestamp_record_added}")
+        print(f"Branch:\t\t\t{self.version_control_branch}")
+        print(f"Size:\t\t\t{self.fs_size}")
+        print(f"Count Lines:\t\t{self.count_total_lines}")
+        print(f"Total Lines Added:\t{self.running_added_lines}")
+        print(f"Total Lines Removed:\t{self.running_removed_lines}")
+        print(f"Lines Added:\t\t{self.count_added_lines}")
+        print(f"Lines Removed:\t\t{self.count_removed_lines}")
 
-class VersionInfoORM(Base):
+
+class VersionInfoORM(Base, ORMReprMixin):
     __tablename__ = "version_info"
 
     commit_id: Mapped[str] = Column(String, nullable=False, primary_key=True)
@@ -130,7 +158,7 @@ class VersionInfoORM(Base):
     build_date: Mapped[datetime] = Column(DateTime, nullable=False)
 
 
-class RepositoryORM(Base):
+class RepositoryORM(Base, ORMReprMixin):
     __tablename__ = "repository"
 
     id: Mapped[str] = Column(String, primary_key=True)
@@ -140,6 +168,13 @@ class RepositoryORM(Base):
     repository_filepath: Mapped[Path | str] = Column(PathType, nullable=False)
     parent_repository_id: Mapped[str] = Column(String, nullable=True)
     parent_repository_filepath: Mapped[Path | str] = Column(PathType, nullable=True)
+
+    def pretty_print(self) -> None:
+        print(f"Repository ID:\t\t{self.id}")
+        print(f"Date Created:\t\t{self.date_created}")
+        print(f"Repository Path:\t{self.repository_filepath}")
+        print(f"Parent Repository ID:\t{self.parent_repository_id}")
+        print(f"Parent Repository Path:\t{self.parent_repository_filepath}")
 
 
 class FileListing(BaseModel):
