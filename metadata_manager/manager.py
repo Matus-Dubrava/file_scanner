@@ -446,7 +446,9 @@ class MetadataManager:
             file_record.version_control_branch = branch_name
             session.add(file_record)
 
-            latest_history_record = HistoryORM.get_latest(session=session)
+            latest_history_record = HistoryORM.get_latest(
+                session=session, filepath=file_record.filepath
+            )
             assert latest_history_record, "Expected at least one history record."
 
             line_changes = md_utils.count_line_changes(
@@ -483,6 +485,48 @@ class MetadataManager:
             return errors
 
         return errors if len(errors) else None
+
+    def refresh_active_repository_records(
+        self, session: Session, debug: bool = False, verbose: bool = False
+    ) -> None:
+        """
+        Refreshes all active repository records, adding new history records and recreaing
+        hash files.
+        """
+        tracked_filepaths = [
+            record.filepath
+            for record in session.query(FileORM)
+            .filter_by(status=FileStatus.ACTIVE)
+            .all()
+        ]
+
+        errors: List[Exception] = []
+
+        for filepath in tracked_filepaths:
+            maybe_errors = self.refresh_repository_record(
+                session=session,
+                filepath=Path(filepath),
+                branch_name=self.get_current_git_branch(dir=self.repository_root),
+            )
+
+            if maybe_errors is not None:
+                errors.extend(maybe_errors)
+
+        if errors:
+            for error in errors:
+                if debug:
+                    print(f"{traceback.format_exception(error)}\n", file=sys.stderr)
+
+                print(error, file=sys.stderr)
+
+            sys.exit(1)
+
+        if verbose:
+            for filepath in tracked_filepaths:
+                print(f"refresh: {Path(filepath).relative_to(self.repository_root)}")
+            print()
+
+        print(f"refreshed {len(tracked_filepaths)} records")
 
     def write_version_info_to_db(
         self, session: Session, commit: bool = True

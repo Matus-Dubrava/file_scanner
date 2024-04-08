@@ -244,7 +244,9 @@ def test_each_touch_creates_new_history_record(working_dir, touch_cmd, mdm, sess
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert file_record
     assert session.query(HistoryORM).count() == 1
-    latest_history_record = HistoryORM.get_latest(session)
+    latest_history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
 
     assert latest_history_record.count_total_lines == 1
     assert latest_history_record.count_added_lines == 1
@@ -259,7 +261,9 @@ def test_each_touch_creates_new_history_record(working_dir, touch_cmd, mdm, sess
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 2
-    latest_history_record = HistoryORM.get_latest(session)
+    latest_history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
 
     assert latest_history_record.count_total_lines == 2
     assert latest_history_record.count_added_lines == 1
@@ -274,7 +278,9 @@ def test_each_touch_creates_new_history_record(working_dir, touch_cmd, mdm, sess
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 3
-    latest_history_record = HistoryORM.get_latest(session)
+    latest_history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
 
     assert latest_history_record.count_total_lines == 3
     assert latest_history_record.count_added_lines == 1
@@ -289,7 +295,9 @@ def test_each_touch_creates_new_history_record(working_dir, touch_cmd, mdm, sess
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 4
-    latest_history_record = HistoryORM.get_latest(session)
+    latest_history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
 
     assert latest_history_record.count_total_lines == 3
     assert latest_history_record.count_added_lines == 0
@@ -304,7 +312,9 @@ def test_each_touch_creates_new_history_record(working_dir, touch_cmd, mdm, sess
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 5
-    latest_history_record = HistoryORM.get_latest(session)
+    latest_history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
 
     assert latest_history_record.count_total_lines == 3
     assert latest_history_record.count_added_lines == 1
@@ -319,7 +329,9 @@ def test_each_touch_creates_new_history_record(working_dir, touch_cmd, mdm, sess
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 6
-    latest_history_record = HistoryORM.get_latest(session)
+    latest_history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
 
     assert latest_history_record.count_total_lines == 1
     assert latest_history_record.count_added_lines == 1
@@ -334,7 +346,9 @@ def test_each_touch_creates_new_history_record(working_dir, touch_cmd, mdm, sess
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=str(filepath)).first()
     assert session.query(HistoryORM).count() == 7
-    latest_history_record = HistoryORM.get_latest(session)
+    latest_history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
 
     assert latest_history_record.count_total_lines == 0
     assert latest_history_record.count_added_lines == 0
@@ -356,7 +370,9 @@ def test_init_updates_branch_name(working_dir, touch_cmd, mdm, session):
 
     subprocess.check_output([*touch_cmd, filepath])
     file_record = session.query(FileORM).filter_by(filepath=filepath).first()
-    history_record = HistoryORM.get_latest(session)
+    history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
     assert file_record.version_control_branch is None
     assert history_record.version_control_branch is None
 
@@ -366,7 +382,9 @@ def test_init_updates_branch_name(working_dir, touch_cmd, mdm, session):
     subprocess.check_output([*touch_cmd, filepath])
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=filepath).first()
-    history_record = HistoryORM.get_latest(session)
+    history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
     assert session.query(HistoryORM).count() == 2
     assert history_record.version_control_branch == initial_branch
     assert file_record.version_control_branch == initial_branch
@@ -377,7 +395,9 @@ def test_init_updates_branch_name(working_dir, touch_cmd, mdm, session):
     subprocess.check_output([*touch_cmd, filepath])
     session.expire_all()
     file_record = session.query(FileORM).filter_by(filepath=filepath).first()
-    history_record = HistoryORM.get_latest(session)
+    history_record = HistoryORM.get_latest(
+        session=session, filepath=file_record.filepath
+    )
     assert session.query(HistoryORM).count() == 3
     assert history_record.version_control_branch == new_branch_name
     assert file_record.version_control_branch == new_branch_name

@@ -370,7 +370,10 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -
         "Fails if no parent repository is found."
     ),
 )
-def add(paths, debug, repository_path):
+@click.pass_context
+def add(ctx, paths, debug, repository_path):
+    mdm_config = ctx.obj
+
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
     target_paths = [Path(p).resolve() for p in paths]
     mdm = MetadataManager.from_repository(md_config=mdm_config, path=source_path)
@@ -397,6 +400,30 @@ def add(paths, debug, repository_path):
         elif target_path.is_dir():
             mdm.add_directory(session=session, dirpath=target_path, debug=debug)
 
+    session.close()
+
+
+@cli.command()
+@click.option("--repository-path", required=False)
+@click.option(
+    "--debug",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Show debug information.",
+)
+@click.option("--verbose", "-v", is_flag=True, show_default=True, default=False)
+@click.pass_context
+def refresh(ctx, repository_path, debug, verbose):
+    mdm_config = ctx.obj
+
+    source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
+    mdm = MetadataManager.from_repository(
+        md_config=mdm_config, path=source_path, debug=debug
+    )
+
+    session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
+    mdm.refresh_active_repository_records(session=session, debug=debug, verbose=verbose)
     session.close()
 
 

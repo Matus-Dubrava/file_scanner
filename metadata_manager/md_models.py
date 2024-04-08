@@ -91,9 +91,12 @@ class HistoryORM(Base):
         return f"{class_}({str_attrs})"
 
     @classmethod
-    def get_latest(cls, session: Session) -> Optional["HistoryORM"]:
+    def get_latest(
+        cls, session: Session, filepath: Path | str
+    ) -> Optional["HistoryORM"]:
         return (
             session.query(cls)
+            .filter_by(filepath=filepath)
             .order_by(HistoryORM.timestamp_record_added.desc())
             .first()
         )
