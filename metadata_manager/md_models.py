@@ -188,6 +188,21 @@ class FileListing(BaseModel):
     filepaths: List[Path | str]
 
 
+class RepositoryStats(BaseModel):
+    active_files_count: int
+    removed_files_count: int
+    total_lines_count: int
+    added_lines_count: int
+    removed_lines_count: int
+
+    def pretty_print(self) -> None:
+        print(f"Active Files Count:\t{self.active_files_count}")
+        print(f"Removed Files Count:\t{self.removed_files_count}")
+        print(f"Total Lines Count:\t{self.total_lines_count}")
+        print(f"Added Lines Count:\t{self.added_lines_count}")
+        print(f"Removed Lines Count:\t{self.removed_lines_count}")
+
+
 class Config(BaseModel):
     md_dir_name: str
     md_db_name: str

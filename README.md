@@ -118,9 +118,6 @@
             -   add better error handling
 
     -   refactor paths to use `joinpath` instead of `/`
-    -   add new table tracking summary statistics such as no. tracked files, no. lines, no. updated lines
-        -   also include total no. files
-        -   add command that can collect this data
     -   refactor Union types to use `|` instead
     -   add script for running test coverage
     -   add option to search based on custom attributes and values via `mdm list` once the custom file attributes
@@ -201,3 +198,4 @@
     -   implement `mdm refresh` which will create new `history` record for each `ACTIVE` record in `file` table
     -   add Mixins to the Sqlalchemy models implementing `__repr__` method
     -   add `--repository-path` option to `rm` so that it can be run from outside of `mdm` repository
+    -   add repository summary statistics to `show` output

@@ -18,6 +18,19 @@ def test_show_displays_repository_record(session, show_cmd):
     assert repository_record.id in output.decode().lower()
 
 
+@pytest.mark.d3b2afb668
+@pytest.mark.cli
+@pytest.mark.show
+@pytest.mark.sanity
+def test_show_displays_repository_stats(show_cmd, mdm):
+    output = subprocess.check_output([*show_cmd])
+    assert "active files" in output.decode().lower()
+    assert "removed files" in output.decode().lower()
+    assert "total lines" in output.decode().lower()
+    assert "added lines" in output.decode().lower()
+    assert "removed lines" in output.decode().lower()
+
+
 @pytest.mark.ba97fa7847
 @pytest.mark.cli
 @pytest.mark.show

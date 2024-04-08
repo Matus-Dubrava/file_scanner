@@ -157,3 +157,48 @@ def test_write_line_hashes_to_hash_file(working_dir, mdm, rel_filepath, session)
     with open(hashes_path_or_err, "r") as f:
         lines = f.readlines()
         assert expected_hashes[2:] == [line.strip() for line in lines]
+
+
+@pytest.mark.ad06bb42e7
+@pytest.mark.manager
+@pytest.mark.sanity
+def test_compute_repository_statistics(working_dir, mdm, session):
+    file1 = working_dir.joinpath("file1")
+    file2 = working_dir.joinpath("file2")
+    file3 = working_dir.joinpath("file3")
+    mdm.touch(session=session, filepath=file1)
+    mdm.touch(session=session, filepath=file2)
+    mdm.touch(session=session, filepath=file3)
+
+    file3.write_text("\n".join(["1", "2", "3"]))
+    mdm.remove_file(session=session, filepath=file3)
+
+    file1.write_text("\n".join(["1", "2", "3"]))
+    mdm.touch(session=session, filepath=file1)
+
+    # This will overwrite all lines but line '3' will not be counted neither
+    # as added or removed at this point since its 'content' technically hasn't changed.
+    file1.write_text("3")
+    mdm.touch(session=session, filepath=file1)
+
+    repository_stats = mdm.compute_repository_statistics(session=session)
+
+    assert repository_stats.active_files_count == 2
+    assert repository_stats.removed_files_count == 1
+    assert repository_stats.added_lines_count == 3
+    assert repository_stats.removed_lines_count == 2
+    assert repository_stats.total_lines_count == 1
+
+
+@pytest.mark.fe67137add
+@pytest.mark.manager
+@pytest.mark.sanity
+def test_compute_repository_statistics_works_with_empty_repository(mdm, session):
+
+    repository_stats = mdm.compute_repository_statistics(session=session)
+
+    assert repository_stats.active_files_count == 0
+    assert repository_stats.removed_files_count == 0
+    assert repository_stats.added_lines_count == 0
+    assert repository_stats.removed_lines_count == 0
+    assert repository_stats.total_lines_count == 0

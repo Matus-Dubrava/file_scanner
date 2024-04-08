@@ -8,7 +8,7 @@ import shutil
 from datetime import datetime
 import uuid
 
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 from db import get_session_or_exit
@@ -22,6 +22,7 @@ from md_models import (
     VersionInfoORM,
     RepositoryORM,
     FileListing,
+    RepositoryStats,
 )
 import md_utils
 
@@ -1019,6 +1020,56 @@ class MetadataManager:
                 else:
                     print(Path(file_record.filepath).relative_to(Path.cwd()))
 
+    def compute_repository_statistics(
+        self, session: Session
+    ) -> RepositoryStats | Exception:
+        """
+        Count the number of active files, removed files, total lines, total lines added
+        total line removed.
+        """
+
+        try:
+            n_active_files = (
+                session.query(FileORM).filter_by(status=FileStatus.ACTIVE).count()
+            )
+            n_removed_files = (
+                session.query(FileORM).filter_by(status=FileStatus.REMOVED).count()
+            )
+
+            sql = """
+                SELECT 
+                    SUM(count_total_lines) as total_count_lines,
+                    SUM(running_added_lines) as total_lines_added,
+                    SUM(running_removed_lines) as total_lines_removed
+                FROM (
+                    SELECT 
+                        *,
+                        MAX(timestamp_record_added) OVER (
+                            PARTITION BY filepath 
+                            ORDER BY timestamp_record_added DESC
+                        ) AS max_timestamp_record_added
+                    FROM history 
+                )
+                WHERE 
+                    timestamp_record_added = max_timestamp_record_added AND
+                    filepath IN (
+                        SELECT filepath 
+                        FROM file 
+                        WHERE status_enum = 'ACTIVE'
+                    );
+            """
+            result = session.execute(text(sql)).fetchone()
+
+            return RepositoryStats(
+                active_files_count=n_active_files,
+                removed_files_count=n_removed_files,
+                total_lines_count=int(result[0]) if result and result[0] else 0,
+                added_lines_count=int(result[1]) if result and result[1] else 0,
+                removed_lines_count=int(result[2]) if result and result[2] else 0,
+            )
+        except Exception as exc:
+            return exc
+
     def show_repository(self, session: Session, debug: bool = False) -> None:
         """
         Show repository information.
@@ -1030,7 +1081,20 @@ class MetadataManager:
             print("fatal: not a repository", file=sys.stderr)
             sys.exit(1)
 
+        repository_stats = self.compute_repository_statistics(session=session)
+        if isinstance(repository_stats, Exception):
+            if debug:
+                print(
+                    f"{traceback.format_exception(repository_stats)}\n",
+                    file=sys.stderr,
+                )
+
+            print("fatal: failed to compute repositry statistics", file=sys.stderr)
+            sys.exit(2)
+
         repository_record.pretty_print()
+        print()
+        repository_stats.pretty_print()
 
     def show_file(
         self,
