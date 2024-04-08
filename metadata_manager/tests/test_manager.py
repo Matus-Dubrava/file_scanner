@@ -182,12 +182,24 @@ def test_compute_repository_statistics(working_dir, mdm, session):
     mdm.touch(session=session, filepath=file1)
 
     repository_stats = mdm.compute_repository_statistics(session=session)
-
     assert repository_stats.active_files_count == 2
     assert repository_stats.removed_files_count == 1
     assert repository_stats.added_lines_count == 3
     assert repository_stats.removed_lines_count == 2
     assert repository_stats.total_lines_count == 1
+
+    file_4 = working_dir.joinpath("file4")
+    file_4.touch()
+    file_4.write_text("1")
+
+    mdm.add_file(session=session, filepath=file_4)
+
+    repository_stats = mdm.compute_repository_statistics(session=session)
+    assert repository_stats.active_files_count == 3
+    assert repository_stats.removed_files_count == 1
+    assert repository_stats.added_lines_count == 4
+    assert repository_stats.removed_lines_count == 2
+    assert repository_stats.total_lines_count == 2
 
 
 @pytest.mark.fe67137add

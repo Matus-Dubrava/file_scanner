@@ -75,7 +75,7 @@ class FileORM(Base, ORMReprMixin):
         print(f"Date Added:\t\t{self.timestamp_added}")
         print(f"Date Created:\t\t{self.fs_timestamp_created}")
         print(f"Date Modified:\t\t{latest_history_record.fs_date_modified}")
-        print(f"Status:\t\t\t{self.status}")
+        print(f"Size:\t\t\t{latest_history_record.fs_size}")
         print(f"Line Count:\t\t{latest_history_record.count_total_lines}")
         print(f"Total Lines Added:\t{latest_history_record.running_added_lines}")
         print(f"Total Lines Removed:\t{latest_history_record.count_removed_lines}")

@@ -694,7 +694,7 @@ class MetadataManager:
                 session=session,
                 filepath=filepath,
                 branch_name=branch_name,
-                file_exists=False,
+                file_exists=True,
             )
 
             if maybe_err:
