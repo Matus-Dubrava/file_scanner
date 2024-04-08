@@ -130,13 +130,10 @@
         option to filter out records based on them
     -   add CHANGELOG.md file
     -   check how exceptions are passed throughout the code and make necessary changes so that traceback is not lost
-    -   implement `mdm refresh` which will create new `history` record for each `ACTIVE` record in `file` table
     -   add support for `rm --recursive/-r <directory>`
         -   this will remove all files tracked by `mdm`
         -   if the directory is empty after files were removed, remove the directory as
-    -   add `--repository-path` option to `rm` so that it can be run from outside of `mdm` repository
     -   implement 2 Phase Commit when synchronizing parent `mdm` database with child `mdm` database
-    -   add Mixins to the Sqlalchemy models implementing `__repr__` method
     -   add better "rollback" when synchronizing `mdm`s, preserve source `hash` files until transactions are done
     -   add test cases that cover `mdm init --load-from-parent-repository` flag
     -   refactor common hardcoded exit codes >=100 (magic ints) into constants
@@ -201,3 +198,6 @@
     -   add `--debug` flag to control printing of trackeback to stderr
     -   add `show` command that prints information about the selected file
     -   add message to `purge` that shows how many file records were purged
+    -   implement `mdm refresh` which will create new `history` record for each `ACTIVE` record in `file` table
+    -   add Mixins to the Sqlalchemy models implementing `__repr__` method
+    -   add `--repository-path` option to `rm` so that it can be run from outside of `mdm` repository
