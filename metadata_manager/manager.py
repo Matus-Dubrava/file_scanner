@@ -947,6 +947,8 @@ class MetadataManager:
             print("Failed to purge removed files.", file=sys.stderr)
             sys.exit(1)
 
+        print(f"purged {len(deleted_file_records)} records")
+
     def _list_files(
         self, session: Session, status_filter: List[FileStatus]
     ) -> List[FileORM]:
