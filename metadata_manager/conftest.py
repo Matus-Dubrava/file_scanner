@@ -94,6 +94,11 @@ def show_cmd(md_cmd):
     return [*md_cmd, "show"]
 
 
+@pytest.fixture(scope="module")
+def setv_cmd(md_cmd):
+    return [*md_cmd, "setv"]
+
+
 @pytest.fixture(scope="function")
 def mdm_config():
     with open(Path(__file__).parent / "config" / ".mdconfig_dev", "r") as f:

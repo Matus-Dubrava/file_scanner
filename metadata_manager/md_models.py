@@ -176,6 +176,12 @@ class RepositoryORM(Base, ORMReprMixin):
         print(f"Parent Repository ID:\t{self.parent_repository_id}")
         print(f"Parent Repository Path:\t{self.parent_repository_filepath}")
 
+class RepositoryMetadataORM(Base, ORMReprMixin):
+    __tablename__ = "repository_metadata"
+    
+    id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = Column(String, unique=True, nullable=False)
+    value: Mapped[str] = Column(String, nullable=True)
 
 class FileListing(BaseModel):
     """

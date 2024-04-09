@@ -81,7 +81,7 @@ def validate_paths(
 ):
     """
     Perform validation checks depending on whether repository path was explicitely provided or not.
-    For a path to be considered valid, it needs to be within repository. Futhermore source repository
+    For a path to be considered valid, it needs to be within repository. Futhermore, source repository
     must match target repository unless repository path is explictly provided.
 
     Exit if validation fails.

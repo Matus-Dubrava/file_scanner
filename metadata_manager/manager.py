@@ -23,6 +23,7 @@ from md_models import (
     RepositoryORM,
     FileListing,
     RepositoryStats,
+    RepositoryMetadataORM,
 )
 import md_utils
 
@@ -1137,3 +1138,59 @@ class MetadataManager:
             for record in history_records:
                 print()
                 record.pretty_print()
+
+    def set_value(
+        self,
+        session: Session,
+        key: str,
+        value: str,
+        filepath: Optional[Path] = None,
+        debug: bool = False,
+    ) -> None:
+        """
+        Sets metadata key/value for a given file if filepath is provided. Otherwise sets
+        it at repository level.
+        """
+
+        try:
+            if not filepath:
+                record = session.query(RepositoryMetadataORM).filter_by(key=key).first()
+                if record:
+                    record.value = value
+                else:
+                    record = RepositoryMetadataORM(key=key, value=value)
+                    session.add(record)
+
+            session.commit()
+        except Exception:
+            if debug:
+                print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+            print("fatal: failed to set value", file=sys.stderr)
+            sys.exit(1)
+
+    def delete_key(
+        self,
+        session: Session,
+        key: str,
+        filepath: Optional[Path] = None,
+        debug: bool = False,
+    ) -> None:
+        """
+        Remove key/value associated with the filepath if provided, otherwise remove it
+        from repository.
+        """
+
+        try:
+            if not filepath:
+                record = session.query(RepositoryMetadataORM).filter_by(key=key).first()
+                if record:
+                    session.delete(record)
+
+            session.commit()
+        except Exception:
+            if debug:
+                print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+            print("fatal: failed to remove key", file=sys.stderr)
+            sys.exit(1)
