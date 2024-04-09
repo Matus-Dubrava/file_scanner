@@ -1,6 +1,6 @@
 from pathlib import Path
 import sys
-from typing import List, Set
+from typing import List, Set, Optional
 
 import click
 
@@ -235,6 +235,10 @@ def ls(
 @click.pass_context
 def show(ctx, target, debug, repository_path, history, n):
     mdm_config = ctx.obj
+    
+    target_path: Optional[Path] = None
+    if target:
+        target_path = Path(target).resolve()
 
     if not repository_path:
         cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
@@ -259,10 +263,16 @@ def show(ctx, target, debug, repository_path, history, n):
 
     if not target:
         mdm.show_repository(session=session, debug=debug)
+    elif target_path.is_dir():
+        print(
+            f"fatal: {target_path.relative_to(mdm.repository_root)} is not a file",
+            file=sys.stderr,
+        )
+        sys.exit(2)
     else:
         mdm.show_file(
             session=session,
-            filepath=Path(target).resolve(),
+            filepath=target_path,
             debug=debug,
             display_history=history,
             display_n_history_records=n,

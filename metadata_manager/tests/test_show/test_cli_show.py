@@ -54,3 +54,16 @@ def test_show_fails_when_file_record_doesnt_exist(show_cmd):
     assert proc.returncode != 0
     assert not proc.stdout
     assert "fatal:" in proc.stderr.decode().lower()
+
+
+@pytest.mark.d884513eca
+@pytest.mark.cli
+@pytest.mark.show
+@pytest.mark.sanity
+def test_show_fails_when_directory_is_provided(working_dir, show_cmd):
+    dir_ = working_dir.joinpath("dir_")
+
+    proc = subprocess.run([*show_cmd, dir_], capture_output=True)
+    assert proc.returncode != 0
+    assert not proc.stdout
+    assert "fatal:" in proc.stderr.decode().lower()
