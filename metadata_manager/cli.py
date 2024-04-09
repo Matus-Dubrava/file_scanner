@@ -537,8 +537,21 @@ def setv(ctx, repository_path, key, value, file, debug, delete):
 
 
 @cli.command()
-@click.option("--key", "-k", required=True)
+@click.option(
+    "--key",
+    "-k",
+    required=False,
+    help="Key. Either --key or --all must be provided but not both.",
+)
 @click.option("--file", "-f", required=False)
+@click.option(
+    "--all",
+    "-a",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Get all key/value pairs associated with the chosen object. Can't be used if --key is specified.",
+)
 @click.option("--repository-path", required=False)
 @click.option(
     "--debug",
@@ -548,7 +561,7 @@ def setv(ctx, repository_path, key, value, file, debug, delete):
     help="Show debug information.",
 )
 @click.pass_context
-def getv(ctx, key, file, repository_path, debug):
+def getv(ctx, key, file, all, repository_path, debug):
     mdm_config = ctx.obj
 
     if not repository_path:
@@ -556,15 +569,21 @@ def getv(ctx, key, file, repository_path, debug):
 
     filepath = None if not file else Path(file).resolve()
 
+    # Validate either 'key' or 'all' is provided. But not both.
+    if not key and not all:
+        print("fatal: either --key or --all must be provided", file=sys.stderr)
+        sys.exit(1)
+    if key and all:
+        print("fatal: --key and --all can't be used together", file=sys.stderr)
+        sys.exit(2)
+
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
     mdm = MetadataManager.from_repository(
         md_config=mdm_config, path=source_path, debug=debug
     )
 
     session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
-
-    mdm.get_value(session=session, filepath=filepath, key=key, debug=debug)
-
+    mdm.get_value(session=session, filepath=filepath, key=key, get_all=all, debug=debug)
     session.close()
 
 

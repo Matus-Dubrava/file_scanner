@@ -1196,7 +1196,12 @@ class MetadataManager:
             sys.exit(1)
 
     def get_value(
-        self, session: Session, key: str, filepath: Optional[Path], debug: bool = False
+        self,
+        session: Session,
+        key: str,
+        filepath: Optional[Path],
+        get_all: bool = False,
+        debug: bool = False,
     ) -> None:
         """
         Retrieve the value associated with the given key.
@@ -1206,9 +1211,16 @@ class MetadataManager:
 
         try:
             if not filepath:
-                record = session.query(RepositoryMetadataORM).filter_by(key=key).first()
-                if record:
-                    print(record.value)
+                if get_all:
+                    records = session.query(RepositoryMetadataORM).all()
+                    for rec in records:
+                        print(f"{rec.key}: {rec.value}")
+                else:
+                    record = (
+                        session.query(RepositoryMetadataORM).filter_by(key=key).first()
+                    )
+                    if record:
+                        print(record.value)
         except Exception:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
