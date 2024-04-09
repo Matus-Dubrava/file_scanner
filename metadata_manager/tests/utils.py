@@ -35,5 +35,6 @@ def assert_database_structure(db_path: Path):
         "version_info",
         "repository",
         "repository_metadata",
+        "file_metadata",
     ]
     assert sorted(expected_tables) == sorted([row[0] for row in data])

@@ -3,7 +3,16 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any, Union, Optional, List
 
-from sqlalchemy import Column, Dialect, Integer, String, Enum, ForeignKey, DateTime
+from sqlalchemy import (
+    Column,
+    Dialect,
+    Integer,
+    String,
+    Enum,
+    ForeignKey,
+    DateTime,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship, declarative_base, Mapped, Session
 from sqlalchemy.types import TypeDecorator
 
@@ -52,6 +61,9 @@ class FileORM(Base, ORMReprMixin):
     status: Mapped[FileStatus] = Column(Enum(FileStatus), name="status_enum")
 
     history: Mapped["HistoryORM"] = relationship("HistoryORM", back_populates="file")
+    file_metadata: Mapped["FileMetadataORM"] = relationship(
+        "FileMetadataORM", back_populates="file"
+    )
 
     def clone(self) -> "FileORM":
         return FileORM(
@@ -79,6 +91,21 @@ class FileORM(Base, ORMReprMixin):
         print(f"Line Count:\t\t{latest_history_record.count_total_lines}")
         print(f"Total Lines Added:\t{latest_history_record.running_added_lines}")
         print(f"Total Lines Removed:\t{latest_history_record.count_removed_lines}")
+
+
+class FileMetadataORM(Base, ORMReprMixin):
+    __tablename__ = "file_metadata"
+
+    id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
+    filepath: Mapped[str | Path] = Column(
+        PathType, ForeignKey("file.filepath", ondelete="CASCADE")
+    )
+    key: str = Column(String, nullable=False)
+    value: str = Column(String, nullable=False)
+
+    file: Mapped[FileORM] = relationship("FileORM", back_populates="file_metadata")
+
+    __table_args__ = (UniqueConstraint("filepath", "key", name="unique_filepath_key"),)
 
 
 class HistoryORM(Base, ORMReprMixin):
@@ -176,12 +203,14 @@ class RepositoryORM(Base, ORMReprMixin):
         print(f"Parent Repository ID:\t{self.parent_repository_id}")
         print(f"Parent Repository Path:\t{self.parent_repository_filepath}")
 
+
 class RepositoryMetadataORM(Base, ORMReprMixin):
     __tablename__ = "repository_metadata"
-    
+
     id: Mapped[int] = Column(Integer, primary_key=True, autoincrement=True)
     key: Mapped[str] = Column(String, unique=True, nullable=False)
     value: Mapped[str] = Column(String, nullable=True)
+
 
 class FileListing(BaseModel):
     """

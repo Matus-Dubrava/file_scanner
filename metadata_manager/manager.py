@@ -15,6 +15,7 @@ from db import get_session_or_exit
 from md_models import (
     Config,
     FileORM,
+    FileMetadataORM,
     FileStatus,
     FileStat,
     HistoryORM,
@@ -1154,12 +1155,27 @@ class MetadataManager:
 
         try:
             if not filepath:
-                record = session.query(RepositoryMetadataORM).filter_by(key=key).first()
-                if record:
-                    record.value = value
+                repository_record = (
+                    session.query(RepositoryMetadataORM).filter_by(key=key).first()
+                )
+                if repository_record:
+                    repository_record.value = value
                 else:
-                    record = RepositoryMetadataORM(key=key, value=value)
-                    session.add(record)
+                    repository_record = RepositoryMetadataORM(key=key, value=value)
+                    session.add(repository_record)
+            else:
+                file_record = (
+                    session.query(FileMetadataORM)
+                    .filter_by(filepath=filepath, key=key)
+                    .first()
+                )
+                if file_record:
+                    file_record.value = value
+                else:
+                    file_record = FileMetadataORM(
+                        filepath=filepath, key=key, value=value
+                    )
+                    session.add(file_record)
 
             session.commit()
         except Exception:
