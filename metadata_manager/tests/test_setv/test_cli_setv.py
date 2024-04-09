@@ -177,3 +177,76 @@ def test_setv_updates_existing_file_key(
         .value
         == "value_c"
     )
+
+
+@pytest.mark.a8e22087e7
+@pytest.mark.setv
+@pytest.mark.cli
+@pytest.mark.sanity
+@pytest.mark.parametrize("delete", ["-d", "--delete"])
+def test_setv_removes_file_key(working_dir, mdm, session, setv_cmd, delete):
+    file_1 = working_dir.joinpath("file_1")
+    file_2 = working_dir.joinpath("file_2")
+    mdm.touch(session=session, filepath=file_1)
+    mdm.touch(session=session, filepath=file_2)
+
+    mdm.set_value(session=session, key="key_a", value="value_a", filepath=file_1)
+    mdm.set_value(session=session, key="key_b", value="value_b", filepath=file_1)
+    mdm.set_value(session=session, key="key_a", value="value_a", filepath=file_2)
+
+    subprocess.check_output([*setv_cmd, "--key", "key_a", delete, "--file", file_1])
+    assert (
+        not session.query(FileMetadataORM)
+        .filter_by(filepath=file_1, key="key_a")
+        .first()
+    )
+    assert (
+        session.query(FileMetadataORM)
+        .filter_by(filepath=file_1, key="key_b")
+        .first()
+        .value
+        == "value_b"
+    )
+    assert (
+        session.query(FileMetadataORM)
+        .filter_by(filepath=file_2, key="key_a")
+        .first()
+        .value
+        == "value_a"
+    )
+
+    subprocess.check_output([*setv_cmd, "--key", "key_b", delete, "--file", file_1])
+    assert (
+        not session.query(FileMetadataORM)
+        .filter_by(filepath=file_1, key="key_a")
+        .first()
+    )
+    assert (
+        not session.query(FileMetadataORM)
+        .filter_by(filepath=file_1, key="key_b")
+        .first()
+    )
+    assert (
+        session.query(FileMetadataORM)
+        .filter_by(filepath=file_2, key="key_a")
+        .first()
+        .value
+        == "value_a"
+    )
+
+    subprocess.check_output([*setv_cmd, "--key", "key_a", delete, "--file", file_2])
+    assert (
+        not session.query(FileMetadataORM)
+        .filter_by(filepath=file_1, key="key_a")
+        .first()
+    )
+    assert (
+        not session.query(FileMetadataORM)
+        .filter_by(filepath=file_1, key="key_b")
+        .first()
+    )
+    assert (
+        not session.query(FileMetadataORM)
+        .filter_by(filepath=file_2, key="key_a")
+        .first()
+    )

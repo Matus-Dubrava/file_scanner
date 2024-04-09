@@ -1199,9 +1199,19 @@ class MetadataManager:
 
         try:
             if not filepath:
-                record = session.query(RepositoryMetadataORM).filter_by(key=key).first()
-                if record:
-                    session.delete(record)
+                repository_record = (
+                    session.query(RepositoryMetadataORM).filter_by(key=key).first()
+                )
+                if repository_record:
+                    session.delete(repository_record)
+            else:
+                file_record = (
+                    session.query(FileMetadataORM)
+                    .filter_by(filepath=filepath, key=key)
+                    .first()
+                )
+                if file_record:
+                    session.delete(file_record)
 
             session.commit()
         except Exception:
