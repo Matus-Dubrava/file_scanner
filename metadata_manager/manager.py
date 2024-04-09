@@ -1192,5 +1192,29 @@ class MetadataManager:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
 
-            print("fatal: failed to remove key", file=sys.stderr)
+            print(f"fatal: failed to remove key '{key}'", file=sys.stderr)
+            sys.exit(1)
+
+    def get_value(
+        self, session: Session, key: str, filepath: Optional[Path], debug: bool = False
+    ) -> None:
+        """
+        Retrieve the value associated with the given key.
+        If a filepath is provided, fetch the value associated with that file.
+        Otherwise, obtain the value associated with the repository.
+        """
+
+        try:
+            if not filepath:
+                record = session.query(RepositoryMetadataORM).filter_by(key=key).first()
+                if record:
+                    print(record.value)
+        except Exception:
+            if debug:
+                print(f"{traceback.format_exc()}\n", file=sys.stderr)
+
+            print(
+                f"fatal: failed to fetch value associated with key '{key}'",
+                file=sys.stderr,
+            )
             sys.exit(1)

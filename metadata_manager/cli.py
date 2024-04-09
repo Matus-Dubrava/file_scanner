@@ -536,6 +536,38 @@ def setv(ctx, repository_path, key, value, file, debug, delete):
     session.close()
 
 
+@cli.command()
+@click.option("--key", "-k", required=True)
+@click.option("--file", "-f", required=False)
+@click.option("--repository-path", required=False)
+@click.option(
+    "--debug",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Show debug information.",
+)
+@click.pass_context
+def getv(ctx, key, file, repository_path, debug):
+    mdm_config = ctx.obj
+
+    if not repository_path:
+        cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
+
+    filepath = None if not file else Path(file).resolve()
+
+    source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
+    mdm = MetadataManager.from_repository(
+        md_config=mdm_config, path=source_path, debug=debug
+    )
+
+    session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
+
+    mdm.get_value(session=session, filepath=filepath, key=key, debug=debug)
+
+    session.close()
+
+
 if __name__ == "__main__":
     mdm_config = Config.from_file(CONFIG_PATH)
     if isinstance(mdm_config, Exception):
