@@ -1238,15 +1238,33 @@ class MetadataManager:
         try:
             if not filepath:
                 if get_all:
-                    records = session.query(RepositoryMetadataORM).all()
-                    for rec in records:
-                        print(f"{rec.key}: {rec.value}")
+                    repository_records = session.query(RepositoryMetadataORM).all()
+                    for repository_rec in repository_records:
+                        print(f"{repository_rec.key}: {repository_rec.value}")
                 else:
-                    record = (
+                    repository_record = (
                         session.query(RepositoryMetadataORM).filter_by(key=key).first()
                     )
-                    if record:
-                        print(record.value)
+                    if repository_record:
+                        print(repository_record.value)
+            else:
+                if get_all:
+                    file_records = (
+                        session.query(FileMetadataORM)
+                        .filter_by(filepath=filepath)
+                        .all()
+                    )
+                    for file_rec in file_records:
+                        print(f"{file_rec.key}: {file_rec.value}")
+                else:
+                    file_record = (
+                        session.query(FileMetadataORM)
+                        .filter_by(filepath=filepath, key=key)
+                        .first()
+                    )
+                    if file_record:
+                        print(file_record)
+
         except Exception:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
