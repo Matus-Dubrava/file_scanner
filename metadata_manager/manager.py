@@ -1227,6 +1227,8 @@ class MetadataManager:
         key: str,
         filepath: Optional[Path],
         get_all: bool = False,
+        filter_key: Optional[str] = None,
+        filter_value: Optional[str] = None,
         debug: bool = False,
     ) -> None:
         """
@@ -1236,7 +1238,31 @@ class MetadataManager:
         """
 
         try:
-            if not filepath:
+            # Filter was provided, search through all file records.
+            if filter_key or filter_value:
+                if filter_key and filter_value:
+                    file_records = (
+                        session.query(FileMetadataORM)
+                        .filter_by(key=filter_key, value=filter_value)
+                        .all()
+                    )
+                elif filter_key:
+                    file_records = (
+                        session.query(FileMetadataORM).filter_by(key=filter_key).all()
+                    )
+                elif filter_value:
+                    file_records = (
+                        session.query(FileMetadataORM)
+                        .filter_by(value=filter_value)
+                        .all()
+                    )
+                else:
+                    raise Exception("Unreachable.")
+
+                for file_rec in file_records:
+                    print(file_rec.filepath)
+            # Filepath was not provided. Fetch the value associated with repository.
+            elif not filepath:
                 if get_all:
                     repository_records = session.query(RepositoryMetadataORM).all()
                     for repository_rec in repository_records:
@@ -1247,6 +1273,7 @@ class MetadataManager:
                     )
                     if repository_record:
                         print(repository_record.value)
+            # Get value(s) associated with file.
             else:
                 if get_all:
                     file_records = (

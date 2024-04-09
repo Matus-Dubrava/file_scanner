@@ -552,6 +552,15 @@ def setv(ctx, repository_path, key, value, file, debug, delete):
     default=False,
     help="Get all key/value pairs associated with the chosen object. Can't be used if --key is specified.",
 )
+@click.option(
+    "--filter",
+    required=False,
+    help=(
+        "Filter files based on provided key and/or value. "
+        "Format 'key:value'. Returns filtered list of files. It is possible to leave either key or value blank "
+        "'key:' or ':value'. In such case, all files that have the key or value associated with them will be returned."
+    ),
+)
 @click.option("--repository-path", required=False)
 @click.option(
     "--debug",
@@ -561,7 +570,7 @@ def setv(ctx, repository_path, key, value, file, debug, delete):
     help="Show debug information.",
 )
 @click.pass_context
-def getv(ctx, key, file, all, repository_path, debug):
+def getv(ctx, key, file, all, filter, repository_path, debug):
     mdm_config = ctx.obj
 
     if not repository_path:
@@ -569,21 +578,43 @@ def getv(ctx, key, file, all, repository_path, debug):
 
     filepath = None if not file else Path(file).resolve()
 
-    # Validate either 'key' or 'all' is provided. But not both.
-    if not key and not all:
-        print("fatal: either --key or --all must be provided", file=sys.stderr)
+    # Validate exactly one of --key, --all or --filter is provided.
+    if sum([key is not None, all is True, filter is not None]) != 1:
+        print(
+            "fatal: exactly one of --all, --file or --filter must be provided",
+            file=sys.stderr,
+        )
         sys.exit(1)
-    if key and all:
-        print("fatal: --key and --all can't be used together", file=sys.stderr)
-        sys.exit(2)
 
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
     mdm = MetadataManager.from_repository(
         md_config=mdm_config, path=source_path, debug=debug
     )
 
+    # Parse filter key/value pair.
+    filter_key, filter_value = None, None
+    if filter:
+        if filter.count(":") != 1:
+            print(
+                "fatal: invalid filter format, expected one of ['key:value', 'key:', ':value']",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        filter_parts = [part.strip() for part in filter.split(":")]
+        filter_key = filter_parts[0] if filter_parts[0] else None
+        filter_value = filter_parts[1] if filter_parts[1] else None
+
     session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
-    mdm.get_value(session=session, filepath=filepath, key=key, get_all=all, debug=debug)
+    mdm.get_value(
+        session=session,
+        filepath=filepath,
+        key=key,
+        get_all=all,
+        filter_key=filter_key,
+        filter_value=filter_value,
+        debug=debug,
+    )
     session.close()
 
 
