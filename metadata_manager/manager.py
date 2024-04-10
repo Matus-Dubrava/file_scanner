@@ -1279,7 +1279,7 @@ class MetadataManager:
                     raise Exception("Unreachable.")
 
                 for file_rec in file_records:
-                    print(file_rec.filepath)
+                    print(Path(file_rec.filepath).relative_to(self.repository_root))
             # Filepath was not provided. Fetch the value associated with repository.
             elif not filepath:
                 if get_all:
