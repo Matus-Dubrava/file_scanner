@@ -791,6 +791,9 @@ class MetadataManager:
             history_records = (
                 session.query(HistoryORM).filter_by(filepath=filepath).all()
             )
+            metadata_key_value_records = (
+                session.query(FileMetadataORM).filter_by(filepath=filepath).all()
+            )
 
             # Can't remove files that are not within internal database.
             if not file_record:
@@ -824,7 +827,11 @@ class MetadataManager:
                     session.delete(file_record)
                     for h_record in history_records:
                         session.delete(h_record)
-                    # TODO: remove custom metadata records here
+
+                    # Delete key/value pairs associated with the file.
+                    for key_value_record in metadata_key_value_records:
+                        session.delete(key_value_record)
+
                     stdout_message = f"'rm --purge'{filepath}"
                 else:
                     # Set the file status to REMOVED, mangle its filepath and update existing records assicated
@@ -836,9 +843,14 @@ class MetadataManager:
                     file_record.filepath = updated_filepath
                     file_record.filename = updated_filename
 
+                    # Updated file's history record.
                     for h_record in history_records:
                         h_record.filepath = updated_filepath
-                    # TODO: update custom metadata records
+
+                    # Update file's key/value pair records.
+                    for key_value_record in metadata_key_value_records:
+                        key_value_record.filepath = updated_filepath
+
                     stdout_message = f"rm: {filepath}"
 
                 hash_filepath_or_err = self.get_path_to_hash_file(filepath=filepath)
@@ -1290,7 +1302,7 @@ class MetadataManager:
                         .first()
                     )
                     if file_record:
-                        print(file_record)
+                        print(file_record.value)
 
         except Exception:
             if debug:

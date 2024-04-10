@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import FileORM, HistoryORM
+from md_models import FileORM, HistoryORM, FileMetadataORM
 from md_enums import FileStatus
 from manager import MetadataManager
 from db import get_session_or_exit
@@ -214,3 +214,68 @@ def test_rm_fails_if_not_all_provided_files_belong_to_the_same_repository(
 
     session1.close()
     session2.close()
+
+
+@pytest.mark.fd7d88cd0a
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.sanity
+def test_rm_removes_metadata_assocaited_with_file(working_dir, mdm, rm_cmd, session):
+    file_1 = working_dir.joinpath("file_1")
+    file_2 = working_dir.joinpath("file_2")
+
+    mdm.touch(session=session, filepath=file_1)
+    mdm.touch(session=session, filepath=file_2)
+
+    mdm.set_value(session=session, filepath=file_1, key="key_a", value="value_a")
+    mdm.set_value(session=session, filepath=file_2, key="key_b", value="value_b")
+
+    subprocess.check_output([*rm_cmd, file_1])
+
+    # removing file wihtout --purge should just rename the filepath and
+    # set the file status to REMOVED
+    assert not session.query(FileMetadataORM).filter_by(filepath=file_1).first()
+    removed_filepath = (
+        session.query(FileORM).filter_by(status=FileStatus.REMOVED).first().filepath
+    )
+
+    assert (
+        session.query(FileMetadataORM)
+        .filter_by(filepath=removed_filepath)
+        .first()
+        .value
+        == "value_a"
+    )
+
+    # file_2 should be untouched
+    assert (
+        session.query(FileMetadataORM).filter_by(filepath=file_2).first().value
+        == "value_b"
+    )
+
+
+@pytest.mark.f1ac4a5fdd
+@pytest.mark.cli
+@pytest.mark.rm
+@pytest.mark.sanity
+def test_rm_purges_metadata_assocaited_with_file(working_dir, mdm, rm_cmd, session):
+    file_1 = working_dir.joinpath("file_1")
+    file_2 = working_dir.joinpath("file_2")
+
+    mdm.touch(session=session, filepath=file_1)
+    mdm.touch(session=session, filepath=file_2)
+
+    mdm.set_value(session=session, filepath=file_1, key="key_a", value="value_a")
+    mdm.set_value(session=session, filepath=file_2, key="key_b", value="value_b")
+
+    subprocess.check_output([*rm_cmd, file_1, "--purge"])
+
+    # removing file wihtout --purge should just rename the filepath and
+    # set the file status to REMOVED
+    assert not session.query(FileMetadataORM).filter_by(key="key_a").first()
+
+    # file_2 should be untouched
+    assert (
+        session.query(FileMetadataORM).filter_by(filepath=file_2).first().value
+        == "value_b"
+    )
