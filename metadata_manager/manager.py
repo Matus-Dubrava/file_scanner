@@ -1121,6 +1121,7 @@ class MetadataManager:
         self,
         session: Session,
         filepath: Path,
+        display_metadata: bool = False,
         display_history: bool = False,
         display_n_history_records: Optional[int] = None,
         debug: bool = False,
@@ -1140,6 +1141,20 @@ class MetadataManager:
 
         file_record.pretty_print(session=session)
 
+        if display_metadata:
+            metadata_records = (
+                session.query(FileMetadataORM).filter_by(filepath=filepath).all()
+            )
+
+            print()
+            print("--------")
+            print("METADATA")
+            print("--------")
+            print()
+
+            for metadata_record in metadata_records:
+                print(f"{metadata_record.key}:{metadata_record.value}")
+
         if display_history:
             if display_n_history_records:
                 history_records = (
@@ -1156,6 +1171,10 @@ class MetadataManager:
                 )
 
             for record in history_records:
+                print()
+                print("-------")
+                print("HISTORY")
+                print("-------")
                 print()
                 record.pretty_print()
 

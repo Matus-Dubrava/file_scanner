@@ -229,11 +229,18 @@ def ls(
     is_flag=True,
     show_default=True,
     default=False,
-    help="Show file history records. Use '-n' to limit the number of records shown.",
+    help="Display file's history records. Use '-n' to limit the number of records shown.",
 )
 @click.option("-n", required=False, help="Limit the number of printed shown records.")
+@click.option(
+    "--metadata",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Display file's custom metadata.",
+)
 @click.pass_context
-def show(ctx, target, debug, repository_path, history, n):
+def show(ctx, target, debug, repository_path, history, n, metadata):
     mdm_config = ctx.obj
 
     target_path = None if not target else Path(target).resolve()
@@ -274,6 +281,7 @@ def show(ctx, target, debug, repository_path, history, n):
             debug=debug,
             display_history=history,
             display_n_history_records=n,
+            display_metadata=metadata,
         )
 
     session.close()
