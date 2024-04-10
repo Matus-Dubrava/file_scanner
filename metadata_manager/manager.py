@@ -791,7 +791,7 @@ class MetadataManager:
             history_records = (
                 session.query(HistoryORM).filter_by(filepath=filepath).all()
             )
-            metadata_key_value_records = (
+            metadata_records = (
                 session.query(FileMetadataORM).filter_by(filepath=filepath).all()
             )
 
@@ -829,8 +829,8 @@ class MetadataManager:
                         session.delete(h_record)
 
                     # Delete key/value pairs associated with the file.
-                    for key_value_record in metadata_key_value_records:
-                        session.delete(key_value_record)
+                    for metadata_record in metadata_records:
+                        session.delete(metadata_record)
 
                     stdout_message = f"'rm --purge'{filepath}"
                 else:
@@ -848,8 +848,8 @@ class MetadataManager:
                         h_record.filepath = updated_filepath
 
                     # Update file's key/value pair records.
-                    for key_value_record in metadata_key_value_records:
-                        key_value_record.filepath = updated_filepath
+                    for metadata_record in metadata_records:
+                        metadata_record.filepath = updated_filepath
 
                     stdout_message = f"rm: {filepath}"
 
@@ -943,15 +943,22 @@ class MetadataManager:
             )
 
             for file_record in deleted_file_records:
-                # TODO: purge custom file metadata once implemented
                 history_records = (
                     session.query(HistoryORM)
                     .filter_by(filepath=file_record.filepath)
                     .all()
                 )
+                metadata_records = (
+                    session.query(FileMetadataORM)
+                    .filter_by(filepath=file_record.filepath)
+                    .all()
+                )
+
                 session.delete(file_record)
                 for history_record in history_records:
                     session.delete(history_record)
+                for metadata_record in metadata_records:
+                    session.delete(metadata_record)
 
             session.commit()
         except Exception:
