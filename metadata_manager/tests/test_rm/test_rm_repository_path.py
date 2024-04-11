@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from manager import MetadataManager
 import md_constants
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 
 
 @pytest.mark.d08c44ad12
@@ -25,8 +25,8 @@ def test_rm_works_when_cwd_matches_target_repository(
 
     mdm1 = MetadataManager.new(md_config=mdm_config, path=working_dir)
     mdm2 = MetadataManager.new(md_config=mdm_config, path=subrepo1_path)
-    session1 = get_session_or_exit(db_path=mdm1.db_path)
-    session2 = get_session_or_exit(db_path=mdm2.db_path)
+    session1 = get_local_session_or_exit(db_path=mdm1.db_path)
+    session2 = get_local_session_or_exit(db_path=mdm2.db_path)
 
     def _test_task(
         mdm: MetadataManager, session: Session, cwd: Path, filepath: Path
@@ -64,7 +64,7 @@ def test_rm_is_blocked_when_cwd_doesnt_match_target_repository(
     MetadataManager.new(md_config=mdm_config, path=working_dir)
     subrepo_mdm = MetadataManager.new(md_config=mdm_config, path=subrepo)
 
-    session = get_session_or_exit(db_path=subrepo_mdm.db_path)
+    session = get_local_session_or_exit(db_path=subrepo_mdm.db_path)
     subrepo_mdm.touch(session=session, filepath=testfile)
     session.close()
 
@@ -92,7 +92,7 @@ def test_repository_path_option_overrides_cwd_and_unblocks_rm(
     MetadataManager.new(md_config=mdm_config, path=working_dir)
     subrepo_mdm = MetadataManager.new(md_config=mdm_config, path=subrepo)
 
-    session = get_session_or_exit(db_path=subrepo_mdm.db_path)
+    session = get_local_session_or_exit(db_path=subrepo_mdm.db_path)
     subrepo_mdm.touch(session=session, filepath=testfile)
     session.close()
 
@@ -114,7 +114,7 @@ def test_rm_works_outside_of_mdm_repository_when_repository_path_is_provided(
 
     mdm = MetadataManager.new(md_config=mdm_config, path=subdir)
 
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     mdm.touch(session=session, filepath=filepath)
     session.close()
 
@@ -143,7 +143,7 @@ def test_rm_fails_if_provided_filepath_is_not_within_repository_path(
     testfile = subdir1.joinpath("testfile")
 
     mdm = MetadataManager.new(md_config=mdm_config, path=subdir1)
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     mdm.touch(session=session, filepath=testfile)
     session.close()
 
@@ -183,7 +183,7 @@ def test_touch_fails_if_provided_filepath_is_not_within_repositor_path_with_debu
     testfile = subdir1.joinpath("testfile")
 
     mdm = MetadataManager.new(md_config=mdm_config, path=subdir1)
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     mdm.touch(session=session, filepath=testfile)
     session.close()
 

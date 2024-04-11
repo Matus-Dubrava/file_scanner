@@ -3,7 +3,7 @@ import subprocess
 
 import md_constants
 from manager import MetadataManager
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 
 
 @pytest.mark.cc11134814
@@ -31,7 +31,7 @@ def test_ls_works_outside_mdm_repository_when_repository_path_is_provided(
     testfile = subdir.joinpath("testfile")
     mdm = MetadataManager.new(md_config=mdm_config, path=subdir)
 
-    session = get_session_or_exit(db_path=mdm.db_path, debug=True)
+    session = get_local_session_or_exit(db_path=mdm.db_path, debug=True)
     mdm.touch(session=session, filepath=testfile)
     session.close()
 
@@ -72,9 +72,9 @@ def test_respoitory_path_list_file_from_target_respository(
     mdm2 = MetadataManager.new(md_config=mdm_config, path=subdir1)
     mdm3 = MetadataManager.new(md_config=mdm_config, path=subdir2)
 
-    session1 = get_session_or_exit(db_path=mdm1.db_path, debug=True)
-    session2 = get_session_or_exit(db_path=mdm2.db_path, debug=True)
-    session3 = get_session_or_exit(db_path=mdm3.db_path, debug=True)
+    session1 = get_local_session_or_exit(db_path=mdm1.db_path, debug=True)
+    session2 = get_local_session_or_exit(db_path=mdm2.db_path, debug=True)
+    session3 = get_local_session_or_exit(db_path=mdm3.db_path, debug=True)
 
     mdm1.touch(session=session1, filepath=testfile1)
     mdm2.touch(session=session2, filepath=testfile2)

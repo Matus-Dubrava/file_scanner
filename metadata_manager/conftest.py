@@ -5,7 +5,7 @@ import os
 
 from manager import MetadataManager
 from models.local_models import Config
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 
 
 def pytest_runtest_setup(item):
@@ -135,7 +135,7 @@ def mdm(working_dir, mdm_config):
 
 @pytest.fixture(scope="function")
 def session(mdm):
-    session_ = get_session_or_exit(db_path=mdm.db_path)
+    session_ = get_local_session_or_exit(db_path=mdm.db_path)
     print(f"[{__name__}] session established, database: {mdm.db_path}")
     yield session_
     session_.close()

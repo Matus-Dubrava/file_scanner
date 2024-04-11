@@ -9,7 +9,7 @@ from models.local_models import Config
 from md_enums import FileStatus
 import md_constants
 import cli_utils
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 import md_utils
 
 CONFIG_PATH = Path(__file__).parent / "config" / ".mdconfig"
@@ -104,7 +104,7 @@ def touch(ctx, path, repository_path, parents, debug) -> None:
             print(f"fatal: can't touch directory {path}", file=sys.stderr)
             sys.exit(2)
 
-    session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
+    session = get_local_session_or_exit(db_path=mdm.db_path, debug=debug)
     for target_path in target_paths:
         mdm.touch(session=session, filepath=target_path, create_parents=parents)
 
@@ -200,7 +200,7 @@ def ls(
         path=Path.cwd() if not repository_path else Path(repository_path).resolve(),
     )
 
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     mdm.list_files(
         session=session,
         path=Path.cwd(),
@@ -253,7 +253,7 @@ def show(ctx, target, debug, repository_path, history, n, metadata):
         path=Path.cwd() if not repository_path else Path(repository_path).resolve(),
     )
 
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
 
     # Validate 'n' to be number.
     if n is not None:
@@ -297,7 +297,7 @@ def untrack(ctx, target) -> None:
     mdm = MetadataManager.from_repository(
         md_config=ctx.obj, path=Path(target).resolve()
     )
-    session = get_session_or_exit(mdm.db_path)
+    session = get_local_session_or_exit(mdm.db_path)
 
     mdm.untrack(session=session, filepath=Path(target).resolve())
     session.close()
@@ -311,7 +311,7 @@ def purge(ctx, debug) -> None:
     cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd())
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
 
     mdm.purge_removed_files(session=session, path=Path.cwd(), debug=debug)
     session.close()
@@ -361,7 +361,7 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -
         target_paths=target_paths,
     )
 
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     target_filepaths: List[Path] = []
     tracked_dirs: Set[str] = set()
     # Exit if any of provided paths is directory and --recursive flag is not set,
@@ -465,7 +465,7 @@ def add(ctx, paths, debug, repository_path):
             print(f"fatal: {target_path} doesn't exist", file=sys.stderr)
             sys.exit(1)
 
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
 
     for target_path in target_paths:
         if target_path.is_file():
@@ -495,7 +495,7 @@ def refresh(ctx, repository_path, debug, verbose):
         md_config=mdm_config, path=source_path, debug=debug
     )
 
-    session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
+    session = get_local_session_or_exit(db_path=mdm.db_path, debug=debug)
     mdm.refresh_active_repository_records(session=session, debug=debug, verbose=verbose)
     session.close()
 
@@ -534,7 +534,7 @@ def setv(ctx, repository_path, key, value, file, debug, delete):
         md_config=mdm_config, path=source_path, debug=debug
     )
 
-    session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
+    session = get_local_session_or_exit(db_path=mdm.db_path, debug=debug)
     if delete:
         mdm.delete_key(session=session, key=key, filepath=filepath, debug=debug)
     else:
@@ -613,7 +613,7 @@ def getv(ctx, key, file, all, filter, repository_path, debug):
         filter_key = filter_parts[0] if filter_parts[0] else None
         filter_value = filter_parts[1] if filter_parts[1] else None
 
-    session = get_session_or_exit(db_path=mdm.db_path, debug=debug)
+    session = get_local_session_or_exit(db_path=mdm.db_path, debug=debug)
     mdm.get_value(
         session=session,
         filepath=filepath,

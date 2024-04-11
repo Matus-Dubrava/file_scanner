@@ -1,15 +1,17 @@
 from pathlib import Path
 import traceback
 import sys
+from typing import Any
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from models.local_models import Base
+from models.local_models import Base as LocalBase
+from models.global_models import Base as GlobalBase
 import md_constants
 
 
-def create_or_get_session(db_path: Path) -> Session | Exception:
+def _create_or_get_session(db_path: Path, declarative_base: Any) -> Session | Exception:
     """
     Creates a new sqlite database if it doesn't exist and returns a
     session object.
@@ -19,7 +21,7 @@ def create_or_get_session(db_path: Path) -> Session | Exception:
         engine = create_engine(str(db_url))
         Session = sessionmaker(bind=engine)
 
-        Base.metadata.create_all(engine)
+        declarative_base.metadata.create_all(engine)
         session = Session()
 
         # Need more testing around this, does it speed up the process
@@ -33,11 +35,15 @@ def create_or_get_session(db_path: Path) -> Session | Exception:
         return exc
 
 
-def get_session_or_exit(db_path: Path, debug: bool = False) -> Session:
+def _get_session_or_exit(
+    db_path: Path, declarative_base: Any, debug: bool = False
+) -> Session:
     """
     Returns session object or exits if the connection cannot be established.
     """
-    session_or_err = create_or_get_session(db_path=db_path)
+    session_or_err = _create_or_get_session(
+        db_path=db_path, declarative_base=declarative_base
+    )
 
     if isinstance(session_or_err, Exception):
         if debug:
@@ -50,3 +56,23 @@ def get_session_or_exit(db_path: Path, debug: bool = False) -> Session:
         sys.exit(md_constants.CANT_CREATE_SQLITE_SESSION)
 
     return session_or_err
+
+
+def get_local_session_or_exit(db_path: Path, debug: bool = False) -> Session:
+    """
+    Retun session object connected to local repository database or exits if
+    session can't be established.
+    """
+    return _get_session_or_exit(
+        db_path=db_path, declarative_base=LocalBase, debug=debug
+    )
+
+
+def get_global_session_or_exit(db_path: Path, debug: bool = False) -> Session:
+    """
+    Retun session object connected to global repository database or exits if
+    session can't be established.
+    """
+    return _get_session_or_exit(
+        db_path=db_path, declarative_base=GlobalBase, debug=debug
+    )

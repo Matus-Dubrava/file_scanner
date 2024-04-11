@@ -7,7 +7,7 @@ import tests.utils as utils
 from build import write_build_info
 from md_enums import BuildType
 from models.local_models import VersionInfoORM, RepositoryORM
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 from manager import MetadataManager
 
 
@@ -104,7 +104,7 @@ def test_init_creates_version_info_record(
 
     subprocess.check_output([*init_cmd, working_dir])
 
-    session = get_session_or_exit(
+    session = get_local_session_or_exit(
         db_path=working_dir.joinpath(
             mdm_config.local_dir_name, mdm_config.local_db_name
         )
@@ -131,7 +131,7 @@ def test_init_creates_repository_table_without_parent_repo_info(
 
     subprocess.check_output([*init_cmd, working_dir])
     mdm = MetadataManager.from_repository(path=working_dir, md_config=mdm_config)
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
 
     repository_record = session.query(RepositoryORM).first()
     assert str(repository_record.repository_filepath) == str(working_dir)
@@ -154,7 +154,7 @@ def test_init_creates_repository_table_with_parent_repo_info(
 
     subprocess.check_output([*init_cmd, working_dir])
     mdm = MetadataManager.from_repository(path=working_dir, md_config=mdm_config)
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
 
     parent_repository_record = session.query(RepositoryORM).first()
     assert parent_repository_record
@@ -171,7 +171,7 @@ def test_init_creates_repository_table_with_parent_repo_info(
     child_mdm = MetadataManager.from_repository(
         path=child_repo_dir, md_config=mdm_config
     )
-    child_session = get_session_or_exit(db_path=child_mdm.db_path)
+    child_session = get_local_session_or_exit(db_path=child_mdm.db_path)
 
     child_repository_record = child_session.query(RepositoryORM).first()
     assert str(child_repository_record.repository_filepath) == str(child_repo_dir)

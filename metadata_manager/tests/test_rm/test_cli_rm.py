@@ -4,7 +4,7 @@ import subprocess
 from models.local_models import FileORM, HistoryORM, FileMetadataORM
 from md_enums import FileStatus
 from manager import MetadataManager
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 
 
 # test rm fails when called outside of mdm repository
@@ -179,8 +179,8 @@ def test_rm_fails_if_not_all_provided_files_belong_to_the_same_repository(
 
     mdm1 = MetadataManager.new(md_config=mdm_config, path=working_dir)
     mdm2 = MetadataManager.new(md_config=mdm_config, path=subdir)
-    session1 = get_session_or_exit(db_path=mdm1.db_path)
-    session2 = get_session_or_exit(db_path=mdm2.db_path)
+    session1 = get_local_session_or_exit(db_path=mdm1.db_path)
+    session2 = get_local_session_or_exit(db_path=mdm2.db_path)
 
     mdm1.touch(session=session1, filepath=testfile1)
     mdm2.touch(session=session2, filepath=testfile2)

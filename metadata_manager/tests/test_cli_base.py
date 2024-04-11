@@ -4,7 +4,7 @@ import subprocess
 from manager import MetadataManager
 from models.local_models import FileORM
 from md_enums import FileStatus
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 
 #######################################################################
 # Mdm commands can't be run outside of Mdm repository.                #
@@ -26,7 +26,7 @@ def test_untrack_cant_be_used_outside_of_mdm_repository(
 
     # Initialize Mdm outside outside of cwd.
     mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     mdm.touch(session=session, filepath=filepath)
 
     proc = subprocess.run([*untrack_cmd, filepath], capture_output=True)
@@ -55,7 +55,7 @@ def test_purge_cant_be_used_outside_of_mdm_repository(
 
     # Initialize Mdm outside outside of cwd.
     mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     mdm.touch(session=session, filepath=filepath)
     session.close()
 
@@ -81,7 +81,7 @@ def test_list_cant_be_used_outside_of_mdm_repository(
 
     # Initialize Mdm outside outside of cwd.
     mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     mdm.touch(session=session, filepath=filepath)
     session.close()
 
@@ -144,7 +144,7 @@ def test_rm_cant_be_used_outside_of_mdm_repository(
     filepath2 = subdir.joinpath("testfile2")
 
     mdm = MetadataManager.new(md_config=mdm_config, path=repository_root)
-    session = get_session_or_exit(db_path=mdm.db_path)
+    session = get_local_session_or_exit(db_path=mdm.db_path)
     mdm.touch(session=session, filepath=filepath1)
     mdm.touch(session=session, filepath=filepath2)
     session.close()

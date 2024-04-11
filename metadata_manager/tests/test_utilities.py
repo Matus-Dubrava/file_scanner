@@ -12,7 +12,7 @@ from md_utils import (
 from manager import MetadataManager
 from models.local_models import FileORM, HistoryORM
 from md_enums import FileStatus
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 
 
 @pytest.mark.e35aeef590
@@ -164,8 +164,8 @@ def test_get_files_belonging_to_target_repository(working_dir, mdm_config):
     parent_mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
     child_mdm = MetadataManager.new(md_config=mdm_config, path=dir2)
 
-    parent_session = get_session_or_exit(db_path=parent_mdm.db_path)
-    child_session = get_session_or_exit(db_path=child_mdm.db_path)
+    parent_session = get_local_session_or_exit(db_path=parent_mdm.db_path)
+    child_session = get_local_session_or_exit(db_path=child_mdm.db_path)
 
     filepath1 = working_dir.joinpath("testfile1")
     filepath2 = working_dir.joinpath(dir1, "testfile2")
@@ -221,8 +221,8 @@ def test_get_files_belonging_to_target_repository_filters(working_dir, mdm_confi
     parent_mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
     child_mdm = MetadataManager.new(md_config=mdm_config, path=subrepository_dir)
 
-    parent_session = get_session_or_exit(db_path=parent_mdm.db_path)
-    child_session = get_session_or_exit(db_path=child_mdm.db_path)
+    parent_session = get_local_session_or_exit(db_path=parent_mdm.db_path)
+    child_session = get_local_session_or_exit(db_path=child_mdm.db_path)
 
     parent_mdm.touch(session=parent_session, filepath=active_file1)
     parent_mdm.touch(session=parent_session, filepath=active_file2)
@@ -334,8 +334,8 @@ def test_move_mdm_records(working_dir, mdm_config):
     parent_mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
     child_mdm = MetadataManager.new(md_config=mdm_config, path=subrepository_dir1)
 
-    parent_session = get_session_or_exit(db_path=parent_mdm.db_path)
-    child_session = get_session_or_exit(db_path=child_mdm.db_path)
+    parent_session = get_local_session_or_exit(db_path=parent_mdm.db_path)
+    child_session = get_local_session_or_exit(db_path=child_mdm.db_path)
 
     parent_mdm.touch(session=parent_session, filepath=testfile1)
     parent_mdm.touch(
@@ -418,8 +418,8 @@ def test_move_hash_files(working_dir, mdm_config):
     parent_mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
     child_mdm = MetadataManager.new(md_config=mdm_config, path=subdir1)
 
-    parent_session = get_session_or_exit(db_path=parent_mdm.db_path)
-    child_session = get_session_or_exit(db_path=child_mdm.db_path)
+    parent_session = get_local_session_or_exit(db_path=parent_mdm.db_path)
+    child_session = get_local_session_or_exit(db_path=child_mdm.db_path)
 
     parent_mdm.touch(session=parent_session, filepath=testfile1)
     parent_mdm.touch(session=parent_session, filepath=testfile2)
@@ -462,8 +462,8 @@ def test_move_mdm_data(working_dir, mdm_config):
     parent_mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
     child_mdm = MetadataManager.new(md_config=mdm_config, path=subdir1)
 
-    parent_session = get_session_or_exit(db_path=parent_mdm.db_path)
-    child_session = get_session_or_exit(db_path=child_mdm.db_path)
+    parent_session = get_local_session_or_exit(db_path=parent_mdm.db_path)
+    child_session = get_local_session_or_exit(db_path=child_mdm.db_path)
 
     parent_mdm.touch(session=parent_session, filepath=testfile1)
     parent_mdm.touch(session=parent_session, filepath=testfile2)

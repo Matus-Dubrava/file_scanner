@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from manager import MetadataManager
 import md_constants
 from models.local_models import FileORM
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 
 
 @pytest.mark.f5b0fba262
@@ -95,9 +95,9 @@ def test_repository_path_option_overrides_cwd_and_unblocks_touch(
     subrepo1_mdm = MetadataManager.new(md_config=mdm_config, path=subrepo1_path)
     subrepo2_mdm = MetadataManager.new(md_config=mdm_config, path=subrepo2_path)
 
-    session1 = get_session_or_exit(db_path=working_dir_mdm.db_path)
-    session2 = get_session_or_exit(db_path=subrepo1_mdm.db_path)
-    session3 = get_session_or_exit(db_path=subrepo2_mdm.db_path)
+    session1 = get_local_session_or_exit(db_path=working_dir_mdm.db_path)
+    session2 = get_local_session_or_exit(db_path=subrepo1_mdm.db_path)
+    session3 = get_local_session_or_exit(db_path=subrepo2_mdm.db_path)
 
     def _test_task(
         filepath: Path, repository_path: Path, mdm: MetadataManager, session: Session

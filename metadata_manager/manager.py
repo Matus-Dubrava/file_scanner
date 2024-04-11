@@ -11,7 +11,7 @@ import uuid
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
-from db import get_session_or_exit
+from db import get_local_session_or_exit
 from models.local_models import (
     Config,
     FileORM,
@@ -99,7 +99,7 @@ class MetadataManager:
             db_path=db_path,
         )
 
-        session = get_session_or_exit(db_path=db_path)
+        session = get_local_session_or_exit(db_path=db_path)
         session.add(repository)
 
         maybe_err = mdm.write_version_info_to_db(session=session, commit=False)
@@ -158,8 +158,8 @@ class MetadataManager:
                     md_config=self.md_config, path=maybe_source_root
                 )
 
-                source_session = get_session_or_exit(db_path=source_mdm.db_path)
-                dest_session = get_session_or_exit(db_path=self.db_path)
+                source_session = get_local_session_or_exit(db_path=source_mdm.db_path)
+                dest_session = get_local_session_or_exit(db_path=self.db_path)
 
                 source_repo_record = source_session.query(RepositoryORM).first()
                 dest_repo_record = dest_session.query(RepositoryORM).first()
