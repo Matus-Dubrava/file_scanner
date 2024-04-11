@@ -1,11 +1,10 @@
 from pydantic import BaseModel, ConfigDict
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Union, Optional, List
+from typing import Union, Optional, List
 
 from sqlalchemy import (
     Column,
-    Dialect,
     Integer,
     String,
     Enum,
@@ -14,33 +13,12 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship, declarative_base, Mapped, Session
-from sqlalchemy.types import TypeDecorator
 
+from models.types import PathType
+from models.mixins import ORMReprMixin
 from md_enums import FileStatus, BuildType
 
 Base = declarative_base()
-
-
-class PathType(TypeDecorator):
-    impl = String
-
-    cache_ok = True
-
-    def process_bind_param(self, value: Any | None, dialect: Dialect) -> Any:
-        if isinstance(value, Path):
-            return str(value)
-        return value
-
-    def process_result_value(self, value: Any | None, dialect: Dialect) -> Any | None:
-        return Path(value) if value else None
-
-
-class ORMReprMixin:
-    def __repr__(self) -> str:
-        class_ = self.__class__.__name__
-        attrs = sorted((k, getattr(self, k)) for k in self.__mapper__.columns.keys())  # type: ignore
-        str_attrs = ",\n".join(f"{key}={value!r}" for key, value in attrs)
-        return f"{class_}({str_attrs})"
 
 
 class FileORM(Base, ORMReprMixin):
