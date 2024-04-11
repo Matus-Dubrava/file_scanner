@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy.orm import declarative_base, Mapped
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String, DateTime, UniqueConstraint
 
 from models.types import PathType
 
@@ -17,3 +17,5 @@ class RespoitoriesORM(Base):
     date_created: Mapped[datetime] = Column(
         DateTime, nullable=False, default=datetime.now()
     )
+
+    __table_args__ = (UniqueConstraint("path", name="unique_repository"),)

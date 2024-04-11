@@ -46,11 +46,11 @@ class MetadataManager:
     def new(md_config: Config, path: Path, recreate: bool = False, debug: bool = False):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
-        md_path = path.joinpath(md_config.local_dir_name)
-        db_path = md_path.joinpath(md_config.local_db_name)
+        local_dir_path = path.joinpath(md_config.local_dir_name)
+        local_db_path = local_dir_path.joinpath(md_config.local_db_name)
 
         # If recreate flag is set, delete existing repository.
-        if recreate and md_path.exists():
+        if recreate and local_dir_path.exists():
             try:
                 shutil.rmtree(path.joinpath(md_config.local_dir_name))
             except Exception:
@@ -77,9 +77,9 @@ class MetadataManager:
             if not path.exists():
                 path.mkdir(parents=True)
 
-            # Create internal directories.
-            md_path.mkdir()
-            md_path.joinpath("hashes").mkdir()
+            # Create internal directories for local repository.
+            local_dir_path.mkdir()
+            local_dir_path.joinpath("hashes").mkdir()
         except Exception:
             if debug:
                 print(f"{traceback.format_exc()}\n", file=sys.stderr)
@@ -87,7 +87,7 @@ class MetadataManager:
             print(f"fatal: failed to initialize repository {path}", file=sys.stderr)
             sys.exit(1)
 
-        repository = RepositoryORM(
+        local_repository_record = RepositoryORM(
             id=str(uuid.uuid4()),
             repository_filepath=path,
         )
@@ -95,17 +95,17 @@ class MetadataManager:
         mdm = MetadataManager(
             md_config=md_config,
             repository_root=path,
-            md_path=md_path,
-            db_path=db_path,
+            md_path=local_dir_path,
+            db_path=local_db_path,
         )
 
-        session = get_local_session_or_exit(db_path=db_path)
-        session.add(repository)
+        local_session = get_local_session_or_exit(db_path=local_db_path)
+        local_session.add(local_repository_record)
 
-        maybe_err = mdm.write_version_info_to_db(session=session, commit=False)
+        maybe_err = mdm.write_version_info_to_db(session=local_session, commit=False)
         if maybe_err:
             mdm.cleanup(path)
-            session.close()
+            local_session.close()
 
             if debug:
                 print(f"{traceback.format_exception(maybe_err)}\n", file=sys.stderr)
@@ -113,8 +113,8 @@ class MetadataManager:
             print("fatal: failed to initialize repository", file=sys.stderr)
             sys.exit(1)
 
-        session.commit()
-        session.close()
+        local_session.commit()
+        local_session.close()
 
         print(f"Intialized empty repository in {path}")
         return mdm

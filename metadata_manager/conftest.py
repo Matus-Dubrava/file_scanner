@@ -25,7 +25,7 @@ def pytest_runtest_teardown(item):
 
 @pytest.fixture(scope="module")
 def working_dir_path():
-    path = Path("/tmp/working_dir/")
+    path = Path("/tmp/working_dir/local/")
     return path
 
 

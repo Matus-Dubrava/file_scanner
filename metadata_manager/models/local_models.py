@@ -220,7 +220,7 @@ class Config(BaseModel):
     local_dir_name: str
     local_db_name: str
     global_db_name: str
-    global_dir_name: str
+    global_path: str
 
     @staticmethod
     def from_file(path: Path) -> Union["Config", Exception]:
