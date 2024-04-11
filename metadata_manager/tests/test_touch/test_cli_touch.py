@@ -2,7 +2,7 @@ import pytest
 import shutil
 import subprocess
 
-from md_models import FileORM, HistoryORM
+from models.local_models import FileORM, HistoryORM
 import md_utils
 import md_enums
 

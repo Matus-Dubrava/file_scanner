@@ -1,7 +1,7 @@
 import pytest
 
 from md_enums import FileStatus
-from md_models import FileORM
+from models.local_models import FileORM
 
 
 @pytest.mark.a06e4f2a96

@@ -281,7 +281,7 @@ class VersionInfo(BaseModel):
 
     @staticmethod
     def get_info() -> Union["VersionInfo", Exception]:
-        version_info_path = Path(__file__).parent / "version.json"
+        version_info_path = Path(__file__).parent.parent.joinpath("version.json")
         try:
             with open(version_info_path, "r") as f:
                 version_info = VersionInfo.model_validate_json(f.read())

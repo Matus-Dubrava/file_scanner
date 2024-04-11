@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import FileORM, RepositoryORM
+from models.local_models import FileORM, RepositoryORM
 
 # NOTE: Some of these tests are very simplistic as the textual representation of
 # repository objects is subject to change.

@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import RepositoryORM
+from models.local_models import RepositoryORM
 
 
 @pytest.mark.ea86bfd10c

@@ -10,7 +10,7 @@ from md_utils import (
     move_mdm_data,
 )
 from manager import MetadataManager
-from md_models import FileORM, HistoryORM
+from models.local_models import FileORM, HistoryORM
 from md_enums import FileStatus
 from db import get_session_or_exit
 

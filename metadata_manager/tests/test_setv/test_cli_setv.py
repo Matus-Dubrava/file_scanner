@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import RepositoryMetadataORM, FileMetadataORM
+from models.local_models import RepositoryMetadataORM, FileMetadataORM
 
 
 @pytest.mark.d1c6d01caa

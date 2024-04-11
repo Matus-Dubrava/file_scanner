@@ -7,7 +7,7 @@ from typing import Optional
 import os
 
 from md_enums import BuildType
-from md_models import VersionInfo
+from models.local_models import VersionInfo
 
 
 def validate_args(parser: argparse.ArgumentParser) -> argparse.Namespace:

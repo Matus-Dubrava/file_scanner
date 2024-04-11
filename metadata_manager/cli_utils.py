@@ -4,7 +4,7 @@ import sys
 from typing import List
 
 from md_utils import get_repository_root_or_exit
-from md_models import Config
+from models.local_models import Config
 import md_constants
 from manager import MetadataManager
 

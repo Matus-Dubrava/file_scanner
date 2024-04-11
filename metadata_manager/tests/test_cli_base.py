@@ -2,7 +2,7 @@ import pytest
 import subprocess
 
 from manager import MetadataManager
-from md_models import FileORM
+from models.local_models import FileORM
 from md_enums import FileStatus
 from db import get_session_or_exit
 

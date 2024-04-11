@@ -1,5 +1,5 @@
 import pytest
-from md_models import FileORM, HistoryORM, FileMetadataORM
+from models.local_models import FileORM, HistoryORM, FileMetadataORM
 from md_enums import FileStatus
 import subprocess
 

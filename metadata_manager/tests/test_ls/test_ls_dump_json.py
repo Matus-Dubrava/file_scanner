@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import FileListing, RepositoryORM
+from models.local_models import FileListing, RepositoryORM
 from md_enums import FileStatus
 
 

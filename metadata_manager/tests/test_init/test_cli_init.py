@@ -6,7 +6,7 @@ import shutil
 import tests.utils as utils
 from build import write_build_info
 from md_enums import BuildType
-from md_models import VersionInfoORM, RepositoryORM
+from models.local_models import VersionInfoORM, RepositoryORM
 from db import get_session_or_exit
 from manager import MetadataManager
 

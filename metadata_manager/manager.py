@@ -12,7 +12,7 @@ from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 from db import get_session_or_exit
-from md_models import (
+from models.local_models import (
     Config,
     FileORM,
     FileMetadataORM,

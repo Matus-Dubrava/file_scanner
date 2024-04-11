@@ -5,7 +5,7 @@ from typing import List, Set
 import click
 
 from manager import MetadataManager
-from md_models import Config
+from models.local_models import Config
 from md_enums import FileStatus
 import md_constants
 import cli_utils

@@ -2,7 +2,7 @@ import pytest
 import subprocess
 
 import md_enums
-from md_models import FileORM
+from models.local_models import FileORM
 
 
 @pytest.mark.ede07b185a

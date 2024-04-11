@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import FileORM, HistoryORM, FileMetadataORM
+from models.local_models import FileORM, HistoryORM, FileMetadataORM
 from md_enums import FileStatus
 from manager import MetadataManager
 from db import get_session_or_exit

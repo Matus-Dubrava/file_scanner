@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 
-from md_models import HistoryORM
+from models.local_models import HistoryORM
 
 
 @pytest.mark.a635de9832

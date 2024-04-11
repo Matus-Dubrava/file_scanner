@@ -4,7 +4,7 @@ import shutil
 import os
 
 from manager import MetadataManager
-from md_models import Config
+from models.local_models import Config
 from db import get_session_or_exit
 
 

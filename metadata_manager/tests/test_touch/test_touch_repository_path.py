@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from manager import MetadataManager
 import md_constants
-from md_models import FileORM
+from models.local_models import FileORM
 from db import get_session_or_exit
 
 

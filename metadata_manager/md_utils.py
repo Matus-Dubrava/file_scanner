@@ -12,7 +12,7 @@ from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 import md_constants
-from md_models import FileStat, LineChanges, Config, FileORM, HistoryORM
+from models.local_models import FileStat, LineChanges, Config, FileORM, HistoryORM
 from md_enums import FileStatus
 
 

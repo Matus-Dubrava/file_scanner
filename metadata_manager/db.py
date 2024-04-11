@@ -5,7 +5,7 @@ import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from md_models import Base
+from models.local_models import Base
 import md_constants
 
 

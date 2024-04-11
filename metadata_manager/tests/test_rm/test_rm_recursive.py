@@ -3,7 +3,7 @@ import shutil
 import subprocess
 
 import md_constants
-from md_models import FileORM
+from models.local_models import FileORM
 
 
 @pytest.mark.a9b1f72f1f
