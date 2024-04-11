@@ -46,13 +46,13 @@ class MetadataManager:
     def new(md_config: Config, path: Path, recreate: bool = False, debug: bool = False):
         assert path.is_absolute(), f"Expected aboslute path. Got {path}."
 
-        md_path = path.joinpath(md_config.md_dir_name)
-        db_path = md_path.joinpath(md_config.md_db_name)
+        md_path = path.joinpath(md_config.local_dir_name)
+        db_path = md_path.joinpath(md_config.local_db_name)
 
         # If recreate flag is set, delete existing repository.
         if recreate and md_path.exists():
             try:
-                shutil.rmtree(path.joinpath(md_config.md_dir_name))
+                shutil.rmtree(path.joinpath(md_config.local_dir_name))
             except Exception:
                 if debug:
                     print(f"{traceback.format_exc()}\n", file=sys.stderr)
@@ -61,7 +61,7 @@ class MetadataManager:
                 sys.exit(3)
 
         # Check if repository has been already initiazlied in target directory.
-        if path.joinpath(md_config.md_dir_name).exists():
+        if path.joinpath(md_config.local_dir_name).exists():
             print(f"Fatal: repository already exists in {path}", file=sys.stderr)
             print(
                 (
@@ -79,7 +79,6 @@ class MetadataManager:
 
             # Create internal directories.
             md_path.mkdir()
-            md_path.joinpath("deleted").mkdir()
             md_path.joinpath("hashes").mkdir()
         except Exception:
             if debug:
@@ -128,8 +127,8 @@ class MetadataManager:
             path=path, config=md_config
         )
 
-        md_path = maybe_md_root.joinpath(md_config.md_dir_name)
-        db_path = md_path.joinpath(md_config.md_db_name)
+        md_path = maybe_md_root.joinpath(md_config.local_dir_name)
+        db_path = md_path.joinpath(md_config.local_db_name)
 
         assert md_path.exists(), f"Expected repository {path} to exist."
 
@@ -200,12 +199,12 @@ class MetadataManager:
             sys.exit(2)
 
     def create_md_dirs(self, where: Path):
-        (where / self.md_config.md_dir_name).mkdir()
-        (where / self.md_config.md_dir_name / "deleted").mkdir()
-        (where / self.md_config.md_dir_name / "hashes").mkdir()
+        (where / self.md_config.local_dir_name).mkdir()
+        (where / self.md_config.local_dir_name / "deleted").mkdir()
+        (where / self.md_config.local_dir_name / "hashes").mkdir()
 
     def cleanup(self, dir: Path):
-        md_dir = dir / self.md_config.md_dir_name
+        md_dir = dir / self.md_config.local_dir_name
         if md_dir.exists():
             shutil.rmtree(md_dir)
 
@@ -309,7 +308,7 @@ class MetadataManager:
         current_dir = dir
 
         while not md_utils.is_fs_root_dir(current_dir):
-            if (current_dir / self.md_config.md_dir_name).exists():
+            if (current_dir / self.md_config.local_dir_name).exists():
                 return True
 
             if current_dir == stop_at:

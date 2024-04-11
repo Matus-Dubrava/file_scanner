@@ -1,4 +1,6 @@
 {
-    "md_dir_name": ".md",
-    "md_db_name": "metadata.db"
+    "local_dir_name": ".md",
+    "local_db_name": "metadata.db",
+    "global_db_name": "repositories.db",
+    "global_dir_name": ".md_global"
 }

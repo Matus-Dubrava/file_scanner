@@ -35,7 +35,9 @@ def test_init_recreates_repository(working_dir, mdm_config, init_cmd):
     subprocess.check_output([*init_cmd, working_dir, "--recreate"])
     utils.assert_md_structure_exists(where=working_dir, md_config=mdm_config)
     utils.assert_database_structure(
-        db_path=working_dir.joinpath(mdm_config.md_dir_name, mdm_config.md_db_name)
+        db_path=working_dir.joinpath(
+            mdm_config.local_dir_name, mdm_config.local_db_name
+        )
     )
 
 
@@ -55,7 +57,9 @@ def test_recreatate_works_even_when_no_repository_exists(
     subprocess.check_output([*init_cmd, working_dir, "--recreate"])
     utils.assert_md_structure_exists(where=working_dir, md_config=mdm_config)
     utils.assert_database_structure(
-        db_path=working_dir.joinpath(mdm_config.md_dir_name, mdm_config.md_db_name)
+        db_path=working_dir.joinpath(
+            mdm_config.local_dir_name, mdm_config.local_db_name
+        )
     )
 
 
@@ -69,7 +73,7 @@ def test_errors_while_recreating_repos_are_handled_no_debug(
 ):
     # Turning the repository's interal dir into a file will make 'init' fail as
     # it expect directory.
-    md_path = working_dir.joinpath(mdm_config.md_dir_name)
+    md_path = working_dir.joinpath(mdm_config.local_dir_name)
     md_path.touch()
 
     proc = subprocess.run([*init_cmd, working_dir, "--recreate"], capture_output=True)
@@ -92,7 +96,7 @@ def test_errors_while_recreating_repos_are_handled_with_debug(
 ):
     # Turning the repository's interal dir into a file will make 'init' fail as
     # it expect directory.
-    md_path = working_dir.joinpath(mdm_config.md_dir_name)
+    md_path = working_dir.joinpath(mdm_config.local_dir_name)
     md_path.touch()
 
     proc = subprocess.run(

@@ -16,10 +16,9 @@ def initalize_git_repository(where: Path) -> bool:
 
 
 def assert_md_structure_exists(md_config: Config, where: Path):
-    assert (where / md_config.md_dir_name).exists()
-    assert (where / md_config.md_dir_name / "hashes").exists()
-    assert (where / md_config.md_dir_name / "deleted").exists()
-    assert (where / md_config.md_dir_name / md_config.md_db_name).exists()
+    assert (where / md_config.local_dir_name).exists()
+    assert (where / md_config.local_dir_name / "hashes").exists()
+    assert (where / md_config.local_dir_name / md_config.local_db_name).exists()
 
 
 def assert_database_structure(db_path: Path):

@@ -239,8 +239,10 @@ class RepositoryStats(BaseModel):
 
 
 class Config(BaseModel):
-    md_dir_name: str
-    md_db_name: str
+    local_dir_name: str
+    local_db_name: str
+    global_db_name: str
+    global_dir_name: str
 
     @staticmethod
     def from_file(path: Path) -> Union["Config", Exception]:

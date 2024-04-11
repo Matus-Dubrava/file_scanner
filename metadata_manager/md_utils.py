@@ -135,7 +135,7 @@ def get_repository_root(path: Path, config: Config) -> Optional[Path]:
     current_dir = path
 
     while not is_fs_root_dir(current_dir):
-        if current_dir.joinpath(config.md_dir_name).exists():
+        if current_dir.joinpath(config.local_dir_name).exists():
             return current_dir
 
         current_dir = current_dir.parent

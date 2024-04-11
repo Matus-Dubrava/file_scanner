@@ -16,9 +16,8 @@ def test_create_git_repository(working_dir):
 @pytest.mark.manager
 @pytest.mark.sanity
 def test_create_md_dirs(working_dir, mdm):
-    assert (working_dir / mdm.md_config.md_dir_name).exists()
-    assert (working_dir / mdm.md_config.md_dir_name / "hashes").exists()
-    assert (working_dir / mdm.md_config.md_dir_name / "deleted").exists()
+    assert (working_dir / mdm.md_config.local_dir_name).exists()
+    assert (working_dir / mdm.md_config.local_dir_name / "hashes").exists()
 
 
 @pytest.mark.f9308dd389
@@ -28,7 +27,7 @@ def test_create_md_dirs(working_dir, mdm):
 def test_cleanup(working_dir, mdm):
     utils.assert_md_structure_exists(mdm.md_config, working_dir)
     mdm.cleanup(working_dir)
-    assert not (working_dir / mdm.md_config.md_dir_name).exists()
+    assert not (working_dir / mdm.md_config.local_dir_name).exists()
 
 
 @pytest.mark.b8794b26cc

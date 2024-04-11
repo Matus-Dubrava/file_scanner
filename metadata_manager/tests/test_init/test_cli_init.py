@@ -32,7 +32,10 @@ def test_init_creates_md_repository_in_target_dir(working_dir, init_cmd, mdm):
     subprocess.check_output([*init_cmd, subdir])
     utils.assert_md_structure_exists(mdm.md_config, working_dir / "dir1")
     utils.assert_database_structure(
-        working_dir / "dir1" / mdm.md_config.md_dir_name / mdm.md_config.md_db_name
+        working_dir
+        / "dir1"
+        / mdm.md_config.local_dir_name
+        / mdm.md_config.local_db_name
     )
 
 
@@ -51,7 +54,9 @@ def test_init_creates_md_repository_in_target_dir_with_relative_path(
     subprocess.check_output([*init_cmd, subdir])
     utils.assert_md_structure_exists(mdm.md_config, Path(target_path))
     utils.assert_database_structure(
-        db_path=subdir.joinpath(mdm.md_config.md_dir_name, mdm.md_config.md_db_name)
+        db_path=subdir.joinpath(
+            mdm.md_config.local_dir_name, mdm.md_config.local_db_name
+        )
     )
 
 
@@ -70,7 +75,9 @@ def test_init_creates_both_md_respository_and_target_dir_if_it_doesnt_exist(
     assert subdir.exists()
     utils.assert_md_structure_exists(mdm.md_config, subdir)
     utils.assert_database_structure(
-        db_path=subdir.joinpath(mdm.md_config.md_dir_name, mdm.md_config.md_db_name)
+        db_path=subdir.joinpath(
+            mdm.md_config.local_dir_name, mdm.md_config.local_db_name
+        )
     )
 
 
@@ -98,7 +105,9 @@ def test_init_creates_version_info_record(
     subprocess.check_output([*init_cmd, working_dir])
 
     session = get_session_or_exit(
-        db_path=working_dir.joinpath(mdm_config.md_dir_name, mdm_config.md_db_name)
+        db_path=working_dir.joinpath(
+            mdm_config.local_dir_name, mdm_config.local_db_name
+        )
     )
 
     version_info = session.query(VersionInfoORM).first()
