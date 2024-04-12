@@ -5,7 +5,7 @@ import os
 
 from manager import MetadataManager
 from models.local_models import Config
-from db import get_local_session_or_exit
+from db import get_local_session_or_exit, get_global_session_or_exit
 
 
 def pytest_runtest_setup(item):
@@ -25,28 +25,35 @@ def pytest_runtest_teardown(item):
 
 @pytest.fixture(scope="module")
 def working_dir_path():
-    path = Path("/tmp/working_dir/local/")
+    path = Path("/tmp/working_dir/")
     return path
 
 
 @pytest.fixture(scope="function")
-def working_dir(working_dir_path, monkeypatch):
+def working_dir(working_dir_path, monkeypatch, mdm_config):
     if working_dir_path.exists():
         shutil.rmtree(working_dir_path)
 
+    if Path(mdm_config.global_path).exists():
+        shutil.rmtree(mdm_config.global_path)
+
     os.makedirs(working_dir_path)
+    os.makedirs(mdm_config.global_path)
+
     print(f"[{__name__}] created working dir: {working_dir_path}")
     monkeypatch.chdir(working_dir_path)
     print(f"[{__name__}] changed CWD to: {working_dir_path}")
 
     yield working_dir_path
+
     shutil.rmtree(working_dir_path)
+    shutil.rmtree(mdm_config.global_path)
 
 
 @pytest.fixture(scope="module")
 def md_cmd():
     manager_path = Path(__file__).parent / "cli.py"
-    return ["python3", manager_path]
+    return ["python3", manager_path, "--env", "DEV"]
 
 
 @pytest.fixture(scope="module")
@@ -136,6 +143,15 @@ def mdm(working_dir, mdm_config):
 @pytest.fixture(scope="function")
 def session(mdm):
     session_ = get_local_session_or_exit(db_path=mdm.db_path)
-    print(f"[{__name__}] session established, database: {mdm.db_path}")
+    print(f"[{__name__}] session established, local database: {mdm.db_path}")
     yield session_
     session_.close()
+
+
+@pytest.fixture(scope="function")
+def global_session(working_dir, mdm_config):
+    global_db_path = Path(mdm_config.global_path).joinpath(mdm_config.global_db_name)
+    session = get_global_session_or_exit(db_path=global_db_path)
+    print(f"[{__name__}] session established, global database: {global_db_path}")
+    yield session
+    session.close()

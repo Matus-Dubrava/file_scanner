@@ -12,13 +12,28 @@ import cli_utils
 from db import get_local_session_or_exit
 import md_utils
 
-CONFIG_PATH = Path(__file__).parent / "config" / ".mdconfig"
-
 
 @click.group()
+@click.option("--env", required=False, default="PROD")
 @click.pass_context
-def cli(ctx):
-    pass
+def cli(ctx, env):
+    if env.upper() == "PROD":
+        config_path = Path(__file__).parent.joinpath("config", ".mdconfig")
+    elif env.upper() == "DEV":
+        config_path = Path(__file__).parent.joinpath("config", ".mdconfig_dev")
+    else:
+        # Intentonally raising error here instead of exiting
+        # This shouldn't be reachable in production
+        # TODO: update the code such that --env flag is not present in
+        # production build
+        raise Exception("Unsupported ENVIRONMENT")
+
+    mdm_config = Config.from_file(config_path)
+    if isinstance(mdm_config, Exception):
+        print("Failed to load configuration. Abort.", file=sys.stderr)
+        sys.exit(md_constants.CANT_LOAD_CONFIGURATION)
+
+    ctx.obj["config"] = mdm_config
 
 
 @cli.command()
@@ -37,7 +52,10 @@ def cli(ctx):
 @click.pass_context
 def init(ctx, target, debug, load_from_parent_repository, recreate):
     mdm = MetadataManager.new(
-        md_config=ctx.obj, path=Path(target).resolve(), recreate=recreate, debug=debug
+        md_config=ctx.obj["config"],
+        path=Path(target).resolve(),
+        recreate=recreate,
+        debug=debug,
     )
 
     if load_from_parent_repository:
@@ -70,10 +88,10 @@ def init(ctx, target, debug, load_from_parent_repository, recreate):
 )
 @click.pass_context
 def touch(ctx, path, repository_path, parents, debug) -> None:
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
     target_paths = [Path(p).resolve() for p in path]
-    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=source_path)
+    mdm = MetadataManager.from_repository(md_config=mdm_config, path=source_path)
 
     cli_utils.validate_paths(
         with_repository_path=repository_path,
@@ -190,13 +208,13 @@ def ls(
     if not status_filters:
         status_filters.append(FileStatus.ACTIVE)
 
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
 
     if not repository_path:
         cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(
-        md_config=ctx.obj,
+        md_config=mdm_config,
         path=Path.cwd() if not repository_path else Path(repository_path).resolve(),
     )
 
@@ -241,7 +259,7 @@ def ls(
 )
 @click.pass_context
 def show(ctx, target, debug, repository_path, history, n, metadata):
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
 
     target_path = None if not target else Path(target).resolve()
 
@@ -249,7 +267,7 @@ def show(ctx, target, debug, repository_path, history, n, metadata):
         cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(
-        md_config=ctx.obj,
+        md_config=mdm_config,
         path=Path.cwd() if not repository_path else Path(repository_path).resolve(),
     )
 
@@ -291,11 +309,11 @@ def show(ctx, target, debug, repository_path, history, n, metadata):
 @click.argument("target")
 @click.pass_context
 def untrack(ctx, target) -> None:
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
     cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(
-        md_config=ctx.obj, path=Path(target).resolve()
+        md_config=mdm_config, path=Path(target).resolve()
     )
     session = get_local_session_or_exit(mdm.db_path)
 
@@ -307,10 +325,10 @@ def untrack(ctx, target) -> None:
 @click.pass_context
 @click.option("--debug", is_flag=True, show_default=True, default=False)
 def purge(ctx, debug) -> None:
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
     cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
-    mdm = MetadataManager.from_repository(md_config=ctx.obj, path=Path.cwd())
+    mdm = MetadataManager.from_repository(md_config=mdm_config, path=Path.cwd())
     session = get_local_session_or_exit(db_path=mdm.db_path)
 
     mdm.purge_removed_files(session=session, path=Path.cwd(), debug=debug)
@@ -347,7 +365,7 @@ def purge(ctx, debug) -> None:
 )
 @click.pass_context
 def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -> None:
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
 
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
     target_paths = [Path(p).resolve() for p in path]
@@ -445,7 +463,7 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -
 )
 @click.pass_context
 def add(ctx, paths, debug, repository_path):
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
 
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
     target_paths = [Path(p).resolve() for p in paths]
@@ -488,7 +506,7 @@ def add(ctx, paths, debug, repository_path):
 @click.option("--verbose", "-v", is_flag=True, show_default=True, default=False)
 @click.pass_context
 def refresh(ctx, repository_path, debug, verbose):
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
 
     source_path = Path.cwd() if not repository_path else Path(repository_path).resolve()
     mdm = MetadataManager.from_repository(
@@ -522,7 +540,7 @@ def refresh(ctx, repository_path, debug, verbose):
 )
 @click.pass_context
 def setv(ctx, repository_path, key, value, file, debug, delete):
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
 
     if not repository_path:
         cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
@@ -579,7 +597,7 @@ def setv(ctx, repository_path, key, value, file, debug, delete):
 )
 @click.pass_context
 def getv(ctx, key, file, all, filter, repository_path, debug):
-    mdm_config = ctx.obj
+    mdm_config = ctx.obj["config"]
 
     if not repository_path:
         cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
@@ -627,9 +645,4 @@ def getv(ctx, key, file, all, filter, repository_path, debug):
 
 
 if __name__ == "__main__":
-    mdm_config = Config.from_file(CONFIG_PATH)
-    if isinstance(mdm_config, Exception):
-        print("Failed to load configuration. Abort.", file=sys.stderr)
-        sys.exit(md_constants.CANT_LOAD_CONFIGURATION)
-
-    cli(obj=mdm_config)
+    cli(obj={})

@@ -7,6 +7,7 @@ import tests.utils as utils
 from build import write_build_info
 from md_enums import BuildType
 from models.local_models import VersionInfoORM, RepositoryORM
+from models.global_models import RepositoriesORM
 from db import get_local_session_or_exit
 from manager import MetadataManager
 
@@ -180,3 +181,29 @@ def test_init_creates_repository_table_with_parent_repo_info(
 
     session.close()
     child_session.close()
+
+
+@pytest.mark.f2132ac22e
+@pytest.mark.cli
+@pytest.mark.init
+@pytest.mark.sanity
+def test_init_creates_record_in_global_database(
+    init_cmd, working_dir, global_session, mdm_config
+):
+    output = subprocess.check_output([*init_cmd, working_dir])
+    print(output)
+
+    local_session = get_local_session_or_exit(
+        db_path=working_dir.joinpath(
+            mdm_config.local_dir_name, mdm_config.local_db_name
+        )
+    )
+
+    local_repository_record = local_session.query(RepositoryORM).first()
+    assert local_repository_record
+
+    assert (
+        global_session.query(RepositoriesORM)
+        .filter_by(id=local_repository_record.id)
+        .first()
+    )

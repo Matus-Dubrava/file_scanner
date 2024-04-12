@@ -2,5 +2,5 @@
     "local_dir_name": ".md",
     "local_db_name": "metadata.db",
     "global_db_name": "repositories.db",
-    "global_path": "../working_dir/global"
+    "global_path": "/tmp/global_working_dir"
 }

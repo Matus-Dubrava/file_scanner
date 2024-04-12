@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 
 import md_constants
 from models.local_models import FileStat, LineChanges, Config, FileORM, HistoryORM
+from models.global_models import RepositoriesORM
 from md_enums import FileStatus
+from db import get_global_session_or_exit
 
 
 def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
@@ -445,3 +447,55 @@ def get_tracked_files_and_subdirectories(
 
     _traverse(path)
     return tracked_files, tracked_dirs
+
+
+def get_global_paths(config: Config) -> Tuple[Path, Path]:
+    """
+    Computes paths to global directory and database.
+    """
+    if config.global_path.startswith("~"):
+        dir_path = Path(config.global_path).expanduser()
+    else:
+        dir_path = Path(config.global_path)
+
+    db_path = dir_path.joinpath(config.global_db_name)
+
+    return dir_path, db_path
+
+
+def register_local_repository(
+    repository_id: str, path: Path, config: Config
+) -> Optional[Exception]:
+    """
+    Register local repository in global database or update existing
+    record.
+    """
+    _, db_path = get_global_paths(config)
+
+    try:
+        global_session = get_global_session_or_exit(db_path=db_path)
+    except Exception as exc:
+        return exc
+
+    print(f"writing global record to: {db_path}")
+
+    try:
+        global_repository_record = (
+            global_session.query(RepositoriesORM).filter_by(path=path).first()
+        )
+
+        # If record with the same filepath exists, update its ID.
+        # This handles case when local repository has been recreated.
+        if global_repository_record:
+            global_repository_record.id = repository_id
+        else:
+            global_repository_record = RepositoriesORM(id=repository_id, path=path)
+
+        global_session.add(global_repository_record)
+        global_session.commit()
+    except Exception as exc:
+        return exc
+    finally:
+        global_session.close()
+
+    return None
