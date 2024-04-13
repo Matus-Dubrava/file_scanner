@@ -9,7 +9,7 @@ from models.local_models import Config
 from md_enums import FileStatus
 import md_constants
 import cli_utils
-from db import get_local_session_or_exit
+from db import LocalSessionOrExit
 import md_utils
 
 
@@ -122,11 +122,11 @@ def touch(ctx, path, repository_path, parents, debug) -> None:
             print(f"fatal: can't touch directory {path}", file=sys.stderr)
             sys.exit(2)
 
-    session = get_local_session_or_exit(db_path=mdm.db_path, debug=debug)
-    for target_path in target_paths:
-        mdm.touch(session=session, filepath=target_path, create_parents=parents)
-
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        for target_path in target_paths:
+            mdm.touch(
+                session=local_session, filepath=target_path, create_parents=parents
+            )
 
 
 @cli.command()
@@ -218,18 +218,17 @@ def ls(
         path=Path.cwd() if not repository_path else Path(repository_path).resolve(),
     )
 
-    session = get_local_session_or_exit(db_path=mdm.db_path)
-    mdm.list_files(
-        session=session,
-        path=Path.cwd(),
-        status_filter=status_filters,
-        abs_paths=abs_paths,
-        no_header=no_header,
-        dump_json_path=Path(dump_json).resolve() if dump_json else None,
-        debug=debug,
-        force=force,
-    )
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.list_files(
+            session=local_session,
+            path=Path.cwd(),
+            status_filter=status_filters,
+            abs_paths=abs_paths,
+            no_header=no_header,
+            dump_json_path=Path(dump_json).resolve() if dump_json else None,
+            debug=debug,
+            force=force,
+        )
 
 
 @cli.command()
@@ -271,9 +270,7 @@ def show(ctx, target, debug, repository_path, history, n, metadata):
         path=Path.cwd() if not repository_path else Path(repository_path).resolve(),
     )
 
-    session = get_local_session_or_exit(db_path=mdm.db_path)
-
-    # Validate 'n' to be number.
+    # 'n' must be number
     if n is not None:
         try:
             n = int(n)
@@ -284,25 +281,24 @@ def show(ctx, target, debug, repository_path, history, n, metadata):
             )
             sys.exit(1)
 
-    if not target:
-        mdm.show_repository(session=session, debug=debug)
-    elif target_path.is_dir():
-        print(
-            f"fatal: {target_path.relative_to(mdm.repository_root)} is not a file",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-    else:
-        mdm.show_file(
-            session=session,
-            filepath=target_path,
-            debug=debug,
-            display_history=history,
-            display_n_history_records=n,
-            display_metadata=metadata,
-        )
-
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        if not target:
+            mdm.show_repository(session=local_session, debug=debug)
+        elif target_path.is_dir():
+            print(
+                f"fatal: {target_path.relative_to(mdm.repository_root)} is not a file",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        else:
+            mdm.show_file(
+                session=local_session,
+                filepath=target_path,
+                debug=debug,
+                display_history=history,
+                display_n_history_records=n,
+                display_metadata=metadata,
+            )
 
 
 @cli.command()
@@ -315,10 +311,9 @@ def untrack(ctx, target) -> None:
     mdm = MetadataManager.from_repository(
         md_config=mdm_config, path=Path(target).resolve()
     )
-    session = get_local_session_or_exit(mdm.db_path)
 
-    mdm.untrack(session=session, filepath=Path(target).resolve())
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.untrack(session=local_session, filepath=Path(target).resolve())
 
 
 @cli.command()
@@ -329,10 +324,9 @@ def purge(ctx, debug) -> None:
     cli_utils.validate_cwd_is_within_repository_dir(config=mdm_config)
 
     mdm = MetadataManager.from_repository(md_config=mdm_config, path=Path.cwd())
-    session = get_local_session_or_exit(db_path=mdm.db_path)
 
-    mdm.purge_removed_files(session=session, path=Path.cwd(), debug=debug)
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.purge_removed_files(session=local_session, path=Path.cwd(), debug=debug)
 
 
 @cli.command()
@@ -379,51 +373,52 @@ def rm(ctx, path, debug, purge, force, repository_path, recursive, keep_local) -
         target_paths=target_paths,
     )
 
-    session = get_local_session_or_exit(db_path=mdm.db_path)
-    target_filepaths: List[Path] = []
-    tracked_dirs: Set[str] = set()
-    # Exit if any of provided paths is directory and --recursive flag is not set,
-    # otherwise collect all tracked paths and subdirectories, including the 'root' directory
-    # so that those can be deleted.
-    for path in target_paths:
-        # In case specified path doesn't exists, find all files that might be associated with this
-        # path in the database and add them for removal. This ensure that dangling
-        # objects are removed.
-        if not path.exists():
-            target_filepaths.extend(
-                md_utils.find_tracked_files_in_database(session=session, path=path)
-            )
-        elif path.is_dir():
-            if not recursive:
-                print(
-                    f"fatal: can't remove directory {path} without -r/--recursive flag",
-                    file=sys.stderr,
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        target_filepaths: List[Path] = []
+        tracked_dirs: Set[str] = set()
+        # Exit if any of provided paths is directory and --recursive flag is not set,
+        # otherwise collect all tracked paths and subdirectories, including the 'root' directory
+        # so that those can be deleted.
+        for path in target_paths:
+            # In case specified path doesn't exists, find all files that might be associated with this
+            # path in the database and add them for removal. This ensure that dangling
+            # objects are removed.
+            if not path.exists():
+                target_filepaths.extend(
+                    md_utils.find_tracked_files_in_database(
+                        session=local_session, path=path
+                    )
                 )
-                sys.exit(md_constants.MISSING_RECURSIVE_FLAG)
-            else:
-                files, dirs = md_utils.get_tracked_files_and_subdirectories(
-                    session=session, path=path
-                )
-                # If there are no files to be removed from a provided directory, inform
-                # user about this fact to avoid confusion when the 'rm' operation is successful
-                # but has no effect.
-                if not files:
-                    print(f"skip: {path}, no tracked files found")
+            elif path.is_dir():
+                if not recursive:
+                    print(
+                        f"fatal: can't remove directory {path} without -r/--recursive flag",
+                        file=sys.stderr,
+                    )
+                    sys.exit(md_constants.MISSING_RECURSIVE_FLAG)
                 else:
-                    target_filepaths.extend(files)
-                    tracked_dirs = tracked_dirs.union(dirs)
-        else:
-            target_filepaths.append(path)
+                    files, dirs = md_utils.get_tracked_files_and_subdirectories(
+                        session=local_session, path=path
+                    )
+                    # If there are no files to be removed from a provided directory, inform
+                    # user about this fact to avoid confusion when the 'rm' operation is successful
+                    # but has no effect.
+                    if not files:
+                        print(f"skip: {path}, no tracked files found")
+                    else:
+                        target_filepaths.extend(files)
+                        tracked_dirs = tracked_dirs.union(dirs)
+            else:
+                target_filepaths.append(path)
 
-    mdm.remove_files(
-        session=session,
-        filepaths=target_filepaths,
-        purge=purge,
-        debug=debug,
-        force=force,
-        keep_local=keep_local,
-    )
-    session.close()
+        mdm.remove_files(
+            session=local_session,
+            filepaths=target_filepaths,
+            purge=purge,
+            debug=debug,
+            force=force,
+            keep_local=keep_local,
+        )
 
     # Remove empty directories.
     # Traverse tracked directories from leaves to the root, removing each empty
@@ -483,15 +478,14 @@ def add(ctx, paths, debug, repository_path):
             print(f"fatal: {target_path} doesn't exist", file=sys.stderr)
             sys.exit(1)
 
-    session = get_local_session_or_exit(db_path=mdm.db_path)
-
-    for target_path in target_paths:
-        if target_path.is_file():
-            mdm.add_file(session=session, filepath=target_path, debug=debug)
-        elif target_path.is_dir():
-            mdm.add_directory(session=session, dirpath=target_path, debug=debug)
-
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        for target_path in target_paths:
+            if target_path.is_file():
+                mdm.add_file(session=local_session, filepath=target_path, debug=debug)
+            elif target_path.is_dir():
+                mdm.add_directory(
+                    session=local_session, dirpath=target_path, debug=debug
+                )
 
 
 @cli.command()
@@ -513,9 +507,10 @@ def refresh(ctx, repository_path, debug, verbose):
         md_config=mdm_config, path=source_path, debug=debug
     )
 
-    session = get_local_session_or_exit(db_path=mdm.db_path, debug=debug)
-    mdm.refresh_active_repository_records(session=session, debug=debug, verbose=verbose)
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.refresh_active_repository_records(
+            session=local_session, debug=debug, verbose=verbose
+        )
 
 
 @cli.command()
@@ -552,14 +547,19 @@ def setv(ctx, repository_path, key, value, file, debug, delete):
         md_config=mdm_config, path=source_path, debug=debug
     )
 
-    session = get_local_session_or_exit(db_path=mdm.db_path, debug=debug)
-    if delete:
-        mdm.delete_key(session=session, key=key, filepath=filepath, debug=debug)
-    else:
-        mdm.set_value(
-            session=session, key=key, value=value, filepath=filepath, debug=debug
-        )
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        if delete:
+            mdm.delete_key(
+                session=local_session, key=key, filepath=filepath, debug=debug
+            )
+        else:
+            mdm.set_value(
+                session=local_session,
+                key=key,
+                value=value,
+                filepath=filepath,
+                debug=debug,
+            )
 
 
 @cli.command()
@@ -631,17 +631,16 @@ def getv(ctx, key, file, all, filter, repository_path, debug):
         filter_key = filter_parts[0] if filter_parts[0] else None
         filter_value = filter_parts[1] if filter_parts[1] else None
 
-    session = get_local_session_or_exit(db_path=mdm.db_path, debug=debug)
-    mdm.get_value(
-        session=session,
-        filepath=filepath,
-        key=key,
-        get_all=all,
-        filter_key=filter_key,
-        filter_value=filter_value,
-        debug=debug,
-    )
-    session.close()
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.get_value(
+            session=local_session,
+            filepath=filepath,
+            key=key,
+            get_all=all,
+            filter_key=filter_key,
+            filter_value=filter_value,
+            debug=debug,
+        )
 
 
 if __name__ == "__main__":
