@@ -1,4 +1,4 @@
-from typing import List, Union, Optional, Tuple, Dict, Any, Set
+from typing import List, Union, Optional, Tuple, Dict, Any, Set, IO
 import shutil
 from collections import Counter
 import hashlib
@@ -26,7 +26,7 @@ def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
 
     # from docs (https://docs.python.org/3/library/stat.html):
     # stat.ST_CTIME
-    #     The “ctime” as reported by the operating system. On some systems (like Unix)
+
     #     is the time of the last metadata change, and, on others (like Windows),
     #     is the creation time (see platform documentation for details).
 
@@ -497,3 +497,45 @@ def register_local_repository(
         global_session.close()
 
     return None
+
+
+def print_centered_message(
+    message: str,
+    filler_char: str,
+    file: IO[str] | None = sys.stdout,
+    use_bold: bool = True,
+) -> None:
+    """
+    Displays centered message.
+    """
+
+    assert len(filler_char) == 1, f"Expected exactly one character. Got '{filler_char}'"
+
+    bold_esc_code = md_constants.BOLD if use_bold else ""
+    reset_esc_code = md_constants.RESET if use_bold else ""
+
+    terminal_width, _ = shutil.get_terminal_size()
+    total_filter_width = terminal_width - len(message)
+    one_side_filler_width = total_filter_width // 2
+
+    # Print one extra leading character if termial line is not fully filled
+    # after computing required lengths. This happens when message has odd length.
+    print_extra_leading_char = len(message) + one_side_filler_width * 2 < terminal_width
+    if print_extra_leading_char:
+        print(
+            f"{bold_esc_code}{filler_char}{filler_char * one_side_filler_width}{reset_esc_code}",
+            end="",
+            file=file,
+        )
+    else:
+        print(
+            f"{bold_esc_code}{filler_char * one_side_filler_width}{reset_esc_code}",
+            end="",
+            file=file,
+        )
+
+    print(f"{bold_esc_code}{message}{reset_esc_code}", end="", file=file)
+    print(
+        f"{bold_esc_code}{filler_char * one_side_filler_width}{reset_esc_code}",
+        file=file,
+    )

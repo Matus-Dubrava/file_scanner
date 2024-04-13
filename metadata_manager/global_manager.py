@@ -10,6 +10,7 @@ from models.global_models import RepositoriesORM
 import md_utils
 from manager import MetadataManager
 from db import LocalSession, GlobalSessionOrExit
+from md_constants import YELLOW, GREEN, RED, RESET
 
 
 class GlobalManager:
@@ -88,11 +89,17 @@ class GlobalManager:
             if debug:
                 print(f"{traceback.format_exception(valid_repos)}\n", file=sys.stderr)
 
-            print("fatal: failed to get list of repositories", file=sys.stderr)
+            print(
+                f"{RED}fatal:{RESET} failed to get list of repositories",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         refresh_outcome = GlobalRefreshOutcome.new()
         refresh_outcome.total_repositories = len(valid_repos)
+
+        md_utils.print_centered_message(message=" repositories ", filler_char="=")
+        print()
 
         for repo in valid_repos:
             try:
@@ -113,51 +120,54 @@ class GlobalManager:
 
                         if debug:
                             print(
-                                f"{traceback.format_exception(outcome.error)}\n",
+                                f"{RED}{traceback.format_exception(outcome.error)}\n{RESET}",
                                 file=sys.stderr,
                             )
 
-                        print(f"failed to refresh: {repo.path}", file=sys.stderr)
+                        print(
+                            f"{repo.path} {RED}(failed to refresh){RESET}",
+                            file=sys.stderr,
+                        )
 
                     # Record-specific errors.
                     if outcome.failed_paths:
                         refresh_outcome.refreshed_repositories_with_errors += 1
-                        print(f"refreshed with errors: {repo.path}")
+                        print(f"{repo.path} {YELLOW}(refreshed with errors){RESET}")
 
                         if verbose or debug:
                             for path_with_errors in outcome.failed_paths:
                                 for error in path_with_errors.errors:
                                     print(
-                                        f"\tfailed to refresh file: {path_with_errors.path}"
+                                        f"  {RED}(failed){RESET}\t{path_with_errors.path} "
                                     )
 
                                     if debug:
                                         print(
-                                            f"\terror: {traceback.format_exception(error)}\n",
+                                            f"\n{traceback.format_exception(error)}\n",
                                             file=sys.stderr,
                                         )
                     else:
                         refresh_outcome.refreshed_repositories += 1
-                        print(f"refreshed: {repo.path}")
+                        print(f"{repo.path} {GREEN}(refreshed){RESET}")
 
                     if outcome.successful_paths and verbose:
                         for path in outcome.successful_paths:
-                            print(f"\trefreshed file: {path}")
+                            print(f"  {GREEN}(successful){RESET}\t{path}")
 
             except Exception:
                 refresh_outcome.failed_repositories += 1
                 # Refresh all repositories that can be refreshed and log
                 # failed refreshes.
+                print(f"{repo.path} {RED}(failed to refresh){RESET}", file=sys.stderr)
                 if debug:
-                    print(f"{traceback.format_exc()}\n", file=sys.stderr)
-
-                print(f"refresh failed {repo.path}")
+                    print(f"\n{traceback.format_exc()}\n", file=sys.stderr)
 
         refresh_outcome.total_files = (
             refresh_outcome.failed_files + refresh_outcome.refreshed_files
         )
+
         print()
-        print("======== REFRESH SUMMARY ========")
+        md_utils.print_centered_message(message=" refresh summary ", filler_char="=")
         print()
         refresh_outcome.pretty_print()
 

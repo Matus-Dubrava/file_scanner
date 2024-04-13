@@ -17,6 +17,7 @@ from sqlalchemy.orm import relationship, declarative_base, Mapped, Session
 from models.types import PathType
 from models.mixins import ORMReprMixin
 from md_enums import FileStatus, BuildType
+from md_constants import GREEN, RESET, RED, YELLOW
 
 Base = declarative_base()
 
@@ -327,10 +328,14 @@ class GlobalRefreshOutcome(BaseModel):
 
     def pretty_print(self):
         print(f"total repositories:\t\t{self.total_repositories}")
-        print(f"\trefreshed:\t\t{self.refreshed_repositories}")
-        print(f"\trefreshed with errors:\t{self.refreshed_repositories_with_errors}")
-        print(f"\tfailed:\t\t\t{self.failed_repositories}")
+        print()
+        print(f"  {GREEN}refreshed:\t\t\t{self.refreshed_repositories}{RESET}")
+        print(
+            f"  {YELLOW}refreshed with errors:\t{self.refreshed_repositories_with_errors}{RESET}"
+        )
+        print(f"  {RED}failed:\t\t\t{self.failed_repositories}{RESET}")
         print()
         print(f"total files:\t\t\t{self.total_files}")
-        print(f"\trefreshed:\t\t{self.refreshed_files}")
-        print(f"\tfailed:\t\t\t{self.failed_files}")
+        print()
+        print(f"  {GREEN}refreshed:\t\t\t{self.refreshed_files}{RESET}")
+        print(f"  {RED}failed:\t\t\t{self.failed_files}{RESET}")
