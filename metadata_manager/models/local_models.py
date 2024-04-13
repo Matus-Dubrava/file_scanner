@@ -326,11 +326,11 @@ class GlobalRefreshOutcome(BaseModel):
         )
 
     def pretty_print(self):
-        print(f"total repositories: {self.total_repositories}")
-        print(f"\trefreshed: {self.refreshed_repositories}")
-        print(f"\trefreshed with errors: {self.refreshed_repositories_with_errors}")
-        print(f"\tfailed: {self.failed_repositories}")
+        print(f"total repositories:\t\t{self.total_repositories}")
+        print(f"\trefreshed:\t\t{self.refreshed_repositories}")
+        print(f"\trefreshed with errors:\t{self.refreshed_repositories_with_errors}")
+        print(f"\tfailed:\t\t\t{self.failed_repositories}")
         print()
-        print(f"total files: {self.total_files}")
-        print(f"\trefreshed: {self.refreshed_files}")
-        print(f"\tfailed: {self.failed_files}")
+        print(f"total files:\t\t\t{self.total_files}")
+        print(f"\trefreshed:\t\t{self.refreshed_files}")
+        print(f"\tfailed:\t\t\t{self.failed_files}")

@@ -155,6 +155,7 @@
         -   add option to list all repositories, their location and some other stats
     -   remove the logic that compares changed lines based on hashes and instead store the previous version of a file in plaintext, that way we can restore the file if necessary
     -   improvement: when `--repository-path` is provided together with file argument with relative filepath, use path relative to `--repository-path` instead of `cwd`, this applies to all commands where both `--repository-path` and file arguments can be used together
+    -   rename `setv` and `getv` to `set` and `get`
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist

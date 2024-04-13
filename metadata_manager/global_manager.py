@@ -107,8 +107,6 @@ class GlobalManager:
                     refresh_outcome.failed_files += len(outcome.failed_paths)
                     refresh_outcome.refreshed_files += len(outcome.successful_paths)
 
-                    print(f"outcome for {repo}: {outcome}")
-
                     # General error, not specific to individual record.
                     if outcome.error is not None:
                         refresh_outcome.failed_repositories += 1
