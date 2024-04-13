@@ -190,8 +190,7 @@ def test_init_creates_repository_table_with_parent_repo_info(
 def test_init_creates_record_in_global_database(
     init_cmd, working_dir, global_session, mdm_config
 ):
-    output = subprocess.check_output([*init_cmd, working_dir])
-    print(output)
+    subprocess.check_output([*init_cmd, working_dir])
 
     local_session = get_local_session_or_exit(
         db_path=working_dir.joinpath(
@@ -205,5 +204,104 @@ def test_init_creates_record_in_global_database(
     assert (
         global_session.query(RepositoriesORM)
         .filter_by(id=local_repository_record.id)
+        .first()
+    )
+
+
+@pytest.mark.f406dc4dd9
+@pytest.mark.cli
+@pytest.mark.init
+@pytest.mark.sanity
+def test_init_updates_repository_id_if_respoitory_exists_at_given_path_with_recreate(
+    init_cmd, working_dir, global_session, mdm_config
+):
+    subprocess.check_output([*init_cmd, working_dir])
+
+    local_session = get_local_session_or_exit(
+        db_path=working_dir.joinpath(
+            mdm_config.local_dir_name, mdm_config.local_db_name
+        )
+    )
+
+    local_repository_record_1 = local_session.query(RepositoryORM).first()
+    local_session.close()
+    assert local_repository_record_1
+
+    assert (
+        global_session.query(RepositoriesORM)
+        .filter_by(id=local_repository_record_1.id)
+        .first()
+    )
+
+    subprocess.check_output([*init_cmd, working_dir, "--recreate"])
+
+    local_session = get_local_session_or_exit(
+        db_path=working_dir.joinpath(
+            mdm_config.local_dir_name, mdm_config.local_db_name
+        )
+    )
+
+    local_repository_record_2 = local_session.query(RepositoryORM).first()
+    local_session.close()
+    assert local_repository_record_2
+
+    assert (
+        not global_session.query(RepositoriesORM)
+        .filter_by(id=local_repository_record_1.id)
+        .first()
+    )
+    assert (
+        global_session.query(RepositoriesORM)
+        .filter_by(id=local_repository_record_2.id)
+        .first()
+    )
+
+
+@pytest.mark.ab51d1defa
+@pytest.mark.cli
+@pytest.mark.init
+@pytest.mark.sanity
+def test_init_updates_repository_id_if_respoitory_exists_at_given_path_without_recreate(
+    init_cmd, working_dir, global_session, mdm_config
+):
+    subprocess.check_output([*init_cmd, working_dir])
+
+    local_session = get_local_session_or_exit(
+        db_path=working_dir.joinpath(
+            mdm_config.local_dir_name, mdm_config.local_db_name
+        )
+    )
+
+    local_repository_record_1 = local_session.query(RepositoryORM).first()
+    local_session.close()
+    assert local_repository_record_1
+
+    assert (
+        global_session.query(RepositoriesORM)
+        .filter_by(id=local_repository_record_1.id)
+        .first()
+    )
+
+    shutil.rmtree(working_dir.joinpath(mdm_config.local_dir_name))
+    subprocess.check_output([*init_cmd, working_dir])
+
+    local_session = get_local_session_or_exit(
+        db_path=working_dir.joinpath(
+            mdm_config.local_dir_name, mdm_config.local_db_name
+        )
+    )
+
+    local_repository_record_2 = local_session.query(RepositoryORM).first()
+    local_session.close()
+    assert local_repository_record_2
+
+    assert (
+        not global_session.query(RepositoriesORM)
+        .filter_by(id=local_repository_record_1.id)
+        .first()
+    )
+    assert (
+        global_session.query(RepositoriesORM)
+        .filter_by(id=local_repository_record_2.id)
         .first()
     )
