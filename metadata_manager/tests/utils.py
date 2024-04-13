@@ -1,4 +1,5 @@
 import subprocess
+import shutil
 from pathlib import Path
 import sqlite3
 
@@ -37,3 +38,17 @@ def assert_database_structure(db_path: Path):
         "file_metadata",
     ]
     assert sorted(expected_tables) == sorted([row[0] for row in data])
+
+
+def corrupt_sqlite_file(path: Path):
+    """
+    Corrupt sqlite file by removing the SQLite header (first 16 bytes).
+    """
+    tmp_db_path = Path(f"{path}_tmp")
+    with open(path, "rb") as sqlite_db:
+        with open(tmp_db_path, "wb") as tmp_sqlite_db:
+            sqlite_db.seek(16)
+            shutil.copyfileobj(sqlite_db, tmp_sqlite_db)
+
+    shutil.copyfile(tmp_db_path, path)
+    tmp_db_path.unlink()

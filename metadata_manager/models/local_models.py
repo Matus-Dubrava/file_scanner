@@ -1,7 +1,7 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from pathlib import Path
 from datetime import datetime
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Any
 
 from sqlalchemy import (
     Column,
@@ -266,3 +266,71 @@ class VersionInfo(BaseModel):
                 return version_info
         except Exception as err:
             return err
+
+
+class PathWithError(BaseModel):
+    path: Path
+    errors: List[Any]  # List of Exceptions
+
+    @field_validator("errors")
+    def validate_errors(cls, v):
+        for error in v:
+            if not isinstance(error, Exception):
+                raise ValueError(
+                    "All items in errors must be instances for Exception class"
+                )
+        return v
+
+
+class LocalRefreshOutcome(BaseModel):
+    successful_paths: List[Path]
+    failed_paths: List[PathWithError]
+    error: Optional[Any]  # Optional Exception
+
+    @field_validator("error")
+    def validate_errors(cls, v):
+        if v and not isinstance(v, Exception):
+            raise ValueError("Error must be either None or instance of Exception class")
+        return v
+
+    @staticmethod
+    def new() -> "LocalRefreshOutcome":
+        return LocalRefreshOutcome(successful_paths=[], failed_paths=[], error=None)
+
+    def add_failed_path(self, path: Path, errors: List[Exception]) -> None:
+        self.failed_paths.append(PathWithError(path=path, errors=errors))
+
+    def add_successful_path(self, path: Path) -> None:
+        self.successful_paths.append(path)
+
+
+class GlobalRefreshOutcome(BaseModel):
+    total_repositories: int
+    refreshed_repositories: int
+    refreshed_repositories_with_errors: int
+    failed_repositories: int
+    total_files: int
+    refreshed_files: int
+    failed_files: int
+
+    @staticmethod
+    def new() -> "GlobalRefreshOutcome":
+        return GlobalRefreshOutcome(
+            total_repositories=0,
+            refreshed_repositories=0,
+            refreshed_repositories_with_errors=0,
+            failed_repositories=0,
+            total_files=0,
+            refreshed_files=0,
+            failed_files=0,
+        )
+
+    def pretty_print(self):
+        print(f"total repositories: {self.total_repositories}")
+        print(f"\trefreshed: {self.refreshed_repositories}")
+        print(f"\trefreshed with errors: {self.refreshed_repositories_with_errors}")
+        print(f"\tfailed: {self.failed_repositories}")
+        print()
+        print(f"total files: {self.total_files}")
+        print(f"\trefreshed: {self.refreshed_files}")
+        print(f"\tfailed: {self.failed_files}")

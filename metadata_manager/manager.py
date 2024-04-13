@@ -25,6 +25,7 @@ from models.local_models import (
     FileListing,
     RepositoryStats,
     RepositoryMetadataORM,
+    LocalRefreshOutcome,
 )
 import md_utils
 
@@ -502,21 +503,30 @@ class MetadataManager:
 
         return errors if len(errors) else None
 
-    def refresh_active_repository_records(
-        self, session: Session, debug: bool = False, verbose: bool = False
-    ) -> None:
+    def _refresh_active_repository_records(
+        self, session: Session
+    ) -> LocalRefreshOutcome:
         """
-        Refreshes all active repository records, adding new history records and recreaing
+        Refreshes every active record - recomputes statistics, add new history records and recreates
         hash files.
-        """
-        tracked_filepaths = [
-            record.filepath
-            for record in session.query(FileORM)
-            .filter_by(status=FileStatus.ACTIVE)
-            .all()
-        ]
 
-        errors: List[Exception] = []
+        Returns refresh outcome:
+        - list of paths that were succesfully refreshed
+        - list of paths where refresh were unsuccessful, together with respective errors
+        - other error if occured
+        """
+        refresh_stats = LocalRefreshOutcome.new()
+
+        try:
+            tracked_filepaths = [
+                record.filepath
+                for record in session.query(FileORM)
+                .filter_by(status=FileStatus.ACTIVE)
+                .all()
+            ]
+        except Exception as exc:
+            refresh_stats.error = exc
+            return refresh_stats
 
         for filepath in tracked_filepaths:
             maybe_errors = self.refresh_repository_record(
@@ -526,23 +536,47 @@ class MetadataManager:
             )
 
             if maybe_errors is not None:
-                errors.extend(maybe_errors)
+                refresh_stats.add_failed_path(path=Path(filepath), errors=maybe_errors)
+            else:
+                refresh_stats.add_successful_path(path=Path(filepath))
 
-        if errors:
-            for error in errors:
-                if debug:
-                    print(f"{traceback.format_exception(error)}\n", file=sys.stderr)
+        return refresh_stats
 
-                print(error, file=sys.stderr)
+    def refresh_active_repository_records(
+        self,
+        session: Session,
+        debug: bool = False,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Refreshes every active record - recomputes statistics, add new history records and recreates
+        hash files.
+        """
 
-            sys.exit(1)
+        refresh_stats = self._refresh_active_repository_records(session=session)
+
+        if refresh_stats.error:
+            if debug:
+                print(
+                    f"{traceback.format_exception(refresh_stats.error)}\n",
+                    file=sys.stderr,
+                )
+
+            print("fatal: refresh failed", file=sys.stderr)
+
+        for failed_path in refresh_stats.failed_paths:
+            if debug:
+                for exc in failed_path.errors:
+                    print(f"{traceback.format_exception(exc)}]n", file=sys.stderr)
+
+            print(f"failed to refresh: {failed_path.path}", file=sys.stderr)
 
         if verbose:
-            for filepath in tracked_filepaths:
-                print(f"refresh: {Path(filepath).relative_to(self.repository_root)}")
+            for successful_path in refresh_stats.successful_paths:
+                print(f"refresh: {successful_path.relative_to(self.repository_root)}")
             print()
 
-        print(f"refreshed {len(tracked_filepaths)} records")
+        print(f"refresh: {len(refresh_stats.successful_paths)} records")
 
     def write_version_info_to_db(
         self, session: Session, commit: bool = True

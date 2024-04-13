@@ -4,6 +4,7 @@ import shutil
 import os
 
 from manager import MetadataManager
+from global_manager import GlobalManager
 from models.local_models import Config
 from db import get_local_session_or_exit, get_global_session_or_exit
 
@@ -116,6 +117,11 @@ def global_ls_cmd(md_cmd):
     return [*md_cmd, "global", "ls"]
 
 
+@pytest.fixture(scope="module")
+def global_refresh_cmd(md_cmd):
+    return [*md_cmd, "global", "refresh"]
+
+
 @pytest.fixture(scope="function")
 def mdm_config():
     with open(Path(__file__).parent / "config" / ".mdconfig_dev", "r") as f:
@@ -160,3 +166,8 @@ def global_session(working_dir, mdm_config):
     print(f"[{__name__}] session established, global database: {global_db_path}")
     yield session
     session.close()
+
+
+@pytest.fixture(scope="function")
+def global_manager(mdm_config):
+    return GlobalManager(config=mdm_config)

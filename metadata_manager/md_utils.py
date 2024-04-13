@@ -477,8 +477,6 @@ def register_local_repository(
     except Exception as exc:
         return exc
 
-    print(f"writing global record to: {db_path}")
-
     try:
         global_repository_record = (
             global_session.query(RepositoriesORM).filter_by(path=path).first()

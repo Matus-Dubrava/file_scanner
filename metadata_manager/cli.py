@@ -666,10 +666,34 @@ def global_group(ctx):
     help="Show debug information",
 )
 @click.pass_context
-def global_ls_command(ctx, debug, all):
+def global_ls_cmd(ctx, debug, all):
     gm = GlobalManager(config=ctx.obj["config"])
     with GlobalSessionOrExit(db_path=gm.db_path) as global_session:
         gm.list_repositories(session=global_session, debug=debug, all_=all)
+
+
+@global_group.command(name="refresh")
+@click.option(
+    "--verbose",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Display path of every file that is being refreshed. By default, only repositories are displayed.",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Show debug information",
+)
+@click.pass_context
+def global_refresh_cmd(ctx, debug, verbose):
+    gm = GlobalManager(config=ctx.obj["config"])
+    with GlobalSessionOrExit(db_path=gm.db_path) as global_session:
+        gm.refresh_all_repositories(
+            session=global_session, debug=debug, verbose=verbose
+        )
 
 
 if __name__ == "__main__":
