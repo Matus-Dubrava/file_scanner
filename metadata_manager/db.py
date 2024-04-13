@@ -108,3 +108,35 @@ class LocalSessionOrExit:
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.session.commit()
         self.session.close()
+
+
+class GlobalSession:
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+
+    def __enter__(self) -> Session:
+        session = _create_or_get_session(
+            db_path=self.db_path, declarative_base=GlobalBase
+        )
+        if isinstance(session, Exception):
+            raise session
+
+        self.session = session
+        return self.session
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.session.commit()
+        self.session.close()
+
+
+class GlobalSessionOrExit:
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+
+    def __enter__(self) -> Session:
+        self.session = get_global_session_or_exit(db_path=self.db_path)
+        return self.session
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.session.commit()
+        self.session.close()

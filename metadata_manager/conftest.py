@@ -111,6 +111,11 @@ def getv_cmd(md_cmd):
     return [*md_cmd, "getv"]
 
 
+@pytest.fixture(scope="module")
+def global_ls_cmd(md_cmd):
+    return [*md_cmd, "global", "ls"]
+
+
 @pytest.fixture(scope="function")
 def mdm_config():
     with open(Path(__file__).parent / "config" / ".mdconfig_dev", "r") as f:

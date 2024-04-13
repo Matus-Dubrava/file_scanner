@@ -5,11 +5,12 @@ from typing import List, Set
 import click
 
 from manager import MetadataManager
+from global_manager import GlobalManager
 from models.local_models import Config
 from md_enums import FileStatus
 import md_constants
 import cli_utils
-from db import LocalSessionOrExit
+from db import LocalSessionOrExit, GlobalSessionOrExit
 import md_utils
 
 
@@ -641,6 +642,34 @@ def getv(ctx, key, file, all, filter, repository_path, debug):
             filter_value=filter_value,
             debug=debug,
         )
+
+
+@cli.group(name="global")
+@click.pass_context
+def global_group(ctx):
+    pass
+
+
+@global_group.command(name="ls")
+@click.option(
+    "--all",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help=("Display every repository. By default only those that exist are displayed."),
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Show debug information",
+)
+@click.pass_context
+def global_ls_command(ctx, debug, all):
+    gm = GlobalManager(config=ctx.obj["config"])
+    with GlobalSessionOrExit(db_path=gm.db_path) as global_session:
+        gm.list_repositories(session=global_session, debug=debug, all_=all)
 
 
 if __name__ == "__main__":
