@@ -76,3 +76,22 @@ def get_global_session_or_exit(db_path: Path, debug: bool = False) -> Session:
     return _get_session_or_exit(
         db_path=db_path, declarative_base=GlobalBase, debug=debug
     )
+
+
+class LocalSession:
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+
+    def __enter__(self) -> Session:
+        session = _create_or_get_session(
+            db_path=self.db_path, declarative_base=LocalBase
+        )
+        if isinstance(session, Exception):
+            raise session
+
+        self.session = session
+        return self.session
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.session.commit()
+        self.session.close()

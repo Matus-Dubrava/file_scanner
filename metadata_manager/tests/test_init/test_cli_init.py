@@ -8,7 +8,7 @@ from build import write_build_info
 from md_enums import BuildType
 from models.local_models import VersionInfoORM, RepositoryORM
 from models.global_models import RepositoriesORM
-from db import get_local_session_or_exit
+from db import get_local_session_or_exit, LocalSession
 from manager import MetadataManager
 
 
@@ -190,22 +190,21 @@ def test_init_creates_repository_table_with_parent_repo_info(
 def test_init_creates_record_in_global_database(
     init_cmd, working_dir, global_session, mdm_config
 ):
+    local_db_path = working_dir.joinpath(
+        mdm_config.local_dir_name, mdm_config.local_db_name
+    )
+
     subprocess.check_output([*init_cmd, working_dir])
 
-    local_session = get_local_session_or_exit(
-        db_path=working_dir.joinpath(
-            mdm_config.local_dir_name, mdm_config.local_db_name
+    with LocalSession(db_path=local_db_path) as local_session:
+        local_repository_record = local_session.query(RepositoryORM).first()
+
+        assert local_repository_record
+        assert (
+            global_session.query(RepositoriesORM)
+            .filter_by(id=local_repository_record.id)
+            .first()
         )
-    )
-
-    local_repository_record = local_session.query(RepositoryORM).first()
-    assert local_repository_record
-
-    assert (
-        global_session.query(RepositoriesORM)
-        .filter_by(id=local_repository_record.id)
-        .first()
-    )
 
 
 @pytest.mark.f406dc4dd9
@@ -215,46 +214,33 @@ def test_init_creates_record_in_global_database(
 def test_init_updates_repository_id_if_respoitory_exists_at_given_path_with_recreate(
     init_cmd, working_dir, global_session, mdm_config
 ):
+    local_db_path = working_dir.joinpath(
+        mdm_config.local_dir_name, mdm_config.local_db_name
+    )
+
+    first_repo_id = None
+
     subprocess.check_output([*init_cmd, working_dir])
 
-    local_session = get_local_session_or_exit(
-        db_path=working_dir.joinpath(
-            mdm_config.local_dir_name, mdm_config.local_db_name
-        )
-    )
+    with LocalSession(db_path=local_db_path) as local_session:
+        local_repo = local_session.query(RepositoryORM).first()
+        first_repo_id = local_repo.id
 
-    local_repository_record_1 = local_session.query(RepositoryORM).first()
-    local_session.close()
-    assert local_repository_record_1
-
-    assert (
-        global_session.query(RepositoriesORM)
-        .filter_by(id=local_repository_record_1.id)
-        .first()
-    )
+        assert local_repo
+        assert global_session.query(RepositoriesORM).filter_by(id=local_repo.id).first()
 
     subprocess.check_output([*init_cmd, working_dir, "--recreate"])
 
-    local_session = get_local_session_or_exit(
-        db_path=working_dir.joinpath(
-            mdm_config.local_dir_name, mdm_config.local_db_name
+    with LocalSession(db_path=local_db_path) as local_session:
+        local_repo = local_session.query(RepositoryORM).first()
+        assert local_repo
+
+        assert (
+            not global_session.query(RepositoriesORM)
+            .filter_by(id=first_repo_id)
+            .first()
         )
-    )
-
-    local_repository_record_2 = local_session.query(RepositoryORM).first()
-    local_session.close()
-    assert local_repository_record_2
-
-    assert (
-        not global_session.query(RepositoriesORM)
-        .filter_by(id=local_repository_record_1.id)
-        .first()
-    )
-    assert (
-        global_session.query(RepositoriesORM)
-        .filter_by(id=local_repository_record_2.id)
-        .first()
-    )
+        assert global_session.query(RepositoriesORM).filter_by(id=local_repo.id).first()
 
 
 @pytest.mark.ab51d1defa
@@ -264,44 +250,31 @@ def test_init_updates_repository_id_if_respoitory_exists_at_given_path_with_recr
 def test_init_updates_repository_id_if_respoitory_exists_at_given_path_without_recreate(
     init_cmd, working_dir, global_session, mdm_config
 ):
+    local_db_path = working_dir.joinpath(
+        mdm_config.local_dir_name, mdm_config.local_db_name
+    )
+
+    first_repo_id = None
+
     subprocess.check_output([*init_cmd, working_dir])
 
-    local_session = get_local_session_or_exit(
-        db_path=working_dir.joinpath(
-            mdm_config.local_dir_name, mdm_config.local_db_name
-        )
-    )
+    with LocalSession(db_path=local_db_path) as local_session:
+        local_repo = local_session.query(RepositoryORM).first()
+        assert local_repo
 
-    local_repository_record_1 = local_session.query(RepositoryORM).first()
-    local_session.close()
-    assert local_repository_record_1
-
-    assert (
-        global_session.query(RepositoriesORM)
-        .filter_by(id=local_repository_record_1.id)
-        .first()
-    )
+        first_repo_id = local_repo.id
+        assert global_session.query(RepositoriesORM).filter_by(id=local_repo.id).first()
 
     shutil.rmtree(working_dir.joinpath(mdm_config.local_dir_name))
     subprocess.check_output([*init_cmd, working_dir])
 
-    local_session = get_local_session_or_exit(
-        db_path=working_dir.joinpath(
-            mdm_config.local_dir_name, mdm_config.local_db_name
+    with LocalSession(db_path=local_db_path) as local_session:
+        local_repo = local_session.query(RepositoryORM).first()
+        assert local_repo
+
+        assert (
+            not global_session.query(RepositoriesORM)
+            .filter_by(id=first_repo_id)
+            .first()
         )
-    )
-
-    local_repository_record_2 = local_session.query(RepositoryORM).first()
-    local_session.close()
-    assert local_repository_record_2
-
-    assert (
-        not global_session.query(RepositoriesORM)
-        .filter_by(id=local_repository_record_1.id)
-        .first()
-    )
-    assert (
-        global_session.query(RepositoriesORM)
-        .filter_by(id=local_repository_record_2.id)
-        .first()
-    )
+        assert global_session.query(RepositoriesORM).filter_by(id=local_repo.id).first()
