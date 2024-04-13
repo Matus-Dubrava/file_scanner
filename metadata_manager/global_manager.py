@@ -18,6 +18,12 @@ class GlobalManager:
     def _list_repositories(
         self, session: Session, all_: bool = False
     ) -> List[RepositoriesORM] | Exception:
+        """
+        Returns list of repositories.
+
+        all_:   Return only repositories that exists in FS. If repository is deleted,
+                its record in database is not automatically removed.
+        """
         try:
             repos = session.query(RepositoriesORM).all()
 
@@ -31,6 +37,8 @@ class GlobalManager:
     def _is_valid(self, path: Path) -> bool:
         """
         Checks if repository exists at given path.
+
+        path:   Repository path.
         """
 
         return path.joinpath(self.config.local_dir_name).exists()
@@ -38,6 +46,14 @@ class GlobalManager:
     def list_repositories(
         self, session: Session, debug: bool = False, all_: bool = False
     ) -> None:
+        """
+        Displays list of repositories.
+
+        session:    Global database session.
+        debug:      Display debug information.
+        all_:       Return only repositories that exists in FS. If repository is deleted,
+                    its record in database is not automatically removed.
+        """
         repos = self._list_repositories(session=session, all_=all_)
 
         if isinstance(repos, Exception):
