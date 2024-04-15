@@ -15,7 +15,7 @@ import md_constants
 from models.local_models import FileStat, LineChanges, Config, FileORM, HistoryORM
 from models.global_models import RepositoriesORM
 from md_enums import FileStatus
-from db import get_global_session_or_exit
+from db import GlobalSession
 
 
 def get_file_created_timestamp(filepath: Path) -> Union[datetime, Exception]:
@@ -473,28 +473,22 @@ def register_local_repository(
     _, db_path = get_global_paths(config)
 
     try:
-        global_session = get_global_session_or_exit(db_path=db_path)
+        with GlobalSession(db_path=db_path) as global_session:
+            global_repository_record = (
+                global_session.query(RepositoriesORM).filter_by(path=path).first()
+            )
+
+            # If record with the same filepath exists, update its ID.
+            # This handles case when local repository has been recreated.
+            if global_repository_record:
+                global_repository_record.id = repository_id
+            else:
+                global_repository_record = RepositoriesORM(id=repository_id, path=path)
+
+            global_session.add(global_repository_record)
+            global_session.commit()
     except Exception as exc:
         return exc
-
-    try:
-        global_repository_record = (
-            global_session.query(RepositoriesORM).filter_by(path=path).first()
-        )
-
-        # If record with the same filepath exists, update its ID.
-        # This handles case when local repository has been recreated.
-        if global_repository_record:
-            global_repository_record.id = repository_id
-        else:
-            global_repository_record = RepositoriesORM(id=repository_id, path=path)
-
-        global_session.add(global_repository_record)
-        global_session.commit()
-    except Exception as exc:
-        return exc
-    finally:
-        global_session.close()
 
     return None
 

@@ -158,6 +158,8 @@
     -   rename `setv` and `getv` to `set` and `get`
     -   add proper logging to `GlobalManager`
     -   refactor pydantic models into separate file
+    -   improve `show --history` formatting, add nicer headers + log pagination
+    -   change `init` when running on existing repository, instead of showing error message, it should register repository in global database if the corresponding record doesn't exist yet
 
 -   DONE:
     -   test case which covers that `mdm init` creates target dir if it doesn't exist

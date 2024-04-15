@@ -101,7 +101,9 @@ class MetadataManager:
                 db_path=local_db_path,
             )
 
-            local_session = get_local_session_or_exit(db_path=local_db_path)
+            local_session = get_local_session_or_exit(
+                db_path=local_db_path, debug=debug
+            )
             local_session.add(local_repository_record)
 
             # Register local repository in global database.

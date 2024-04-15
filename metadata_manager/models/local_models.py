@@ -84,7 +84,9 @@ class FileMetadataORM(Base, ORMReprMixin):
 
     file: Mapped[FileORM] = relationship("FileORM", back_populates="file_metadata")
 
-    __table_args__ = (UniqueConstraint("filepath", "key", name="unique_filepath_key"),)
+    __table_args__ = (
+        UniqueConstraint("filepath", "key", name="unique__filepath__key"),
+    )
 
 
 class HistoryORM(Base, ORMReprMixin):
@@ -313,6 +315,7 @@ class GlobalRefreshOutcome(BaseModel):
     total_files: int
     refreshed_files: int
     failed_files: int
+    duration: float
 
     @staticmethod
     def new() -> "GlobalRefreshOutcome":
@@ -324,6 +327,7 @@ class GlobalRefreshOutcome(BaseModel):
             total_files=0,
             refreshed_files=0,
             failed_files=0,
+            duration=0.0,
         )
 
     def pretty_print(self):
