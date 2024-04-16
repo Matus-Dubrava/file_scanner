@@ -4,6 +4,7 @@ import uuid
 import time
 import traceback
 import sys
+import logging
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -27,13 +28,34 @@ from md_constants import YELLOW, GREEN, RED, RESET
 
 
 class GlobalManager:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, debug: bool = False):
         self.config = config
-        self.dir_path, self.db_path = md_utils.get_global_paths(config)
+        self.dir_path, self.db_path, self.log_dir = md_utils.get_global_paths(config)
+
+        self.debug_logger = self._get_logger_or_exit(log_dir=self.log_dir, debug=debug)
 
         # Initalize global database if it doesn't exists.
         with GlobalSessionOrExit(db_path=self.db_path):
             pass
+
+    def _get_logger_or_exit(self, log_dir: Path, debug: bool = False) -> logging.Logger:
+        """
+        Returns logger of exits if provided log directory is not a directory
+        or new one can't be created.
+
+        log_dir:    Log directory.
+        debug:      Display debug information.
+        """
+
+        debug_logger_or_err = md_utils.get_logger(log_dir=log_dir)
+        if isinstance(debug_logger_or_err, Exception):
+            print(f"fatal: {debug_logger_or_err}")
+            if debug:
+                traceback.print_exception(debug_logger_or_err)
+
+            sys.exit(1)
+
+        return debug_logger_or_err
 
     def _is_valid_repository(self, path: Path) -> bool:
         """
@@ -82,10 +104,21 @@ class GlobalManager:
         repos = self._list_repositories(session=session, all_=all_)
 
         if isinstance(repos, Exception):
-            if debug:
-                print(f"{traceback.format_exception(repos)}\n", file=sys.stderr)
+            traceback_msg = traceback.format_exception(repos)
+            error_msg = "fatal: failed to list repositories"
 
-            print("fatal: failed to list repositories", file=sys.stderr)
+            if debug:
+                print(f"{traceback_msg}\n", file=sys.stderr)
+
+            print(error_msg, file=sys.stderr)
+
+            md_utils.log_message(
+                logger=self.debug_logger,
+                log_level=logging.ERROR,
+                message=error_msg,
+                error=repos,
+            )
+
             sys.exit(1)
 
         return repos
@@ -214,6 +247,179 @@ class GlobalManager:
 
         return None
 
+    def _log_and_display_paths_with_errors(
+        self,
+        repository_path: Path | str,
+        repository_refresh_outcome: LocalRefreshOutcome,
+        debug: bool = False,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Logs and displays paths that encountered errors during refresh.
+        By default, result is logged only to log file. Use 'debug' and/or 'verbose'
+        to log to standard output as well.
+
+        repository_path:                Repository's root directory.
+        repository_refresh_outcome:     Refresh outcome of local repository.
+        debug:                          Display all debug information.
+        verbose:                        Display only failed paths without error tracebacks.
+        """
+
+        print(f"{repository_path} {YELLOW}[refreshed with errors]{RESET}")
+        md_utils.log_message(
+            logger=self.debug_logger,
+            log_level=logging.WARNING,
+            message=f"{repository_path} [refreshed with errors]",
+        )
+
+        if verbose or debug:
+            for path_with_errors in repository_refresh_outcome.failed_paths:
+                for error in path_with_errors.errors:
+                    print(f"  {RED}[failed]{RESET}\t{path_with_errors.path}")
+
+                    if debug:
+                        traceback.print_exception(error, file=sys.stderr)
+
+        for path_with_errors in repository_refresh_outcome.failed_paths:
+            for error in path_with_errors.errors:
+                md_utils.log_message(
+                    logger=self.debug_logger,
+                    log_level=logging.ERROR,
+                    message=f"[failed] {path_with_errors.path}",
+                    error=error,
+                )
+
+    def _log_and_display_repository_level_refresh_error(
+        self,
+        repository_path: str | Path,
+        error: Exception,
+        debug: bool = False,
+    ):
+        """
+        Logs and displays error that occured at during refresh at repository level,
+        meaning that something was wrong with the respoitory itself, not with individual
+        files.
+
+        repository_path:                Repository's root directory.
+        error:                          Error encountered while processing repository.
+        debug:                          Display all debug information.
+        """
+
+        print(
+            f"{repository_path} {RED}[failed to refresh]{RESET}",
+            file=sys.stderr,
+        )
+
+        if debug:
+            traceback.print_exception(error, file=sys.stderr)
+
+        md_utils.log_message(
+            logger=self.debug_logger,
+            log_level=logging.ERROR,
+            message=f"{repository_path} [failed to refresh]",
+            error=error,
+        )
+
+    def _log_and_display_repository_refresh_success_message(
+        self, repository_path: str | Path
+    ) -> None:
+        """
+        Logs and displays repository refresh success message.
+
+        repository_path:    Repository's root directory.
+        """
+
+        print(f"{repository_path} {GREEN}[refreshed]{RESET}")
+        md_utils.log_message(
+            logger=self.debug_logger,
+            log_level=logging.INFO,
+            message=f"{repository_path} [refreshed]",
+        )
+
+    def _log_and_display_successful_paths(
+        self, repository_refresh_outcome: LocalRefreshOutcome, verbose: bool = False
+    ) -> None:
+        """
+        Logs successfully refreshed paths to DEBUG log file and optionally to console.
+
+        repository_refresh_outcome:     Refresh outcome of local repository.
+        verbose:                        Print successful paths to conosle.
+        """
+
+        if repository_refresh_outcome.successful_paths and verbose:
+            for path in repository_refresh_outcome.successful_paths:
+                print(f"  {GREEN}[successful]{RESET}\t{path}")
+
+        if repository_refresh_outcome.successful_paths:
+            for path in repository_refresh_outcome.successful_paths:
+                md_utils.log_message(
+                    logger=self.debug_logger,
+                    log_level=logging.DEBUG,
+                    message=f"[successful] {path}",
+                )
+
+    def _log_and_display_global_refresh_summary(
+        self,
+        global_refresh_outcome: GlobalRefreshOutcome,
+        duration: float,
+        errors_while_getting_file_statistics: List[Exception],
+        error_writing_result: Exception | None = None,
+        debug: bool = False,
+    ) -> None:
+        """
+        Logs and displays global refresh summary statistics and errors encountered during refresh.
+
+        global_refresh_outcome:                 Outcome of global refresh.
+        duration:                               Refresh duration.
+        errors_while_getting_file_statistics:   Errors encoundered while computing file statistics.
+        error_writing_result:                   Error encountered while writing refresh outcome to database.
+        debug:                                  Display debug information.
+        """
+
+        print()
+        md_utils.print_centered_message(
+            message=f" refresh summary (in {duration}s) ", filler_char="=", new_lines=1
+        )
+        global_refresh_outcome.pretty_print()
+
+        md_utils.log_message(
+            logger=self.debug_logger,
+            log_level=logging.INFO,
+            message=global_refresh_outcome.get_log_str(),
+        )
+        md_utils.log_message(
+            logger=self.debug_logger,
+            log_level=logging.INFO,
+            message=f"global refresh finished in {duration}s",
+        )
+
+        if errors_while_getting_file_statistics:
+            if debug:
+                print("errors while getting files statitics:", file=sys.stderr)
+                for error in errors_while_getting_file_statistics:
+                    traceback.print_exception(error, file=sys.stderr)
+
+            for error in errors_while_getting_file_statistics:
+                md_utils.log_message(
+                    logger=self.debug_logger,
+                    log_level=logging.ERROR,
+                    message="error while getting file statitics",
+                    error=error,
+                )
+
+        if error_writing_result:
+            if debug:
+                traceback.print_exception(error_writing_result, file=sys.stderr)
+
+            print("\nerror: failed to write refresh records to database")
+
+            md_utils.log_message(
+                logger=self.debug_logger,
+                log_level=logging.ERROR,
+                message="error: failed to write refresh records to database",
+                error=error_writing_result,
+            )
+
     def refresh_all_repositories(
         self, session: Session, debug: bool = False, verbose: bool = False
     ) -> GlobalRefreshOutcome:
@@ -227,11 +433,15 @@ class GlobalManager:
 
         start = time.time()
 
+        md_utils.log_message(
+            logger=self.debug_logger,
+            log_level=logging.INFO,
+            message="start global refresh",
+        )
+
         valid_repos = self._list_repositories_or_exit(session=session)
 
-        errors_while_getting_file_statistics: List[Exception] = (
-            []
-        )  # TODO: this one should be used once loggin is implemented
+        errors_while_getting_file_statistics: List[Exception] = []
 
         refresh_outcome = GlobalRefreshOutcome.new()
         refresh_outcome.total_repositories = len(valid_repos)
@@ -241,8 +451,9 @@ class GlobalManager:
         repository_refresh_outcome = LocalRefreshOutcome.new()
         refresh_files_by_repository: Dict[str, List[RefreshFileORM]] = {}
 
-        md_utils.print_centered_message(message=" repositories ", filler_char="=")
-        print()
+        md_utils.print_centered_message(
+            message=" repositories ", filler_char="=", new_lines=1
+        )
 
         for repo in valid_repos:
             try:
@@ -271,48 +482,34 @@ class GlobalManager:
                         repository_refresh_outcome.successful_paths
                     )
 
-                    # General error, not specific to individual record.
+                    # Repository-level error.
                     if repository_refresh_outcome.error is not None:
                         refresh_outcome.failed_repositories += 1
-
-                        if debug:
-                            print(
-                                f"{RED}{traceback.format_exception(repository_refresh_outcome.error)}\n{RESET}",
-                                file=sys.stderr,
-                            )
-
-                        print(
-                            f"{repo.path} {RED}(failed to refresh){RESET}",
-                            file=sys.stderr,
+                        self._log_and_display_repository_level_refresh_error(
+                            repository_path=repo.path,
+                            error=repository_refresh_outcome.error,
+                            debug=debug,
                         )
 
-                    # Record-specific errors.
+                    # File-specific errors.
                     if repository_refresh_outcome.failed_paths:
                         refresh_outcome.refreshed_repositories_with_errors += 1
-                        print(f"{repo.path} {YELLOW}(refreshed with errors){RESET}")
-
-                        if verbose or debug:
-                            for (
-                                path_with_errors
-                            ) in repository_refresh_outcome.failed_paths:
-                                for error in path_with_errors.errors:
-                                    print(
-                                        f"  {RED}(failed){RESET}\t{path_with_errors.path} "
-                                    )
-
-                                    if debug:
-                                        print(
-                                            f"\n{traceback.format_exception(error)}\n",
-                                            file=sys.stderr,
-                                        )
+                        self._log_and_display_paths_with_errors(
+                            repository_path=repo.path,
+                            repository_refresh_outcome=repository_refresh_outcome,
+                            debug=debug,
+                            verbose=verbose,
+                        )
                     else:
                         refresh_outcome.refreshed_repositories += 1
-                        print(f"{repo.path} {GREEN}(refreshed){RESET}")
+                        self._log_and_display_repository_refresh_success_message(
+                            repository_path=repo.path
+                        )
 
-                    if repository_refresh_outcome.successful_paths and verbose:
-                        for path in repository_refresh_outcome.successful_paths:
-                            print(f"  {GREEN}(successful){RESET}\t{path}")
-
+                    self._log_and_display_successful_paths(
+                        repository_refresh_outcome=repository_refresh_outcome,
+                        verbose=verbose,
+                    )
             except Exception as exc:
                 # Refresh all repositories that can be refreshed and log
                 # failed refreshes.
@@ -321,9 +518,10 @@ class GlobalManager:
                 repository_error_tb = ",".join(traceback.format_exception(exc)).replace(
                     "\n", " "
                 )
-                print(f"{repo.path} {RED}(failed to refresh){RESET}", file=sys.stderr)
-                if debug:
-                    print(f"\n{traceback.format_exc()}\n", file=sys.stderr)
+
+                self._log_and_display_repository_level_refresh_error(
+                    repository_path=repo.path, error=exc, debug=debug
+                )
 
             refresh_repositories.append(
                 RefreshRepositoryORM(
@@ -365,21 +563,12 @@ class GlobalManager:
             refresh_files_by_repository=refresh_files_by_repository,
         )
 
-        # Display outcome.
-        print()
-        md_utils.print_centered_message(
-            message=f" refresh summary (in {duration}s) ", filler_char="="
+        self._log_and_display_global_refresh_summary(
+            global_refresh_outcome=refresh_outcome,
+            errors_while_getting_file_statistics=errors_while_getting_file_statistics,
+            error_writing_result=error_writing_result,
+            duration=duration,
+            debug=debug,
         )
-        print()
-        refresh_outcome.pretty_print()
-
-        if error_writing_result:
-            print()
-            print("error: failed to write refresh records to database")
-            if debug:
-                print(
-                    f"\n{traceback.format_exception(error_writing_result)}",
-                    file=sys.stderr,
-                )
 
         return refresh_outcome

@@ -667,7 +667,7 @@ def global_group(ctx):
 )
 @click.pass_context
 def global_ls_cmd(ctx, debug, all):
-    gm = GlobalManager(config=ctx.obj["config"])
+    gm = GlobalManager(config=ctx.obj["config"], debug=debug)
     with GlobalSessionOrExit(db_path=gm.db_path) as global_session:
         gm.list_repositories(session=global_session, debug=debug, all_=all)
 
@@ -689,7 +689,7 @@ def global_ls_cmd(ctx, debug, all):
 )
 @click.pass_context
 def global_refresh_cmd(ctx, debug, verbose):
-    gm = GlobalManager(config=ctx.obj["config"])
+    gm = GlobalManager(config=ctx.obj["config"], debug=debug)
     with GlobalSessionOrExit(db_path=gm.db_path) as global_session:
         gm.refresh_all_repositories(
             session=global_session, debug=debug, verbose=verbose

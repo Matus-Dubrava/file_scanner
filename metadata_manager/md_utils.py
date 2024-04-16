@@ -1,4 +1,7 @@
 from typing import List, Union, Optional, Tuple, Dict, Any, Set, IO
+import traceback
+import logging
+from logging.handlers import RotatingFileHandler
 import shutil
 from collections import Counter
 import hashlib
@@ -449,18 +452,20 @@ def get_tracked_files_and_subdirectories(
     return tracked_files, tracked_dirs
 
 
-def get_global_paths(config: Config) -> Tuple[Path, Path]:
+def get_global_paths(config: Config) -> Tuple[Path, Path, Path]:
     """
-    Computes paths to global directory and database.
+    Computes paths to global directory, database and log files.
     """
+
     if config.global_path.startswith("~"):
         dir_path = Path(config.global_path).expanduser()
     else:
         dir_path = Path(config.global_path)
 
+    log_dir = dir_path.joinpath(config.global_log_dir)
     db_path = dir_path.joinpath(config.global_db_name)
 
-    return dir_path, db_path
+    return dir_path, db_path, log_dir
 
 
 def register_local_repository(
@@ -470,7 +475,7 @@ def register_local_repository(
     Register local repository in global database or update existing
     record.
     """
-    _, db_path = get_global_paths(config)
+    _, db_path, _ = get_global_paths(config)
 
     try:
         with GlobalSession(db_path=db_path) as global_session:
@@ -498,9 +503,15 @@ def print_centered_message(
     filler_char: str,
     file: IO[str] | None = sys.stdout,
     use_bold: bool = True,
+    new_lines: int = 0,
 ) -> None:
     """
     Displays centered message.
+
+    message:    Message to be displayed.
+    file:       File-like object.
+    use_bold:   Apply bold formatting.
+    new_lines:  Add 'n' new lines after message. Defaults to 0.
     """
 
     assert len(filler_char) == 1, f"Expected exactly one character. Got '{filler_char}'"
@@ -533,3 +544,67 @@ def print_centered_message(
         f"{bold_esc_code}{filler_char * one_side_filler_width}{reset_esc_code}",
         file=file,
     )
+
+    for _ in range(new_lines):
+        print()
+
+
+def get_logger(log_dir: Path) -> logging.Logger | Exception:
+    """
+    Returns file logger.
+
+    log_dir:    Log directory. Must be directory or new one is created.
+    """
+
+    # Log path must be directory if it exists.
+    if log_dir.exists() and not log_dir.is_dir():
+        return Exception(f"log path '{log_dir}' is not a directory")
+
+    if not log_dir.exists():
+        log_dir.mkdir(parents=True)
+
+    logger = logging.getLogger("global_manager_logger")
+    logger.setLevel(logging.DEBUG)
+
+    file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+    # Debug file handler.
+    debug_file_handler = RotatingFileHandler(
+        log_dir.joinpath("debug.log"), maxBytes=5 * 1024 * 1024, backupCount=2
+    )
+    debug_file_handler.setLevel(logging.DEBUG)
+    debug_file_handler.setFormatter(file_formatter)
+    logger.addHandler(debug_file_handler)
+
+    # Info file handler.
+    info_file_handler = RotatingFileHandler(
+        log_dir.joinpath("info.log"), maxBytes=5 * 1024 * 1024, backupCount=2
+    )
+    info_file_handler.setLevel(logging.INFO)
+    info_file_handler.setFormatter(file_formatter)
+    logger.addHandler(info_file_handler)
+
+    return logger
+
+
+def log_message(
+    logger: logging.Logger,
+    log_level: int,
+    message: str | None = None,
+    error: Exception | None = None,
+) -> None:
+    """
+    Log formatted error message.
+    """
+
+    msg = message if message is not None else ""
+
+    if error:
+        formatted_traceback = ",".join(traceback.format_exception(error)).replace(
+            "\n", " "
+        )
+        error_msg = str(error)
+        msg += f" | error_msg: {error_msg}"
+        msg += f" | error_traceback: {formatted_traceback}"
+
+    logger.log(level=log_level, msg=msg)

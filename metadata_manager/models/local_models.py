@@ -224,6 +224,7 @@ class Config(BaseModel):
     local_db_name: str
     global_db_name: str
     global_path: str
+    global_log_dir: str
 
     @staticmethod
     def from_file(path: Path) -> Union["Config", Exception]:
@@ -341,3 +342,14 @@ class GlobalRefreshOutcome(BaseModel):
         print(f"total files:\t\t\t{self.total_files}")
         print(f"  {GREEN}refreshed:\t\t\t{self.refreshed_files}{RESET}")
         print(f"  {RED}failed:\t\t\t{self.failed_files}{RESET}")
+
+    def get_log_str(self) -> str:
+        return (
+            f"total repositories: {self.total_repositories}, "
+            f"refreshed repositories: {self.refreshed_repositories}, "
+            f"refreshed repositories with error: {self.refreshed_repositories_with_errors}, "
+            f"failed repositories: {self.failed_repositories}, "
+            f"total files: {self.total_files}, "
+            f"refreshed files: {self.refreshed_files}, "
+            f"failed files: {self.failed_files}"
+        )
