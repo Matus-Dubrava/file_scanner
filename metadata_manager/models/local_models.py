@@ -223,6 +223,8 @@ class GlobalPaths(BaseModel):
     path: str
     db_name: str
     log_dirname: str
+    info_log_filename: str
+    debug_log_filename: str
 
 
 class Config(BaseModel):
@@ -232,7 +234,6 @@ class Config(BaseModel):
 
     @staticmethod
     def from_file(path: Path) -> Union["Config", Exception]:
-
         try:
             config = Config.model_validate_json(path.read_text())
 
@@ -254,6 +255,12 @@ class Config(BaseModel):
 
     def get_global_log_path(self) -> Path:
         return Path(self.global_paths.path).joinpath(self.global_paths.log_dirname)
+
+    def get_global_info_log_filepath(self) -> Path:
+        return self.get_global_log_path().joinpath(self.global_paths.info_log_filename)
+
+    def get_global_debug_log_filepath(self) -> Path:
+        return self.get_global_log_path().joinpath(self.global_paths.debug_log_filename)
 
 
 class FileStat(BaseModel):

@@ -34,22 +34,21 @@ class GlobalManager:
         self.db_path = config.get_global_db_path()
         self.log_dir = config.get_global_log_path()
 
-        self.debug_logger = self._get_logger_or_exit(log_dir=self.log_dir, debug=debug)
+        self.debug_logger = self._get_logger_or_exit(debug=debug)
 
         # Initalize global database if it doesn't exists.
         with GlobalSessionOrExit(db_path=self.db_path):
             pass
 
-    def _get_logger_or_exit(self, log_dir: Path, debug: bool = False) -> logging.Logger:
+    def _get_logger_or_exit(self, debug: bool = False) -> logging.Logger:
         """
         Returns logger of exits if provided log directory is not a directory
         or new one can't be created.
 
-        log_dir:    Log directory.
         debug:      Display debug information.
         """
 
-        debug_logger_or_err = md_utils.get_logger(log_dir=log_dir)
+        debug_logger_or_err = md_utils.get_logger(config=self.config)
         if isinstance(debug_logger_or_err, Exception):
             print(f"fatal: {debug_logger_or_err}")
             if debug:

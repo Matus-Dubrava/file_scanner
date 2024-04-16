@@ -533,12 +533,15 @@ def print_centered_message(
         print()
 
 
-def get_logger(log_dir: Path) -> logging.Logger | Exception:
+def get_logger(config: Config) -> logging.Logger | Exception:
     """
-    Returns file logger.
+    Returns file logger which logs messages for 'debug' and 'info' log files based
+    on log level.
 
-    log_dir:    Log directory. Must be directory or new one is created.
+    config:     Config object.
     """
+
+    log_dir = config.get_global_log_path()
 
     # Log path must be directory if it exists.
     if log_dir.exists() and not log_dir.is_dir():
@@ -554,7 +557,7 @@ def get_logger(log_dir: Path) -> logging.Logger | Exception:
 
     # Debug file handler.
     debug_file_handler = RotatingFileHandler(
-        log_dir.joinpath("debug.log"), maxBytes=5 * 1024 * 1024, backupCount=2
+        config.get_global_debug_log_filepath(), maxBytes=5 * 1024 * 1024, backupCount=2
     )
     debug_file_handler.setLevel(logging.DEBUG)
     debug_file_handler.setFormatter(file_formatter)
@@ -562,7 +565,7 @@ def get_logger(log_dir: Path) -> logging.Logger | Exception:
 
     # Info file handler.
     info_file_handler = RotatingFileHandler(
-        log_dir.joinpath("info.log"), maxBytes=5 * 1024 * 1024, backupCount=2
+        config.get_global_info_log_filepath(), maxBytes=5 * 1024 * 1024, backupCount=2
     )
     info_file_handler.setLevel(logging.INFO)
     info_file_handler.setFormatter(file_formatter)

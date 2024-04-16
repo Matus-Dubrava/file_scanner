@@ -4,6 +4,8 @@
     "global_paths": {
         "path": "/tmp/global_working_dir",
         "db_name": "repositories.db",
-        "log_dirname": "logs"
+        "log_dirname": "logs",
+        "info_log_filename": "info.log",
+        "debug_log_filename": "debug.log"
     }
 }

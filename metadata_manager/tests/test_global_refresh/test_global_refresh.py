@@ -518,3 +518,150 @@ def test_global_manager_doesnt_overwrite_refresh_statisitcs_for_files_replaced_b
             running_lines_added=3,
             running_lines_removed=1,
         )
+
+
+@pytest.mark.ebd0b99e11
+@pytest.mark.global_
+@pytest.mark.refresh
+@pytest.mark.sanity
+def test_refresh_produces_logs(working_dir, mdm_config, global_manager):
+    mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+
+    file_1 = working_dir.joinpath("file_1")
+
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.touch(session=local_session, filepath=file_1)
+
+    with GlobalSessionOrExit(db_path=global_manager.db_path) as global_session:
+        global_manager.refresh_all_repositories(session=global_session)
+
+    assert mdm_config.get_global_log_path().exists()
+
+    info_log = mdm_config.get_global_info_log_filepath()
+    debug_log = mdm_config.get_global_debug_log_filepath()
+    assert info_log.exists()
+    assert debug_log.exists()
+
+    assert len(info_log.read_text()) != 0
+    assert len(debug_log.read_text()) != 0
+
+    assert "traceback" not in info_log.read_text().lower()
+    assert "traceback" not in debug_log.read_text().lower()
+
+
+@pytest.mark.e60e75540e
+@pytest.mark.global_
+@pytest.mark.refresh
+@pytest.mark.sanity
+def test_global_refresh_logs_traceback_on_file_level_failure(
+    working_dir, mdm_config, global_manager
+):
+    mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+
+    file_1 = working_dir.joinpath("file_1")
+
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.touch(session=local_session, filepath=file_1)
+
+    # remove the file
+    file_1.unlink()
+
+    with GlobalSessionOrExit(db_path=global_manager.db_path) as global_session:
+        global_manager.refresh_all_repositories(session=global_session)
+
+    assert mdm_config.get_global_log_path().exists()
+
+    info_log = mdm_config.get_global_info_log_filepath()
+    debug_log = mdm_config.get_global_debug_log_filepath()
+
+    assert "traceback" in info_log.read_text().lower()
+    assert "traceback" in debug_log.read_text().lower()
+
+
+@pytest.mark.bfa38e859b
+@pytest.mark.global_
+@pytest.mark.refresh
+@pytest.mark.sanity
+def test_global_refresh_logs_traceback_on_repository_level_error(
+    working_dir, mdm_config, global_manager
+):
+    mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+
+    # corrupt the database
+    test_utils.corrupt_sqlite_file(path=mdm.db_path)
+
+    with GlobalSessionOrExit(db_path=global_manager.db_path) as global_session:
+        global_manager.refresh_all_repositories(session=global_session)
+
+    info_log = mdm_config.get_global_info_log_filepath()
+    debug_log = mdm_config.get_global_debug_log_filepath()
+
+    assert "traceback" in info_log.read_text().lower()
+    assert "traceback" in debug_log.read_text().lower()
+
+
+@pytest.mark.d01456a09e
+@pytest.mark.global_
+@pytest.mark.refresh
+@pytest.mark.sanity
+def test_global_refresh_info_log_is_subset_of_debug_log(
+    working_dir, mdm_config, global_manager
+):
+    file_1 = working_dir.joinpath("file_1")
+    file_2 = working_dir.joinpath("file_2")
+    mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.touch(session=local_session, filepath=file_1)
+        mdm.touch(session=local_session, filepath=file_2)
+
+        with GlobalSessionOrExit(db_path=global_manager.db_path) as global_session:
+            global_manager.refresh_all_repositories(session=global_session)
+
+        mdm.remove_file(session=local_session, filepath=file_1)
+        mdm.touch(session=local_session, filepath=working_dir.joinpath("file_3"))
+
+        with GlobalSessionOrExit(db_path=global_manager.db_path) as global_session:
+            global_manager.refresh_all_repositories(session=global_session)
+
+    info_log = mdm_config.get_global_info_log_filepath()
+    debug_log = mdm_config.get_global_debug_log_filepath()
+
+    with open(info_log, "r") as info_log_file:
+        debug_text = debug_log.read_text()
+
+        for line in info_log_file:
+            assert line in debug_text
+
+
+@pytest.mark.dfdcb4e122
+@pytest.mark.global_
+@pytest.mark.refresh
+@pytest.mark.sanity
+def test_global_refresh_appends_to_log_files(working_dir, mdm_config, global_manager):
+    file_1 = working_dir.joinpath("file_1")
+    mdm = MetadataManager.new(md_config=mdm_config, path=working_dir)
+
+    info_log = mdm_config.get_global_info_log_filepath()
+    debug_log = mdm_config.get_global_debug_log_filepath()
+
+    with LocalSessionOrExit(db_path=mdm.db_path) as local_session:
+        mdm.touch(session=local_session, filepath=file_1)
+
+    with GlobalSessionOrExit(db_path=global_manager.db_path) as global_session:
+        global_manager.refresh_all_repositories(session=global_session)
+
+    info_text = info_log.read_text()
+    debug_text = debug_log.read_text()
+
+    with GlobalSessionOrExit(db_path=global_manager.db_path) as global_session:
+        global_manager.refresh_all_repositories(session=global_session)
+
+    updated_info_text = info_log.read_text()
+    updated_debug_text = debug_log.read_text()
+
+    assert debug_text in updated_debug_text
+    assert len(updated_debug_text) > len(debug_text)
+
+    assert info_text in updated_info_text
+    assert len(updated_info_text) > len(info_text)
