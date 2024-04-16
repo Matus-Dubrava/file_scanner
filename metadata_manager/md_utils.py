@@ -452,22 +452,6 @@ def get_tracked_files_and_subdirectories(
     return tracked_files, tracked_dirs
 
 
-def get_global_paths(config: Config) -> Tuple[Path, Path, Path]:
-    """
-    Computes paths to global directory, database and log files.
-    """
-
-    if config.global_path.startswith("~"):
-        dir_path = Path(config.global_path).expanduser()
-    else:
-        dir_path = Path(config.global_path)
-
-    log_dir = dir_path.joinpath(config.global_log_dir)
-    db_path = dir_path.joinpath(config.global_db_name)
-
-    return dir_path, db_path, log_dir
-
-
 def register_local_repository(
     repository_id: str, path: Path, config: Config
 ) -> Optional[Exception]:
@@ -475,7 +459,7 @@ def register_local_repository(
     Register local repository in global database or update existing
     record.
     """
-    _, db_path, _ = get_global_paths(config)
+    db_path = config.get_global_db_path()
 
     try:
         with GlobalSession(db_path=db_path) as global_session:

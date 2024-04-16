@@ -35,11 +35,11 @@ def working_dir(working_dir_path, monkeypatch, mdm_config):
     if working_dir_path.exists():
         shutil.rmtree(working_dir_path)
 
-    if Path(mdm_config.global_path).exists():
-        shutil.rmtree(mdm_config.global_path)
+    if Path(mdm_config.global_paths.path).exists():
+        shutil.rmtree(mdm_config.global_paths.path)
 
     os.makedirs(working_dir_path)
-    os.makedirs(mdm_config.global_path)
+    os.makedirs(mdm_config.global_paths.path)
 
     print(f"[{__name__}] created working dir: {working_dir_path}")
     monkeypatch.chdir(working_dir_path)
@@ -48,7 +48,7 @@ def working_dir(working_dir_path, monkeypatch, mdm_config):
     yield working_dir_path
 
     shutil.rmtree(working_dir_path)
-    shutil.rmtree(mdm_config.global_path)
+    shutil.rmtree(mdm_config.global_paths.path)
 
 
 @pytest.fixture(scope="module")
@@ -161,7 +161,7 @@ def session(mdm):
 
 @pytest.fixture(scope="function")
 def global_session(working_dir, mdm_config):
-    global_db_path = Path(mdm_config.global_path).joinpath(mdm_config.global_db_name)
+    global_db_path = mdm_config.get_global_db_path()
     session = get_global_session_or_exit(db_path=global_db_path)
     print(f"[{__name__}] session established, global database: {global_db_path}")
     yield session

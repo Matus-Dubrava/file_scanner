@@ -219,19 +219,41 @@ class RepositoryStats(BaseModel):
         print(f"Removed Lines Count:\t{self.removed_lines_count}")
 
 
+class GlobalPaths(BaseModel):
+    path: str
+    db_name: str
+    log_dirname: str
+
+
 class Config(BaseModel):
     local_dir_name: str
     local_db_name: str
-    global_db_name: str
-    global_path: str
-    global_log_dir: str
+    global_paths: GlobalPaths
 
     @staticmethod
     def from_file(path: Path) -> Union["Config", Exception]:
+
         try:
-            return Config.model_validate_json(path.read_text())
+            config = Config.model_validate_json(path.read_text())
+
+            if config.global_paths.path.startswith("~"):
+                dir_path = Path(config.global_paths.path).expanduser()
+            else:
+                dir_path = Path(config.global_paths.path)
+
+            config.global_paths.path = str(dir_path)
+            return config
         except Exception as exc:
             return exc
+
+    def get_global_dir_path(self) -> Path:
+        return Path(self.global_paths.path)
+
+    def get_global_db_path(self) -> Path:
+        return Path(self.global_paths.path).joinpath(self.global_paths.db_name)
+
+    def get_global_log_path(self) -> Path:
+        return Path(self.global_paths.path).joinpath(self.global_paths.log_dirname)
 
 
 class FileStat(BaseModel):

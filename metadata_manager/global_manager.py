@@ -30,7 +30,9 @@ from md_constants import YELLOW, GREEN, RED, RESET
 class GlobalManager:
     def __init__(self, config: Config, debug: bool = False):
         self.config = config
-        self.dir_path, self.db_path, self.log_dir = md_utils.get_global_paths(config)
+        self.dir_path = config.get_global_dir_path()
+        self.db_path = config.get_global_db_path()
+        self.log_dir = config.get_global_log_path()
 
         self.debug_logger = self._get_logger_or_exit(log_dir=self.log_dir, debug=debug)
 
