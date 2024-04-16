@@ -1,6 +1,6 @@
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
 from sqlalchemy.orm import declarative_base, Mapped, relationship, Session
 from sqlalchemy import (
@@ -11,6 +11,8 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Float,
+    text,
+    Result,
 )
 
 from models.types import PathType
@@ -52,6 +54,91 @@ class RefreshLogORM(Base, ORMReprMixin):
         return (
             session.query(RefreshLogORM).order_by(RefreshLogORM.taken_at.desc()).first()
         )
+
+    @staticmethod
+    def get_file_changes_between_datetimes(
+        session: Session, start: datetime, end: datetime
+    ) -> Result[Any]:
+        # TODO: can't use the start time directly, need to ensure that there
+        # are at least two refresh log records in the specified time frame.
+        # * if there is no refresh log record within specified time frame, return empty list
+        # * if there is just one refresh log record, expand the time frame into past to include
+        #   the previous log record
+        #   - if there is no previous record, meaning that the one that we have found is the first log record,
+        #     don't subtract the running counts, just return the ones found in this one
+
+        sql = """
+            WITH files_with_first_last_taken_at
+            AS (
+                SELECT 
+                    rf.id AS refresh_file_id,
+                    rf.path AS file_path,
+                    rr.path AS repository_path,
+                    rf.running_lines_added AS running_lines_added,
+                    rf.running_lines_removed AS running_lines_removed, 
+                    rl.taken_at as taken_at,
+                    MIN(rl.taken_at) OVER (PARTITION BY rf.path) AS first_taken_at,
+                    MAX(rl.taken_at) OVER (PARTITION BY rf.path) AS last_taken_at
+                FROM refresh_log AS rl
+                JOIN refresh_repository AS rr
+                    ON rl.id = rr.refresh_id
+                JOIN refresh_file AS rf
+                    ON rr.id = rf.refresh_repository_id
+                WHERE rf.error_occured = 0
+                    AND rl.taken_at >= :start_date
+                    AND rl.taken_at <= :end_date
+            ),
+            first_running_lines 
+            AS (
+                SELECT
+                    refresh_file_id,
+                    file_path,
+                    repository_path,
+                    running_lines_added,
+                    running_lines_removed,
+                    taken_at
+                FROM files_with_first_last_taken_at
+                WHERE taken_at = first_taken_at
+            ),
+            last_running_lines 
+            AS (
+                SELECT
+                    refresh_file_id,
+                    file_path,
+                    repository_path,
+                    running_lines_added,
+                    running_lines_removed,
+                    taken_at
+                FROM files_with_first_last_taken_at
+                WHERE taken_at = last_taken_at
+            )
+
+            SELECT 
+                f.file_path,
+                f.repository_path,
+                -- Note about these case statements. This is used to handle edge cases 
+                -- when within the specified period, the file was recreated and the first 
+                -- refresh record has the old counts while the last refresh record has the
+                -- new counts. This is mostly a workaround just to avoid negative values but 
+                -- in such case, counts will be incorrect for the specified period. 
+                -- This is not a critical problem for now because of how this function is intended
+                -- to be used but it is something to keep in mind.
+                CASE 
+                    WHEN l.running_lines_added - f.running_lines_added >= 0 
+                    THEN l.running_lines_added - f.running_lines_added
+                    ELSE 0
+                END AS running_lines_added,
+                CASE 
+                    WHEN l.running_lines_removed - f.running_lines_removed >= 0 
+                    THEN l.running_lines_removed - f.running_lines_removed
+                    ELSE 0
+                END AS running_lines_removed 
+            FROM first_running_lines as f
+            JOIN last_running_lines as l
+                ON f.file_path = l.file_path
+        """
+
+        return session.execute(text(sql), {"start_date": start, "end_date": end})
 
 
 class RefreshRepositoryORM(Base, ORMReprMixin):
