@@ -156,7 +156,6 @@
     -   remove the logic that compares changed lines based on hashes and instead store the previous version of a file in plaintext, that way we can restore the file if necessary
     -   improvement: when `--repository-path` is provided together with file argument with relative filepath, use path relative to `--repository-path` instead of `cwd`, this applies to all commands where both `--repository-path` and file arguments can be used together
     -   rename `setv` and `getv` to `set` and `get`
-    -   add proper logging to `GlobalManager`
     -   refactor pydantic models into separate file
     -   improve `show --history` formatting, add nicer headers + log pagination
     -   change `init` when running on existing repository, instead of showing error message, it should register repository in global database if the corresponding record doesn't exist yet
@@ -205,3 +204,4 @@
     -   add Mixins to the Sqlalchemy models implementing `__repr__` method
     -   add `--repository-path` option to `rm` so that it can be run from outside of `mdm` repository
     -   add repository summary statistics to `show` output
+    -   add proper logging to `GlobalManager`
